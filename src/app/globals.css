@@ -2,10 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+  font-variant-ligatures: none;
+}
+
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("/fonts/SourceCodePro.ttf");
+}
+
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TT_Firs_Neue.ttf");
+}
+
+@keyframes spinGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@layer base {
+  :root {
+    --tw-color-stop-1: theme("colors.zkIndigo60") 1%, 0%;
+    --tw-color-stop-2: theme("colors.zkIndigo60") 1%, 7%;
+    --tw-color-stop-3: theme("colors.zkDarkerBackground") 30%,
+      theme("colors.zkDarkerBackground") 70%;
+    --tw-color-stop-4: theme("colors.zkLightRed") 105%,
+      theme("colors.zkLightRed");
+  }
+}
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+}
+
+@layer utilities {
+  .custom-gradient {
+    @apply bg-gradient-to-br from-zkLightPurple to-zkPurple;
+    background-image: linear-gradient(170deg, var(--tw-gradient-stops));
+    --tw-gradient-stops: var(--tw-color-stop-1), var(--tw-color-stop-2),
+      var(--tw-color-stop-3), var(--tw-color-stop-4);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .footer-box {
+    --mask: conic-gradient(from 45deg at 40px 40px, #000 75%, #0000 0) -40px;
+    -webkit-mask: var(--mask);
+    mask: var(--mask);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
