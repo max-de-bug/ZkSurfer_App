@@ -109,9 +109,8 @@ const Onboarding: React.FC = () => {
               {steps.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-2 h-2 rounded-full  ${
-                    index === currentStep ? "bg-white" : "bg-gray-600"
-                  }`}
+                  className={`w-2 h-2 rounded-full  ${index === currentStep ? "bg-white" : "bg-gray-600"
+                    }`}
                 />
               ))}
             </div>
@@ -124,12 +123,10 @@ const Onboarding: React.FC = () => {
             {steps[currentStep].description}
           </p>
 
-          {/* Next or Get Started button */}
           {currentStep < steps.length - 1 ? (
             <ButtonV1 onClick={handleNext}>Next</ButtonV1>
           ) : (
-          // <CustomWalletButton/>
-          <DynamicWidget />
+            <CustomWalletButton />
           )}
         </div>
       )}

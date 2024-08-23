@@ -2,6 +2,7 @@
 // import { Inter } from "next/font/google";
 // import "./globals.css";
 // import AppWalletProvider from "@/component/AppWalletProvider";
+// import { SessionProvider } from "next-auth/react"
 
 // const inter = Inter({ subsets: ["latin"] });
 
@@ -18,9 +19,11 @@
 //   return (
 //     <html lang="en">
 //       <body className={inter.className}>
-//       <AppWalletProvider>
-//       {children}
-//       </AppWalletProvider>
+//         <AppWalletProvider>
+//           <SessionProvider>
+//             {children}
+//           </SessionProvider>
+//         </AppWalletProvider>
 //       </body>
 //     </html>
 //   );
@@ -30,8 +33,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AppWalletProvider from "@/component/AppWalletProvider";
-import { DynamicContextProvider, DynamicWidget } from '@dynamic-labs/sdk-react-core';
-import { SolanaWalletConnectors } from "@dynamic-labs/solana";
+import Providers from "@/component/Provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -48,17 +50,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <DynamicContextProvider
-          settings={{
-            environmentId: '364b8543-a4b7-4a37-a301-20f6f687364d',
-            walletConnectors: [SolanaWalletConnectors],
-          }}
-        >
-          {/* <AppWalletProvider> */}
-            {/* <DynamicWidget /> */}
+        <Providers>  {/* Use the new Providers component */}
+          <AppWalletProvider>
             {children}
-          {/* </AppWalletProvider> */}
-        </DynamicContextProvider>
+          </AppWalletProvider>
+        </Providers>
       </body>
     </html>
   );
