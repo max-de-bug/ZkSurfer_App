@@ -1,8 +1,7 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { NextAuthOptions } from "next-auth";
 
-export const authOptions: NextAuthOptions = {
+const authOptions: AuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -10,13 +9,14 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async redirect({ url, baseUrl }: { url: string; baseUrl: string }): Promise<string> {
-      // Redirect to the congratulations page after successful sign-in
-      return `${baseUrl}/congratulations`;
-    }
-  }
+    async signIn({ user, account, profile, email, credentials }) {
+      return true;
+    },
+    async redirect({ url, baseUrl }) {
+      return `${baseUrl}/auth-callback`;
+    },
+  },
 };
 
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

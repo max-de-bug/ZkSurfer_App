@@ -1,0 +1,21 @@
+{
+    "name": "ZkSurfer",
+    "short_name": "App",
+    "description": "Your app description",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#152376",
+    "theme_color": "#3E54CF",
+    "icons": [
+        {
+            "src": "/images/192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/images/512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

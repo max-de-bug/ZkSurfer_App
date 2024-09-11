@@ -21,7 +21,7 @@ const Congratulations: React.FC = () => {
                     <h1 className="text-3xl mb-8">Login Successful</h1>
                 </div>
                 <div>
-                    <ButtonV2 func={() => router.push('/dashboard')}>
+                    <ButtonV2 func={() => router.push('/permissions')}>
                         GET STARTED
                     </ButtonV2>
                 </div>
