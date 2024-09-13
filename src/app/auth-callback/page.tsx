@@ -11,6 +11,7 @@ const AuthCallback: React.FC = () => {
 
     useEffect(() => {
         const sendCredentials = async () => {
+            console.log('session?.user?.email', session?.user?.email)
             if (session?.user?.email && publicKey) {
                 try {
                     const response = await fetch('https://zynapse.zkagi.ai/api/app-credentials', {
