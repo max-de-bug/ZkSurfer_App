@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import tools from './tools.json';
 
-interface CustomResponse extends OpenAI.Chat.Completions.ChatCompletionMessage {
+interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMessage, 'content'> {
     generateImage?: string;
     proof?: string;
+    content?: string | null;
+    type?: 'img' | 'text';
 }
 
 const client = new OpenAI({
@@ -77,7 +79,7 @@ async function generate_image(prompt: string) {
 
     const result = await response.json();
     console.log('result', result);
-    return 'Image generated successfully';
+    return result.image;
 }
 
 export async function POST(request: Request) {
@@ -95,28 +97,39 @@ export async function POST(request: Request) {
         await generateKeys();
 
         // Add system prompt
-        const tool_prompt = `You are an AI model with function calling capabilities. You are provided with function signatures within <tools></tools> XML tags. Your primary goal is to respond directly to user queries using your own knowledge and capabilities.
+        const tool_prompt = `You are an advanced AI assistant with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
 
-        Only call functions when it is absolutely necessary to respond accurately to the user's query or when the function would provide critical information that you don't have access to. If you can answer the query directly without calling a function, always do so.
-        
-        Before considering a function call, carefully evaluate if the information is truly needed and not already within your knowledge base. Function calls should be a last resort, not a default action.
-        
-        When a function call is deemed necessary:
-        1. Verify that the function is listed within the provided tools.
-        2. Do not make assumptions about function argument values.
-        3. Call multiple functions in series if needed to gather all necessary information.
-        
-        For each required function call, return a JSON object with the function name and arguments within <tool_call></tool_call> XML tags as follows:
-        <tool_call>
-        {"name": "<function-name>", "arguments": <args-dict>}
-        </tool_call>
-        
-        Here are the available tools, to be used only when absolutely necessary:
-        <tools>
-        ${JSON.stringify(tools)}
-        </tools>
-        
-        Remember, your primary mode of operation is to use your own knowledge and capabilities. Only use these tools when it's truly required to provide an accurate and complete response to the user's query.`;
+<tools>
+${JSON.stringify(tools)}
+</tools>
+
+Guidelines for tool usage:
+
+1. Rely primarily on your own knowledge and capabilities. This should be your default approach for answering queries.
+
+2. Use tools only when absolutely necessary. Consider using a tool if:
+   - The query explicitly requires real-time or external data you cannot access otherwise.
+   - The task involves specialized computations or data processing beyond your built-in capabilities.
+   - You need to verify critical information that you're unsure about.
+
+3. Before using a tool, carefully evaluate:
+   - Is the information truly essential to answer the query?
+   - Is there any way to provide a satisfactory response without the tool?
+   - Will the tool provide significant value beyond what you can offer directly?
+
+4. If you determine a tool is necessary:
+   - Verify the tool is listed in the provided <tools> section.
+   - Use only the arguments required by the tool signature.
+   - Call multiple tools in sequence if needed to gather all necessary information.
+
+5. To use a tool, format your request as follows:
+   <tool_call>
+   {"name": "<function-name>", "arguments": <args-dict>}
+   </tool_call>
+
+6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
+
+Remember: Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.`;
 
 
         // Add system message to the beginning of the messages array
@@ -150,6 +163,7 @@ export async function POST(request: Request) {
                         case 'generate_image':
                             const generatedImage = await generate_image(toolCall.arguments.prompt);
                             finalResponse.content = generatedImage;
+                            finalResponse.type = 'img';
                             console.log('finalResponse', finalResponse)
                             break;
                         // Add cases for other tool calls as needed

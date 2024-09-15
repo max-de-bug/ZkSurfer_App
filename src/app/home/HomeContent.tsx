@@ -13,6 +13,8 @@ import { useSession } from 'next-auth/react';
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    type?: 'img' | 'text';
+    proof?: any;
 }
 
 const HomeContent: FC = () => {
@@ -64,7 +66,15 @@ const HomeContent: FC = () => {
             if (!response.ok) throw new Error('Failed to get response');
 
             const data = await response.json();
-            const assistantMessage: Message = { role: 'assistant', content: data.content };
+            console.log('api', data)
+            const assistantMessage: Message = {
+                role: 'assistant',
+                content: data.content,
+                proof: data.proof,
+                ...(data.type && {
+                    type: data.type
+                }),
+            };
             setMessages((prev) => [...prev, assistantMessage]);
         } catch (error) {
             console.error('Error:', error);
@@ -102,6 +112,30 @@ const HomeContent: FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDownload = async (proof: any) => {
+        console.log('proof', proof)
+        let file: any
+        try {
+            file = await (window as any).showSaveFilePicker({
+                suggestedName: 'proff.json',
+                types: [
+                    {
+                        description: 'JSON file',
+                        accept: {
+                            'application/json': ['.json'],
+                        },
+                    },
+                ],
+            })
+        } catch {
+            return console.log('User aborted file')
+        }
+
+        const writeStream = await file.createWritable()
+        await writeStream.write(JSON.stringify(proof, null, 4))
+        await writeStream.close()
     };
 
     return (
@@ -196,10 +230,13 @@ const HomeContent: FC = () => {
                                 </div>
                             )}
                             <div className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                <span className="text-sm text-gray-400 mb-1">
-                                    {message.role === 'user' ? userEmail : 'ZkSurfer 🐯'}
-                                </span>
-                                <div
+                                <div>
+                                    <span className="text-sm text-gray-400 mb-1">
+                                        {message.role === 'user' ? userEmail : 'ZkSurfer 🐯'}
+                                    </span>
+                                    {message.role === 'assistant' && <button onClick={() => handleDownload(message.proof)}>Download</button>}
+                                </div>
+                                {[undefined, 'text'].includes(message.type) ? <div
                                     className={`inline-block p-3 rounded-lg ${message.role === 'user'
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-gray-700 text-white'
@@ -207,6 +244,9 @@ const HomeContent: FC = () => {
                                 >
                                     {message.content}
                                 </div>
+                                    : <div>
+                                        <img src={`data:image/jpeg;base64,${message.content}`} />
+                                    </div>}
                             </div>
                             {message.role === 'user' && (
                                 <div className="flex-shrink-0 ml-3">
