@@ -97,7 +97,7 @@ export async function POST(request: Request) {
         await generateKeys();
 
         // Add system prompt
-        const tool_prompt = `You are an advanced AI assistant with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
+        const tool_prompt = `You are an advanced AI assistant named ZKSurfer made by ZkAGI with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
 
 <tools>
 ${JSON.stringify(tools)}
