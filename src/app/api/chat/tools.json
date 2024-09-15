@@ -1,0 +1,22 @@
+[
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_image",
+            "description": "Generate an image based on a provided text prompt. Use this function whenever you need to create a visual representation of a concept or idea.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "The text prompt describing the desired image."
+                    }
+                },
+                "required": [
+                    "prompt"
+                ],
+                "additionalProperties": "False"
+            }
+        }
+    }
+]
