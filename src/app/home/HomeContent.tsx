@@ -30,6 +30,9 @@ const HomeContent: FC = () => {
     const [proofData, setProofData] = useState(null);
     const [resultType, setResultType] = useState('');
 
+    const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
+    const [apiMessages, setApiMessages] = useState<Message[]>([]);
+
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -47,47 +50,120 @@ const HomeContent: FC = () => {
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
+    // const handleSubmit = async (e: React.FormEvent) => {
+    //     e.preventDefault();
+    //     if (!inputMessage.trim()) return;
+
+    //     const userMessage: Message = { role: 'user', content: inputMessage };
+    //     setMessages((prev) => [...prev, userMessage]);
+    //     setInputMessage('');
+    //     setIsLoading(true);
+
+    //     try {
+    //         const response = await fetch('/api/chat', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({
+    //                 messages: [...messages, userMessage],
+    //             }),
+    //         });
+
+    //         if (!response.ok) throw new Error('Failed to get response');
+
+    //         const data = await response.json();
+    //         console.log('api', data)
+
+    //         if (data.type === 'img') {
+    //             setResultType(data.type);
+    //         }
+
+    //         setProofData(data.proof);
+
+    //         const assistantMessage: Message = {
+    //             role: 'assistant',
+    //             content: data.content,
+    //         };
+    //         setMessages((prev) => [...prev, assistantMessage]);
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         // Handle error (e.g., show an error message to the user)
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMessage.trim()) return;
 
         const userMessage: Message = { role: 'user', content: inputMessage };
-        setMessages((prev) => [...prev, userMessage]);
+
+        // Update the displayMessages array
+        setDisplayMessages((prev) => [...prev, userMessage]);
+
+        // Update the apiMessages array
+        const apiMessage: Message = { role: 'user', content: inputMessage };
+        setApiMessages((prev) => [...prev, apiMessage]);
+
         setInputMessage('');
         setIsLoading(true);
 
         try {
+            // Make the API call with the apiMessages array
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: [...messages, userMessage],
+                    messages: [...apiMessages, apiMessage], // Send only relevant API messages
                 }),
             });
+
+            console.log('promtmsg', userMessage)
 
             if (!response.ok) throw new Error('Failed to get response');
 
             const data = await response.json();
-            console.log('api', data)
+            console.log('api', data);
+
+            let assistantMessageForDisplay: Message;
+            let assistantMessageForAPI: Message;
 
             if (data.type === 'img') {
-                setResultType(data.type);
+                setResultType(data.type)
+                // If the data is of type 'img', set different content for display and API message
+                assistantMessageForDisplay = {
+                    role: 'assistant',
+                    content: data.content, // This will be the actual content (image or text) to display
+                };
+                assistantMessageForAPI = {
+                    role: 'assistant',
+                    content: data.prompt, // Message sent to API
+                };
+            } else {
+                // For non-image responses, keep the same content for both display and API
+                assistantMessageForDisplay = {
+                    role: 'assistant',
+                    content: data.content, // Display the actual content
+                };
+                assistantMessageForAPI = {
+                    role: 'assistant',
+                    content: data.content, // Send the actual content to API as well
+                };
             }
 
-            setProofData(data.proof);
+            // Update displayMessages with the actual content (including images)
+            setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
 
-            const assistantMessage: Message = {
-                role: 'assistant',
-                content: data.content,
-            };
-            setMessages((prev) => [...prev, assistantMessage]);
+            // Update apiMessages with the API-friendly message
+            setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+
         } catch (error) {
             console.error('Error:', error);
-            // Handle error (e.g., show an error message to the user)
         } finally {
             setIsLoading(false);
         }
     };
+
 
     const menuItems = [
         'ZkSurfer',
@@ -225,7 +301,7 @@ const HomeContent: FC = () => {
 
                 {/* Chat messages */}
                 <div className="flex-grow overflow-y-auto px-4 py-8">
-                    {messages.map((message, index) => (
+                    {displayMessages.map((message, index) => (
                         <div
                             key={index}
                             className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -246,22 +322,8 @@ const HomeContent: FC = () => {
                                         <button onClick={handleDownload}>Download Proof</button>
                                     )}
                                 </div>
-                                {/* {message.role === 'assistant' && resultType == 'img' ?
-                                    <div className="mb-4 flex justify-start">
-                                        <img src={`data:image/jpeg;base64,${imageData}`} alt="Generated content" className="rounded-lg" />
-                                    </div>
-                                    :
-                                    <div
-                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-700 text-white'
-                                            }`}
-                                    >
-                                        {message.content}
-                                    </div>
-                                } */}
 
-                                {message.role === 'assistant' && index === messages.length - 1 && resultType === 'img' ? (
+                                {message.role === 'assistant' && message.content.startsWith('/') ? (
                                     <div>
                                         <img src={`data:image/jpeg;base64,${message.content}`} alt="Generated content" />
                                     </div>
@@ -276,20 +338,6 @@ const HomeContent: FC = () => {
                                     </div>
                                 )}
 
-
-
-                                {/* {[undefined, 'img'].includes(resultType) ? <div>
-                                    <img src={`data:image/jpeg;base64,${message.content}`} />
-                                </div>
-                                    :
-                                    < div
-                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-700 text-white'
-                                            }`}
-                                    >
-                                        {message.content}
-                                    </div>} */}
                             </div>
                             {message.role === 'user' && (
                                 <div className="flex-shrink-0 ml-3">
@@ -330,3 +378,4 @@ const HomeContent: FC = () => {
 };
 
 export default HomeContent;
+

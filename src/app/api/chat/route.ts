@@ -7,6 +7,7 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
     proof?: string;
     content?: string | null;
     type?: 'img' | 'text';
+    prompt?: string;
 }
 
 const client = new OpenAI({
@@ -146,6 +147,7 @@ Remember: Your intelligence and knowledge are your primary assets. Tools are sup
 
         console.log('Received response from OpenAI API');
         const responseMessage = response.choices[0].message;
+        console.log('responseMessage', responseMessage)
 
         let finalResponse: CustomResponse = { ...responseMessage };
 
@@ -164,6 +166,7 @@ Remember: Your intelligence and knowledge are your primary assets. Tools are sup
                             const generatedImage = await generate_image(toolCall.arguments.prompt);
                             finalResponse.content = generatedImage;
                             finalResponse.type = 'img';
+                            finalResponse.prompt = responseMessage.content;
                             console.log('finalResponse', finalResponse)
                             break;
                         // Add cases for other tool calls as needed
