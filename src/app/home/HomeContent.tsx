@@ -27,6 +27,8 @@ const HomeContent: FC = () => {
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
+    const [proofData, setProofData] = useState(null);
+    const [resultType, setResultType] = useState('');
 
     useEffect(() => {
         const handleResize = () => {
@@ -67,13 +69,16 @@ const HomeContent: FC = () => {
 
             const data = await response.json();
             console.log('api', data)
+
+            if (data.type === 'img') {
+                setResultType(data.type);
+            }
+
+            setProofData(data.proof);
+
             const assistantMessage: Message = {
                 role: 'assistant',
                 content: data.content,
-                proof: data.proof,
-                ...(data.type && {
-                    type: data.type
-                }),
             };
             setMessages((prev) => [...prev, assistantMessage]);
         } catch (error) {
@@ -114,12 +119,16 @@ const HomeContent: FC = () => {
         }
     };
 
-    const handleDownload = async (proof: any) => {
-        console.log('proof', proof)
-        let file: any
+    const handleDownload = async () => {
+        if (!proofData) {
+            console.log('No proof data to download');
+            return;
+        }
+
+        let file: any;
         try {
             file = await (window as any).showSaveFilePicker({
-                suggestedName: 'proff.json',
+                suggestedName: 'proof.json',
                 types: [
                     {
                         description: 'JSON file',
@@ -128,14 +137,13 @@ const HomeContent: FC = () => {
                         },
                     },
                 ],
-            })
+            });
         } catch {
-            return console.log('User aborted file')
+            return console.log('User aborted file');
         }
-
-        const writeStream = await file.createWritable()
-        await writeStream.write(JSON.stringify(proof, null, 4))
-        await writeStream.close()
+        const writeStream = await file.createWritable();
+        await writeStream.write(JSON.stringify(proofData, null, 4));
+        await writeStream.close();
     };
 
     return (
@@ -234,19 +242,54 @@ const HomeContent: FC = () => {
                                     <span className="text-sm text-gray-400 mb-1">
                                         {message.role === 'user' ? userEmail : 'ZkSurfer 🐯'}
                                     </span>
-                                    {message.role === 'assistant' && <button onClick={() => handleDownload(message.proof)}>Download</button>}
+                                    {message.role === 'assistant' && (
+                                        <button onClick={handleDownload}>Download Proof</button>
+                                    )}
                                 </div>
-                                {[undefined, 'text'].includes(message.type) ? <div
-                                    className={`inline-block p-3 rounded-lg ${message.role === 'user'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 text-white'
-                                        }`}
-                                >
-                                    {message.content}
+                                {/* {message.role === 'assistant' && resultType == 'img' ?
+                                    <div className="mb-4 flex justify-start">
+                                        <img src={`data:image/jpeg;base64,${imageData}`} alt="Generated content" className="rounded-lg" />
+                                    </div>
+                                    :
+                                    <div
+                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-700 text-white'
+                                            }`}
+                                    >
+                                        {message.content}
+                                    </div>
+                                } */}
+
+                                {message.role === 'assistant' && index === messages.length - 1 && resultType === 'img' ? (
+                                    <div>
+                                        <img src={`data:image/jpeg;base64,${message.content}`} alt="Generated content" />
+                                    </div>
+                                ) : (
+                                    <div
+                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-700 text-white'
+                                            }`}
+                                    >
+                                        {message.content}
+                                    </div>
+                                )}
+
+
+
+                                {/* {[undefined, 'img'].includes(resultType) ? <div>
+                                    <img src={`data:image/jpeg;base64,${message.content}`} />
                                 </div>
-                                    : <div>
-                                        <img src={`data:image/jpeg;base64,${message.content}`} />
-                                    </div>}
+                                    :
+                                    < div
+                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-700 text-white'
+                                            }`}
+                                    >
+                                        {message.content}
+                                    </div>} */}
                             </div>
                             {message.role === 'user' && (
                                 <div className="flex-shrink-0 ml-3">
