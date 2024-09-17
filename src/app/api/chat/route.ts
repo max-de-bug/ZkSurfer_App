@@ -13,6 +13,7 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
 const client = new OpenAI({
     baseURL: process.env.OPENAI_BASE_URL || "https://leo.tektorch.info/v1",
     apiKey: process.env.OPENAI_API_KEY || "zk-123321",
+    timeout: 120000,
 });
 
 async function generateKeys() {
