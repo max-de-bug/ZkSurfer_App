@@ -18,7 +18,8 @@ const client = new OpenAI({
 
 async function generateKeys() {
     console.log('Generating keys...');
-    const response = await fetch('http://164.52.213.234:8000/generate-keys/', { method: 'POST' });
+    //http://164.52.213.234:8000/generate-keys/ 
+    const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` } });
     if (!response.ok) {
         throw new Error('Failed to generate keys');
     }
@@ -29,9 +30,9 @@ async function generateKeys() {
 
 async function generateProof(text: string) {
     console.log('Generating proof for text:', text);
-    const response = await fetch('http://164.52.213.234:8000/generate-proof/', {
+    const response = await fetch('https://zynapse.zkagi.ai/api/generate-proof', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
         body: JSON.stringify({ text }),
     });
     if (!response.ok) {
@@ -44,9 +45,9 @@ async function generateProof(text: string) {
 
 async function verifyProof(proof: string) {
     console.log('Verifying proof:', proof);
-    const response = await fetch('http://164.52.213.234:8000/verify-proof/', {
+    const response = await fetch('https://zynapse.zkagi.ai/api/verify-proof', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
         body: JSON.stringify({ proof }),
     });
     if (!response.ok) {
@@ -65,10 +66,11 @@ async function generate_image(prompt: string) {
             reject(new Error('Request timed out after 60 seconds'));
         }, 60000);
 
-        fetch('http://172.81.127.5:32257/generate', {
+        fetch('https://zynapse.zkagi.ai/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'api-key': `${process.env.API_KEY}`
             },
             body: JSON.stringify({
                 prompt,
