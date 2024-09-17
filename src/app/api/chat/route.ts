@@ -100,6 +100,12 @@ async function generate_image(prompt: string) {
     }
 }
 
+function openAIWithTimeout(request: any, timeout = 60000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    return Promise.race([
+        client.chat.completions.create(request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout))
+    ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
+}
 
 export async function POST(request: Request) {
     try {
@@ -157,13 +163,22 @@ Remember: Your intelligence and knowledge are your primary assets. Tools are sup
             ...messages
         ];
 
+
         console.log('Sending request to OpenAI API');
-        const response = await client.chat.completions.create({
+
+        const response = await openAIWithTimeout({
             model: "microsoft/Phi-3-mini-4k-instruct",
             messages: updatedMessages,
         });
 
+
+        // const response = await client.chat.completions.create({
+        //     model: "microsoft/Phi-3-mini-4k-instruct",
+        //     messages: updatedMessages,
+        // });
+
         console.log('Received response from OpenAI API');
+
         const responseMessage = response.choices[0].message;
         console.log('responseMessage', responseMessage)
 
