@@ -108,6 +108,9 @@ const HomeContent: FC = () => {
         setInputMessage('');
         setIsLoading(true);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         try {
             // Make the API call with the apiMessages array
             const response = await fetch('/api/chat', {
@@ -116,9 +119,9 @@ const HomeContent: FC = () => {
                 body: JSON.stringify({
                     messages: [...apiMessages, apiMessage], // Send only relevant API messages
                 }),
+                signal: controller.signal
             });
-
-            console.log('promtmsg', userMessage)
+            clearTimeout(timeoutId);
 
             if (!response.ok) throw new Error('Failed to get response');
 
