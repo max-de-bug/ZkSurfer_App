@@ -23,7 +23,7 @@ const HomeContent: FC = () => {
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
+    // const [messages, setMessages] = useState<Message[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
@@ -143,7 +143,6 @@ const HomeContent: FC = () => {
                     content: data.prompt, // Message sent to API
                 };
             } else {
-                // For non-image responses, keep the same content for both display and API
                 assistantMessageForDisplay = {
                     role: 'assistant',
                     content: data.content, // Display the actual content
