@@ -64,7 +64,7 @@ async function generate_image(prompt: string) {
     const fetchWithTimeout = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             reject(new Error('Request timed out after 60 seconds'));
-        }, 60000);
+        }, 120000);
 
         fetch('https://zynapse.zkagi.ai/generate', {
             method: 'POST',
@@ -103,7 +103,7 @@ async function generate_image(prompt: string) {
     }
 }
 
-function openAIWithTimeout(request: any, timeout = 60000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     return Promise.race([
         client.chat.completions.create(request),
         new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout))
