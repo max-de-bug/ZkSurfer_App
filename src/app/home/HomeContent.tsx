@@ -131,6 +131,8 @@ const HomeContent: FC = () => {
             let assistantMessageForDisplay: Message;
             let assistantMessageForAPI: Message;
 
+            setProofData(data.proof);
+
             if (data.type === 'img') {
                 setResultType(data.type)
                 // If the data is of type 'img', set different content for display and API message
