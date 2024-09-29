@@ -146,7 +146,8 @@ Guidelines for tool usage:
 
 4. If you determine a tool is necessary:
    - Verify the tool is listed in the provided <tools> section.
-   - Use only the arguments required by the tool signature.
+   - Use only the tools explicitly defined in the <tools> section. Do not create or invent new tools.
+   - Use only the arguments required by the tool signature as defined in the <tools> section.
    - Call multiple tools in sequence if needed to gather all necessary information.
 
 5. To use a tool, format your request as follows:
@@ -156,8 +157,10 @@ Guidelines for tool usage:
 
 6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
 
-Remember: Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.`;
-
+Remember: 
+- Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.
+- Only use tools that are explicitly defined in the <tools> section. Do not create, invent, or assume the existence of any tools not listed there.
+- Adhere strictly to the defined tool signatures and do not attempt to use arguments or functionalities not specified in the tool definitions.`;
 
         // Add system message to the beginning of the messages array
         const updatedMessages = [

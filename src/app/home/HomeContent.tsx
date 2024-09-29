@@ -9,6 +9,8 @@ import Image from 'next/image';
 import createNft from '../../component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
+import CodeBlock from '@/component/ui/CodeBlock';
+import ResultBlock from '@/component/ui/ResultBlock';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -178,22 +180,21 @@ const HomeContent: FC = () => {
     ];
 
     const [count, setCount] = useState(0);
-    const [nftResponse, setNftResponse] = useState<string | null>(null);  // Store the NFT response
+    // const [nftResponse, setNftResponse] = useState<string | null>(null);  // Store the NFT response
     const [loading, setLoading] = useState(false);  // Loading state
     //both are hardcoded values
     const name = "car";
     const image = "0x1";
 
-    // handles minting of nft
-    const handleMintNFT = async () => {
+
+    const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
-        setNftResponse(null);
         try {
-            const response = await createNft(wallet, name, image);
-            setNftResponse(`Transaction Signature: ${response}`);
+            const { signature, assetPublicKey } = await createNft(wallet, base64Image, wallet.publicKey?.toString() || '');
+            const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
+            window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
         } catch (error) {
             console.error("Failed to mint NFT:", error);
-            setNftResponse("Minting failed! Please check the console for details.");
         } finally {
             setLoading(false);
         }
@@ -224,6 +225,31 @@ const HomeContent: FC = () => {
         const writeStream = await file.createWritable();
         await writeStream.write(JSON.stringify(proofData, null, 4));
         await writeStream.close();
+    };
+
+    const renderMessageContent = (content: string) => {
+        const parts = content.split('```');
+        return parts.map((part, index) => {
+            if (index % 2 === 0) {
+                // This is regular text
+                return (
+                    <div key={index} className="mb-4">
+                        {part.trim()}
+                    </div>
+                );
+            } else {
+                // This is a code block
+                return (
+                    <ResultBlock
+                        key={index}
+                        content={part.trim().split('\n').slice(1).join('\n')}
+                        language={part.trim().split('\n')[0]}
+                        type="code"
+                        onDownloadProof={handleDownload}
+                    />
+                );
+            }
+        });
     };
 
     return (
@@ -264,9 +290,9 @@ const HomeContent: FC = () => {
                         className='my-2'
                     />
                     <nav>
-                        <button onClick={handleMintNFT} disabled={loading}>
+                        {/* <button onClick={handleMintNFT} disabled={loading}>
                             {loading ? 'Minting NFT...' : 'Mint NFT'}
-                        </button>
+                        </button> */}
                         {menuItems.map((item, index) => (
                             <div key={index} className="py-2 px-4 hover:bg-gray-700 cursor-pointer">
                                 {item}
@@ -286,8 +312,14 @@ const HomeContent: FC = () => {
                             <BiMenuAltLeft size={28} />
                         </button>
                     )}
-                    <div className="text-lg font-bold flex-1 flex justify-center items-center">
-                        <span>ZkSurfer</span>
+                    <div className="text-lg font-semibold flex-1 flex justify-center items-center gap-2">
+                        <div><Image
+                            src="images/tiger.svg"
+                            alt="logo"
+                            width={30}
+                            height={30}
+                        /></div>
+                        <div className='font-ttfirs text-xl'>ZkSurfer</div>
                     </div>
                     <div className="flex space-x-4">
                         <button className="text-black bg-white p-1 rounded-lg"><FaPen /></button>
@@ -305,51 +337,146 @@ const HomeContent: FC = () => {
 
                 {/* Chat messages */}
                 <div className="flex-grow overflow-y-auto px-4 py-8">
-                    {displayMessages.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                            {message.role === 'assistant' && (
-                                <div className="flex-shrink-0 mr-3">
-                                    <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
-                                        🐯
-                                    </div>
+                    {/* {displayMessages.map((message, index) => (
+                        <div key={index} className="mb-4 flex justify-start w-full">
+                            <div className="flex-shrink-0 mr-3">
+                                <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                    {message.role === 'user' ? (
+                                        userEmail.charAt(0).toUpperCase()
+                                    ) : (
+                                        <Image
+                                            src="images/tiger.svg"
+                                            alt="logo"
+                                            width={40}
+                                            height={40}
+                                            className='p-2'
+                                        />
+                                    )}
                                 </div>
-                            )}
-                            <div className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                <div>
-                                    <span className="text-sm text-gray-400 mb-1">
-                                        {message.role === 'user' ? userEmail : 'ZkSurfer 🐯'}
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <div className="flex items-center justify-between w-full mt-2">
+
+                                    <span
+                                        className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                            'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                            } ${!isMobile ? `mt-0.5` : ``}`}
+                                    >
+                                        {message.role === 'user' ? userEmail : 'ZkSurfer'}
+                                     
                                     </span>
-                                    {message.role === 'assistant' && (
-                                        <button onClick={handleDownload}>Download Proof</button>
+                                    {message.role !== 'user' && (
+                                        <div className="flex space-x-2">
+                                            <button className="text-white rounded-lg">
+                                                <Image
+                                                    src="images/Download.svg"
+                                                    alt="logo"
+                                                    width={20}
+                                                    height={20}
+                                                />
+                                            </button>
+                                            <button className="text-white rounded-lg">
+                                                <Image
+                                                    src="images/share.svg"
+                                                    alt="logo"
+                                                    width={20}
+                                                    height={20}
+                                                />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
 
                                 {message.role === 'assistant' && message.content.startsWith('/') ? (
                                     <div>
                                         <img src={`data:image/jpeg;base64,${message.content}`} alt="Generated content" />
+                                        <div className="mt-2 flex space-x-2">
+                                            <button
+                                                onClick={handleDownload}
+                                                className="bg-blue-500 text-white px-2 py-1 rounded"
+                                            >
+                                                Download Proof
+                                            </button>
+                                            <button
+                                                onClick={() => handleMintNFT(`data:image/jpeg;base64,${message.content}`)}
+                                                className="bg-green-500 text-white px-2 py-1 rounded"
+                                                disabled={loading}
+                                            >
+                                                {loading ? 'Minting...' : 'Mint NFT'}
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div
-                                        className={`inline-block p-3 rounded-lg ${message.role === 'user'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-700 text-white'
-                                            }`}
-                                    >
-                                        {message.content}
+                                    <div className="inline-block p-1 rounded-lg text-white w-full">
+                                        {renderMessageContent(message.content)}
                                     </div>
                                 )}
-
                             </div>
-                            {message.role === 'user' && (
-                                <div className="flex-shrink-0 ml-3">
-                                    <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center">
-                                        {userEmail.charAt(0).toUpperCase()}
-                                    </div>
+                        </div>
+                    ))} */}
+
+                    {displayMessages.map((message, index) => (
+                        <div key={index} className="mb-4 flex justify-start w-full">
+                            <div className="flex-shrink-0 mr-3">
+                                <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                    {message.role === 'user' ? (
+                                        userEmail.charAt(0).toUpperCase()
+                                    ) : (
+                                        <Image
+                                            src="images/tiger.svg"
+                                            alt="logo"
+                                            width={40}
+                                            height={40}
+                                            className='p-2'
+                                        />
+                                    )}
                                 </div>
-                            )}
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <div className="flex items-center justify-between w-full mt-2">
+
+                                    <span
+                                        className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                            'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                            } ${!isMobile ? `mt-0.5` : ``}`}
+                                    >
+                                        {message.role === 'user' ? userEmail : 'ZkSurfer'}
+
+                                    </span>
+                                    {message.role !== 'user' && (
+                                        <div className="flex space-x-2">
+                                            <button className="text-white rounded-lg">
+                                                <Image
+                                                    src="images/Download.svg"
+                                                    alt="logo"
+                                                    width={20}
+                                                    height={20}
+                                                />
+                                            </button>
+                                            <button className="text-white rounded-lg">
+                                                <Image
+                                                    src="images/share.svg"
+                                                    alt="logo"
+                                                    width={20}
+                                                    height={20}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                {message.role === 'assistant' && (message.content.startsWith('/')) ? (
+                                    <ResultBlock
+                                        content={message.content.startsWith('/') ? message.content : message.content}
+                                        type={message.content.startsWith('/') ? 'image' : 'code'}
+                                        onMintNFT={message.content.startsWith('/') ? handleMintNFT : undefined}
+                                        onDownloadProof={handleDownload}
+                                    />
+                                ) : (
+                                    <div className="inline-block p-1 rounded-lg text-white">
+                                        {renderMessageContent(message.content)}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ))}
                     {isLoading && (
