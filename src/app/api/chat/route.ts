@@ -10,9 +10,14 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
     prompt?: string;
 }
 
+// const client = new OpenAI({
+//     baseURL: process.env.OPENAI_BASE_URL || "https://leo.tektorch.info/v1",
+//     apiKey: process.env.OPENAI_API_KEY || "zk-123321",
+// });
+
 const client = new OpenAI({
-    baseURL: process.env.OPENAI_BASE_URL || "https://leo.tektorch.info/v1",
-    apiKey: process.env.OPENAI_API_KEY || "zk-123321",
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: "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",
 });
 
 async function generateKeys() {
@@ -168,24 +173,20 @@ Remember:
             ...messages
         ];
 
-
-        console.log('Sending request to OpenAI API');
-
-        const response = await openAIWithTimeout({
-            model: "microsoft/Phi-3-mini-4k-instruct",
-            messages: updatedMessages,
-        });
-
-
-        // const response = await client.chat.completions.create({
+        // const response = await openAIWithTimeout({
         //     model: "microsoft/Phi-3-mini-4k-instruct",
         //     messages: updatedMessages,
         // });
 
-        console.log('Received response from OpenAI API');
 
+        const response = await openAIWithTimeout({
+            model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+            messages: updatedMessages,
+        });
+
+
+        console.log('resonse', response)
         const responseMessage = response.choices[0].message;
-        console.log('responseMessage', responseMessage)
 
         let finalResponse: CustomResponse = { ...responseMessage };
 
