@@ -1,5 +1,4 @@
 'use client';
-
 import { FC, useState, useEffect } from 'react';
 import { BiMenuAltLeft, BiMenuAltRight } from 'react-icons/bi';
 import { BsArrowReturnLeft } from 'react-icons/bs';
@@ -9,28 +8,41 @@ import Image from 'next/image';
 import createNft from '../../component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
-import CodeBlock from '@/component/ui/CodeBlock';
 import ResultBlock from '@/component/ui/ResultBlock';
+import * as pdfjs from 'pdfjs-dist';
+
+interface FileObject {
+    file: File;
+    preview: string;
+    isPdf: boolean;
+}
 
 interface Message {
     role: 'user' | 'assistant';
-    content: string;
-    type?: 'img' | 'text';
+    content: string | Array<{
+        type: 'text' | 'image_url';
+        text?: string;
+        image_url?: { url: string };
+    }>;
+    type?: 'text' | 'image' | 'image_url';
     proof?: any;
 }
+
 
 const HomeContent: FC = () => {
     const wallet = useWallet();
     const { data: session, status } = useSession();
-
+    const [files, setFiles] = useState<FileObject[]>([]);
+    const [fileInput, setFileInput] = useState<File | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    // const [messages, setMessages] = useState<Message[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
     const [proofData, setProofData] = useState(null);
     const [resultType, setResultType] = useState('');
+    const [pdfContent, setPdfContent] = useState<string | null>(null);
+    const [currentPdfName, setCurrentPdfName] = useState<string | null>(null);
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
@@ -50,123 +62,258 @@ const HomeContent: FC = () => {
         }
     }, [session]);
 
+    useEffect(() => {
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+    }, []);
+
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-    // const handleSubmit = async (e: React.FormEvent) => {
-    //     e.preventDefault();
-    //     if (!inputMessage.trim()) return;
 
-    //     const userMessage: Message = { role: 'user', content: inputMessage };
-    //     setMessages((prev) => [...prev, userMessage]);
-    //     setInputMessage('');
-    //     setIsLoading(true);
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                } else {
+                    reject(new Error('Failed to convert file to base64'));
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
 
-    //     try {
-    //         const response = await fetch('/api/chat', {
-    //             method: 'POST',
-    //             headers: { 'Content-Type': 'application/json' },
-    //             body: JSON.stringify({
-    //                 messages: [...messages, userMessage],
-    //             }),
-    //         });
+    const extractTextFromPdf = async (file: File): Promise<string> => {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
-    //         if (!response.ok) throw new Error('Failed to get response');
+        const textPromises = Array.from({ length: pdf.numPages }, async (_, i) => {
+            const page = await pdf.getPage(i + 1);
+            const content = await page.getTextContent();
+            return content.items.map((item: any) => item.str).join(' ');
+        });
 
-    //         const data = await response.json();
-    //         console.log('api', data)
+        const texts = await Promise.all(textPromises);
+        return texts.join('\n');
+    };
 
-    //         if (data.type === 'img') {
-    //             setResultType(data.type);
-    //         }
 
-    //         setProofData(data.proof);
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const selectedFiles = Array.from(e.target.files);
+            if (files.length + selectedFiles.length <= 4) {
+                const newFiles = await Promise.all(
+                    selectedFiles.map(async (file) => {
+                        if (file.type === 'application/pdf') {
+                            const pdfText = await extractTextFromPdf(file);
+                            setPdfContent(pdfText);
+                            setCurrentPdfName(file.name);
+                            return {
+                                file,
+                                preview: URL.createObjectURL(file),
+                                isPdf: true,
+                            };
+                        } else {
+                            return {
+                                file,
+                                preview: await fileToBase64(file),
+                                isPdf: false,
+                            };
+                        }
+                    })
+                );
+                setFiles([...files, ...newFiles]);
+            } else {
+                alert('You can only upload up to 4 files');
+            }
+        }
+    };
 
-    //         const assistantMessage: Message = {
-    //             role: 'assistant',
-    //             content: data.content,
-    //         };
-    //         setMessages((prev) => [...prev, assistantMessage]);
-    //     } catch (error) {
-    //         console.error('Error:', error);
-    //         // Handle error (e.g., show an error message to the user)
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
+    const removeFile = (index: number) => {
+        const newFiles = [...files];
+        URL.revokeObjectURL(newFiles[index].preview);
+        newFiles.splice(index, 1);
+        setFiles(newFiles);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputMessage.trim()) return;
 
-        const userMessage: Message = { role: 'user', content: inputMessage };
+        let displayMessageContent: any[] = [];
+        let apiMessageContent: any[] = [];
 
-        // Update the displayMessages array
-        setDisplayMessages((prev) => [...prev, userMessage]);
-
-        // Update the apiMessages array
-        const apiMessage: Message = { role: 'user', content: inputMessage };
-        setApiMessages((prev) => [...prev, apiMessage]);
-
-        setInputMessage('');
-        setIsLoading(true);
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-        try {
-            // Make the API call with the apiMessages array
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [...apiMessages, apiMessage], // Send only relevant API messages
-                }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) throw new Error('Failed to get response');
-
-            const data = await response.json();
-            console.log('api', data);
-
-            let assistantMessageForDisplay: Message;
-            let assistantMessageForAPI: Message;
-
-            setProofData(data.proof);
-
-            if (data.type === 'img') {
-                setResultType(data.type)
-                // If the data is of type 'img', set different content for display and API message
-                assistantMessageForDisplay = {
-                    role: 'assistant',
-                    content: data.content, // This will be the actual content (image or text) to display
-                };
-                assistantMessageForAPI = {
-                    role: 'assistant',
-                    content: data.prompt, // Message sent to API
-                };
-            } else {
-                assistantMessageForDisplay = {
-                    role: 'assistant',
-                    content: data.content, // Display the actual content
-                };
-                assistantMessageForAPI = {
-                    role: 'assistant',
-                    content: data.content, // Send the actual content to API as well
-                };
+        if (files.length > 0) {
+            // Handle case when files are present
+            if (inputMessage.trim()) {
+                displayMessageContent.push({
+                    type: "text",
+                    text: inputMessage.trim()
+                });
+                apiMessageContent.push({
+                    type: "text",
+                    text: inputMessage.trim()
+                });
             }
 
-            // Update displayMessages with the actual content (including images)
-            setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
 
-            // Update apiMessages with the API-friendly message
-            setApiMessages((prev) => [...prev, assistantMessageForAPI]);
 
-        } catch (error) {
-            console.error('Error:', error);
-        } finally {
-            setIsLoading(false);
+            for (const fileObj of files) {
+                if (fileObj.isPdf) {
+                    // For display message: only add filename
+                    displayMessageContent.push({
+                        type: "text",
+                        text: `[PDF: ${fileObj.file.name}]`
+                    });
+
+                    // For API message: add extracted text if available
+                    if (pdfContent && fileObj.file.name === currentPdfName) {
+                        apiMessageContent.push({
+                            type: "text",
+                            text: pdfContent
+                        });
+                    }
+                } else {
+                    // For images, add to both display and API messages
+                    const imageContent = {
+                        type: "image_url",
+                        image_url: {
+                            url: fileObj.preview
+                        }
+                    };
+                    displayMessageContent.push(imageContent);
+                    apiMessageContent.push(imageContent);
+                }
+            }
+            const displayMessage: Message = {
+                role: 'user',
+                content: displayMessageContent
+            };
+
+            const apiMessage: Message = {
+                role: 'user',
+                content: apiMessageContent
+            };
+
+            setDisplayMessages(prev => [...prev, displayMessage]);
+            setApiMessages(prev => [...prev, apiMessage]);
+
+            setInputMessage('');
+            setFiles([]);
+            setPdfContent(null);
+            setCurrentPdfName(null);
+            setIsLoading(true);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [...apiMessages, apiMessage],
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error('Failed to get response');
+
+                const data = await response.json();
+                setProofData(data.proof);
+
+                let assistantMessageForDisplay: Message;
+                let assistantMessageForAPI: Message;
+
+                if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
+                    setResultType('image');
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                    };
+                    assistantMessageForAPI = {
+                        role: 'assistant',
+                        content: data.prompt || data.content,
+                    };
+                } else {
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                    };
+                    assistantMessageForAPI = assistantMessageForDisplay;
+                }
+
+                setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
+                setApiMessages(prev => [...prev, assistantMessageForAPI]);
+
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        } else {
+            // Existing text-only handling
+            const userMessage: Message = { role: 'user', content: inputMessage };
+
+            setDisplayMessages((prev) => [...prev, userMessage]);
+
+            const apiMessage: Message = { role: 'user', content: inputMessage };
+            setApiMessages((prev) => [...prev, apiMessage]);
+
+            setInputMessage('');
+            setIsLoading(true);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [...apiMessages, apiMessage],
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error('Failed to get response');
+
+                const data = await response.json();
+
+                let assistantMessageForDisplay: Message;
+                let assistantMessageForAPI: Message;
+
+                setProofData(data.proof);
+
+                if (data.type === 'img') {
+                    setResultType(data.type)
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                    };
+                    assistantMessageForAPI = {
+                        role: 'assistant',
+                        content: data.prompt,
+                    };
+                } else {
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                    };
+                    assistantMessageForAPI = assistantMessageForDisplay;
+                }
+
+                setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
+                setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -179,12 +326,7 @@ const HomeContent: FC = () => {
         'Create top performing stock in Nifty 50',
     ];
 
-    const [count, setCount] = useState(0);
-    // const [nftResponse, setNftResponse] = useState<string | null>(null);  // Store the NFT response
-    const [loading, setLoading] = useState(false);  // Loading state
-    //both are hardcoded values
-    const name = "car";
-    const image = "0x1";
+    const [loading, setLoading] = useState(false);
 
 
     const handleMintNFT = async (base64Image: string) => {
@@ -227,7 +369,68 @@ const HomeContent: FC = () => {
         await writeStream.close();
     };
 
-    const renderMessageContent = (content: string) => {
+    const renderMessageContent = (message: Message) => {
+        if (Array.isArray(message.content)) {
+            return (
+                <div className="flex flex-col space-y-2">
+                    {message.content.map((content, index) => {
+                        if (content.type === 'text') {
+                            if (content.text?.startsWith('[PDF:')) {
+                                const pdfName = content.text.match(/\[PDF: (.*?)\]/)?.[1] || 'Unnamed PDF';
+                                return (
+                                    <div key={index} className="flex items-center space-x-2 bg-[#24284E] rounded-lg p-2 border border-[#BDA0FF]">
+                                        <Image
+                                            src="/images/pdf.svg"
+                                            alt="PDF icon"
+                                            width={20}
+                                            height={20}
+                                        />
+                                        <span className="text-[#BDA0FF] text-xs">{pdfName}</span>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div key={index} className="text-white">
+                                    {renderTextContent(content.text || '')}
+                                </div>
+                            );
+                        }
+                        return null;
+                    })}
+                    {/* New wrapper for images */}
+                    <div className="flex flex-row space-x-2">
+                        {message.content
+                            .filter(content => content.type === 'image_url')
+                            .map((content, index) => (
+                                <img
+                                    key={index}
+                                    src={content.image_url?.url}
+                                    alt="Uploaded content"
+                                    className="w-20 h-20 object-cover rounded-lg"
+                                />
+                            ))}
+                    </div>
+                </div>
+
+            );
+        } else if (typeof message.content === 'string') {
+            if (message.type === 'image' || message.content.startsWith('/')) {
+                return (
+                    <ResultBlock
+                        content={message.content}
+                        type="image"
+                        onMintNFT={handleMintNFT}
+                        onDownloadProof={handleDownload}
+                    />
+                );
+            } else {
+                return renderTextContent(message.content);
+            }
+        }
+        return null;
+    };
+
+    const renderTextContent = (content: string) => {
         const parts = content.split('```');
         return parts.map((part, index) => {
             if (index % 2 === 0) {
@@ -251,6 +454,7 @@ const HomeContent: FC = () => {
             }
         });
     };
+
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex">
@@ -290,9 +494,6 @@ const HomeContent: FC = () => {
                         className='my-2'
                     />
                     <nav>
-                        {/* <button onClick={handleMintNFT} disabled={loading}>
-                            {loading ? 'Minting NFT...' : 'Mint NFT'}
-                        </button> */}
                         {menuItems.map((item, index) => (
                             <div key={index} className="py-2 px-4 hover:bg-gray-700 cursor-pointer">
                                 {item}
@@ -337,84 +538,6 @@ const HomeContent: FC = () => {
 
                 {/* Chat messages */}
                 <div className="flex-grow overflow-y-auto px-4 py-8">
-                    {/* {displayMessages.map((message, index) => (
-                        <div key={index} className="mb-4 flex justify-start w-full">
-                            <div className="flex-shrink-0 mr-3">
-                                <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
-                                    {message.role === 'user' ? (
-                                        userEmail.charAt(0).toUpperCase()
-                                    ) : (
-                                        <Image
-                                            src="images/tiger.svg"
-                                            alt="logo"
-                                            width={40}
-                                            height={40}
-                                            className='p-2'
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <div className="flex items-center justify-between w-full mt-2">
-
-                                    <span
-                                        className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
-                                            'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
-                                            } ${!isMobile ? `mt-0.5` : ``}`}
-                                    >
-                                        {message.role === 'user' ? userEmail : 'ZkSurfer'}
-                                     
-                                    </span>
-                                    {message.role !== 'user' && (
-                                        <div className="flex space-x-2">
-                                            <button className="text-white rounded-lg">
-                                                <Image
-                                                    src="images/Download.svg"
-                                                    alt="logo"
-                                                    width={20}
-                                                    height={20}
-                                                />
-                                            </button>
-                                            <button className="text-white rounded-lg">
-                                                <Image
-                                                    src="images/share.svg"
-                                                    alt="logo"
-                                                    width={20}
-                                                    height={20}
-                                                />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {message.role === 'assistant' && message.content.startsWith('/') ? (
-                                    <div>
-                                        <img src={`data:image/jpeg;base64,${message.content}`} alt="Generated content" />
-                                        <div className="mt-2 flex space-x-2">
-                                            <button
-                                                onClick={handleDownload}
-                                                className="bg-blue-500 text-white px-2 py-1 rounded"
-                                            >
-                                                Download Proof
-                                            </button>
-                                            <button
-                                                onClick={() => handleMintNFT(`data:image/jpeg;base64,${message.content}`)}
-                                                className="bg-green-500 text-white px-2 py-1 rounded"
-                                                disabled={loading}
-                                            >
-                                                {loading ? 'Minting...' : 'Mint NFT'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="inline-block p-1 rounded-lg text-white w-full">
-                                        {renderMessageContent(message.content)}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))} */}
-
                     {displayMessages.map((message, index) => (
                         <div key={index} className="mb-4 flex justify-start w-full">
                             <div className="flex-shrink-0 mr-3">
@@ -464,18 +587,21 @@ const HomeContent: FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                {message.role === 'assistant' && (message.content.startsWith('/')) ? (
+                                {message.role === 'assistant' &&
+
+                                    (typeof message.content === 'string' && message.content.startsWith('/')) ? (
                                     <ResultBlock
-                                        content={message.content.startsWith('/') ? message.content : message.content}
-                                        type={message.content.startsWith('/') ? 'image' : 'code'}
-                                        onMintNFT={message.content.startsWith('/') ? handleMintNFT : undefined}
+                                        content={message.content}
+                                        type="image"
+                                        onMintNFT={handleMintNFT}
                                         onDownloadProof={handleDownload}
                                     />
                                 ) : (
                                     <div className="inline-block p-1 rounded-lg text-white">
-                                        {renderMessageContent(message.content)}
+                                        {renderMessageContent(message)}
                                     </div>
                                 )}
+
                             </div>
                         </div>
                     ))}
@@ -486,20 +612,66 @@ const HomeContent: FC = () => {
                     )}
                 </div>
 
-                {/* Input form */}
                 <footer className="w-full py-4 flex justify-center px-4">
                     <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'}`}>
-                        <form onSubmit={handleSubmit} className="w-full max-w-lg flex justify-center items-center bg-[#08121f] rounded-lg">
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                placeholder="Message ZkSurfer"
-                                className="bg-transparent flex-grow py-2 px-4 rounded-l-full outline-none text-white placeholder-[#A0AEC0] font-ttfirs"
-                            />
-                            <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>
-                                <BsArrowReturnLeft />
-                            </button>
+                        <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+                            {files.length > 0 && (
+                                <div className="flex flex-wrap gap-2 p-2">
+                                    {files.map((file, index) => (
+                                        <div key={index} className="relative w-20 h-20">
+                                            {file.isPdf ? (
+                                                <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
+                                                    {file.file.name}
+                                                </div>
+                                            ) : (
+                                                <img
+                                                    src={file.preview}
+                                                    alt={`Preview ${index}`}
+                                                    className="w-full h-full object-cover rounded-lg"
+                                                />
+                                            )}
+                                            <button
+                                                onClick={() => removeFile(index)}
+                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                type="button"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex items-center">
+                                <input
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    accept="image/*,.pdf"
+                                    className="hidden"
+                                    id="fileInput"
+                                    multiple
+                                />
+                                <label htmlFor="fileInput" className="cursor-pointer mx-2">
+                                    <Image
+                                        src="/images/Attach.svg"
+                                        alt="Attach file"
+                                        width={20}
+                                        height={20}
+                                    />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    placeholder="Message ZkSurfer"
+                                    className="bg-transparent flex-grow py-2 px-4 rounded-l-full outline-none text-white placeholder-[#A0AEC0] font-ttfirs"
+                                />
+                                <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>
+                                    <BsArrowReturnLeft />
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </footer>

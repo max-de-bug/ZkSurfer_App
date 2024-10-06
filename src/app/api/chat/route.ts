@@ -11,13 +11,13 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
 }
 
 const client = new OpenAI({
-    baseURL: process.env.OPENAI_BASE_URL || "https://leo.tektorch.info/v1",
-    apiKey: process.env.OPENAI_API_KEY || "zk-123321",
+    baseURL: process.env.OPENAI_BASE_URL,
+    apiKey: process.env.OPENAI_API_KEY,
 });
+
 
 async function generateKeys() {
     console.log('Generating keys...');
-    //http://164.52.213.234:8000/generate-keys/ 
     const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` } });
     if (!response.ok) {
         throw new Error('Failed to generate keys');
@@ -168,24 +168,20 @@ Remember:
             ...messages
         ];
 
-
-        console.log('Sending request to OpenAI API');
-
-        const response = await openAIWithTimeout({
-            model: "microsoft/Phi-3-mini-4k-instruct",
-            messages: updatedMessages,
-        });
-
-
-        // const response = await client.chat.completions.create({
+        // const response = await openAIWithTimeout({
         //     model: "microsoft/Phi-3-mini-4k-instruct",
         //     messages: updatedMessages,
         // });
 
-        console.log('Received response from OpenAI API');
 
+        const response = await openAIWithTimeout({
+            model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+            messages: updatedMessages,
+        });
+
+
+        console.log('resonse', response)
         const responseMessage = response.choices[0].message;
-        console.log('responseMessage', responseMessage)
 
         let finalResponse: CustomResponse = { ...responseMessage };
 
@@ -217,16 +213,31 @@ Remember:
             }
         }
 
+        let proof: string | undefined;
         // Generate proof
         const lastMessage = messages[messages.length - 1].content;
-        const proof = await generateProof(lastMessage);
+        console.log('lastMessage', lastMessage)
 
-        // Verify proof
-        await verifyProof(proof);
+        if (Array.isArray(lastMessage)) {
+            const firstObject = lastMessage[0]; // Pick the first object from the array
+            if (firstObject.type === 'text') {
+                console.log('Text:', firstObject.text); // Output the text if the type is 'text'
+                const proof = await generateProof(firstObject.text);
+            } else {
+                console.log('The first object is not a text message');
+            }
+        } else {
+            const proof = await generateProof(lastMessage)
+        }
+
+        //  Verify proof
+        if (proof) {
+            await verifyProof(proof);
+        }
 
         // Combine response message with proof
         finalResponse.proof = proof;
-        console.log("Proof", proof)
+
 
 
         return NextResponse.json(finalResponse);
