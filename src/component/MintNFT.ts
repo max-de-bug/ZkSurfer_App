@@ -100,14 +100,6 @@ const uploadToPinata = async (base64Image: string, address: string) => {
 const createNft = async (wallet: WalletContextState, base64Image: string, address: string) => {
 
     const umi = createUmi('https://api.devnet.solana.com')
-    // const walletFile = [175, 230, 36, 155, 52, 81, 50, 94, 130, 15, 207, 244, 43, 223, 247, 105, 182, 18, 119, 230, 111, 53, 167, 88, 235, 155, 13, 32, 26, 42, 55, 91, 27, 117, 60, 107, 101, 234, 110, 105, 61, 210, 36, 112, 253, 252, 225, 116, 165, 122, 209, 92, 112, 54, 97, 200, 102, 208, 20, 100, 140, 183, 66, 116];
-
-
-    // let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(walletFile));
-
-    // const signer = createSignerFromKeypair(umi, keypair);
-
-    // umi.use(signerIdentity(signer))
 
     umi.use(walletAdapterIdentity(wallet))
 
