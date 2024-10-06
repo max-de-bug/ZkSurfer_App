@@ -26,6 +26,7 @@ interface Message {
 const HomeContent: FC = () => {
     const wallet = useWallet();
     const { data: session, status } = useSession();
+    const [files, setFiles] = useState<Array<{ file: File, preview: string }>>([]);
     const [fileInput, setFileInput] = useState<File | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -56,116 +57,142 @@ const HomeContent: FC = () => {
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFileInput(e.target.files[0]);
+
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                } else {
+                    reject(new Error('Failed to convert file to base64'));
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const selectedFiles = Array.from(e.target.files);
+            if (files.length + selectedFiles.length <= 4) {
+                const newFiles = await Promise.all(
+                    selectedFiles.map(async (file) => ({
+                        file,
+                        preview: await fileToBase64(file)
+                    }))
+                );
+                setFiles([...files, ...newFiles]);
+            } else {
+                alert('You can only upload up to 4 files');
+            }
         }
+    };
+
+    const removeFile = (index: number) => {
+        const newFiles = [...files];
+        URL.revokeObjectURL(newFiles[index].preview);
+        newFiles.splice(index, 1);
+        setFiles(newFiles);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // if (!inputMessage.trim() && !fileInput) return;
-
-        let messageType: Message['type'] = 'text';
-        // let messageContent = inputMessage.trim();
-
 
         let messageContent: any[] = [];
 
-        // Add text content if present
-        if (inputMessage.trim()) {
-            messageContent.push({
-                type: "text",
-                text: inputMessage.trim()
-            });
-        }
+        if (files.length > 0) {
+            // Handle case when files are present
+            if (inputMessage.trim()) {
+                messageContent.push({
+                    type: "text",
+                    text: inputMessage.trim()
+                });
+            }
 
-        if (fileInput) {
-            const reader = new FileReader();
 
-            reader.onload = async (event) => {
-                if (event.target) {
-                    const fileContent = event.target.result as string;
-                    console.log('fileContent', fileContent)
-
-                    // Add image content
-                    messageContent.push({
-                        type: "image_url",
-                        image_url: {
-                            url: fileContent
-                        }
-                    });
-
-                    const userMessage: Message = {
-                        role: 'user',
-                        content: messageContent
-                    };
-
-                    setDisplayMessages(prev => [...prev, userMessage]);
-                    setApiMessages(prev => [...prev, userMessage]);
-
-                    setInputMessage('');
-                    setFileInput(null);
-                    setIsLoading(true);
-
-                    try {
-                        const response = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                messages: [...apiMessages, userMessage],
-                            }),
-                        });
-
-                        if (!response.ok) throw new Error('Failed to get response');
-
-                        const data = await response.json();
-                        setProofData(data.proof);
-
-                        let assistantMessageForDisplay: Message;
-                        let assistantMessageForAPI: Message;
-
-                        if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
-                            setResultType('image');
-                            assistantMessageForDisplay = {
-                                role: 'assistant',
-                                content: data.content,
-                                type: 'image'
-                            };
-                            assistantMessageForAPI = {
-                                role: 'assistant',
-                                content: data.prompt || data.content,
-                                type: 'text'
-                            };
-                        } else {
-                            assistantMessageForDisplay = {
-                                role: 'assistant',
-                                content: data.content,
-                                type: 'text'
-                            };
-                            assistantMessageForAPI = assistantMessageForDisplay;
-                        }
-
-                        setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
-                        setApiMessages(prev => [...prev, assistantMessageForAPI]);
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                    } finally {
-                        setIsLoading(false);
+            // Add all image files
+            for (const fileObj of files) {
+                messageContent.push({
+                    type: "image_url",
+                    image_url: {
+                        url: fileObj.preview
                     }
-                }
+                });
+            }
+
+            const userMessage: Message = {
+                role: 'user',
+                content: messageContent
             };
-            reader.readAsDataURL(fileInput);
-        }
-        else {
-            // Handle text-only messages
+
+            setDisplayMessages(prev => [...prev, userMessage]);
+
+            setApiMessages(prev => [...prev, userMessage]);
+
+            setInputMessage('');
+            setFiles([]); // Clear all files
+            setIsLoading(true);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [...apiMessages, userMessage],
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error('Failed to get response');
+
+                const data = await response.json();
+                setProofData(data.proof);
+
+                let assistantMessageForDisplay: Message;
+                let assistantMessageForAPI: Message;
+
+                if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
+                    setResultType('image');
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                        // type: 'image'
+                    };
+                    assistantMessageForAPI = {
+                        role: 'assistant',
+                        content: data.prompt || data.content,
+                        // type: 'text'
+                    };
+                } else {
+                    assistantMessageForDisplay = {
+                        role: 'assistant',
+                        content: data.content,
+                        // type: 'text'
+                    };
+                    assistantMessageForAPI = assistantMessageForDisplay;
+                }
+
+                setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
+                setApiMessages(prev => [...prev, assistantMessageForAPI]);
+
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        } else {
+            // Existing text-only handling
             const userMessage: Message = { role: 'user', content: inputMessage };
 
-            // Update the displayMessages array
             setDisplayMessages((prev) => [...prev, userMessage]);
 
-            // Update the apiMessages array
             const apiMessage: Message = { role: 'user', content: inputMessage };
             setApiMessages((prev) => [...prev, apiMessage]);
 
@@ -176,12 +203,11 @@ const HomeContent: FC = () => {
             const timeoutId = setTimeout(() => controller.abort(), 120000);
 
             try {
-                // Make the API call with the apiMessages array
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        messages: [...apiMessages, apiMessage], // Send only relevant API messages
+                        messages: [...apiMessages, apiMessage],
                     }),
                     signal: controller.signal
                 });
@@ -190,7 +216,6 @@ const HomeContent: FC = () => {
                 if (!response.ok) throw new Error('Failed to get response');
 
                 const data = await response.json();
-                console.log('api', data);
 
                 let assistantMessageForDisplay: Message;
                 let assistantMessageForAPI: Message;
@@ -199,30 +224,23 @@ const HomeContent: FC = () => {
 
                 if (data.type === 'img') {
                     setResultType(data.type)
-                    // If the data is of type 'img', set different content for display and API message
                     assistantMessageForDisplay = {
                         role: 'assistant',
-                        content: data.content, // This will be the actual content (image or text) to display
+                        content: data.content,
                     };
                     assistantMessageForAPI = {
                         role: 'assistant',
-                        content: data.prompt, // Message sent to API
+                        content: data.prompt,
                     };
                 } else {
                     assistantMessageForDisplay = {
                         role: 'assistant',
-                        content: data.content, // Display the actual content
+                        content: data.content,
                     };
-                    assistantMessageForAPI = {
-                        role: 'assistant',
-                        content: data.content, // Send the actual content to API as well
-                    };
+                    assistantMessageForAPI = assistantMessageForDisplay;
                 }
 
-                // Update displayMessages with the actual content (including images)
                 setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
-
-                // Update apiMessages with the API-friendly message
                 setApiMessages((prev) => [...prev, assistantMessageForAPI]);
 
             } catch (error) {
@@ -290,66 +308,33 @@ const HomeContent: FC = () => {
         await writeStream.close();
     };
 
-    // const renderMessageContent = (message: Message) => {
-    //     if (message.type === 'image' || message.content.startsWith('/')) {
-    //         return (
-    //             <ResultBlock
-    //                 content={message.content}
-    //                 type="image"
-    //                 onMintNFT={handleMintNFT}
-    //                 onDownloadProof={handleDownload}
-    //             />
-    //         );
-    //     }
-    //     // else if (message.type.includes('pdf')) {
-    //     //     return <embed src={message.content} type="application/pdf" width="100%" height="600px" />;
-    //     //} 
-    //     else {
-    //         // Handle text content
-    //         const parts = message.content.split('```');
-    //         return parts.map((part, index) => {
-    //             if (index % 2 === 0) {
-    //                 // Regular text
-    //                 return (
-    //                     <div key={index} className="mb-4">
-    //                         {part.trim()}
-    //                     </div>
-    //                 );
-    //             } else {
-    //                 // Code block
-    //                 return (
-    //                     <ResultBlock
-    //                         key={index}
-    //                         content={part.trim().split('\n').slice(1).join('\n')}
-    //                         language={part.trim().split('\n')[0]}
-    //                         type="code"
-    //                         onDownloadProof={handleDownload}
-    //                     />
-    //                 );
-    //             }
-    //         });
-    //     }
-    // };
     const renderMessageContent = (message: Message) => {
         if (Array.isArray(message.content)) {
-            return message.content.map((content, index) => {
-                if (content.type === 'text') {
-                    return renderTextContent(content.text || '');
-                } else if (content.type === 'image_url') {
-                    return (
-                        <ResultBlock
-                            key={index}
-                            content={content.image_url?.url || ''}
-                            type="image"
-                            onMintNFT={handleMintNFT}
-                            onDownloadProof={handleDownload}
-                        />
-                    );
-                }
-                return null;
-            });
-        } else {
-            // Handle the old string content structure
+            return (
+                <div className="flex flex-col gap-2">
+                    {message.content.map((content, index) => {
+                        if (content.type === 'text') {
+                            return (
+                                <div key={index} className="text-white">
+                                    {renderTextContent(content.text || '')}
+                                </div>
+                            );
+                        } else if (content.type === 'image_url') {
+                            return (
+                                <div key={index} className="max-w-sm">
+                                    <img
+                                        src={content.image_url?.url}
+                                        alt="Uploaded content"
+                                        className="rounded-lg"
+                                    />
+                                </div>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            );
+        } else if (typeof message.content === 'string') {
             if (message.type === 'image' || message.content.startsWith('/')) {
                 return (
                     <ResultBlock
@@ -363,6 +348,7 @@ const HomeContent: FC = () => {
                 return renderTextContent(message.content);
             }
         }
+        return null;
     };
 
     const renderTextContent = (content: string) => {
@@ -525,18 +511,6 @@ const HomeContent: FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                {/* {message.role === 'assistant' && (message.content.startsWith('/')) ? (
-                                    <ResultBlock
-                                        content={message.content.startsWith('/') ? message.content : message.content}
-                                        type={message.content.startsWith('/') ? 'image' : 'code'}
-                                        onMintNFT={message.content.startsWith('/') ? handleMintNFT : undefined}
-                                        onDownloadProof={handleDownload}
-                                    />
-                                ) : (
-                                    <div className="inline-block p-1 rounded-lg text-white">
-                                        {renderMessageContent(message)}
-                                    </div>
-                                )} */}
                                 {message.role === 'assistant' &&
 
                                     (typeof message.content === 'string' && message.content.startsWith('/')) ? (
@@ -562,35 +536,60 @@ const HomeContent: FC = () => {
                     )}
                 </div>
 
-
                 <footer className="w-full py-4 flex justify-center px-4">
                     <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'}`}>
-                        <form onSubmit={handleSubmit} className="w-full max-w-lg flex justify-center items-center bg-[#08121f] rounded-lg">
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                placeholder="Message ZkSurfer"
-                                className="bg-transparent flex-grow py-2 px-4 rounded-l-full outline-none text-white placeholder-[#A0AEC0] font-ttfirs"
-                            />
-                            <input
-                                type="file"
-                                onChange={(e) => setFileInput(e.target.files?.[0] || null)}
-                                accept="image/*"
-                                className="hidden"
-                                id="fileInput"
-                            />
-                            <label htmlFor="fileInput" className="cursor-pointer mx-2">
-                                <Image
-                                    src="/images/attachment.svg"
-                                    alt="Attach file"
-                                    width={20}
-                                    height={20}
+                        <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+                            {files.length > 0 && (
+                                <div className="flex flex-wrap gap-2 p-2">
+                                    {files.map((file, index) => (
+                                        <div key={index} className="relative w-20 h-20">
+                                            <img
+                                                src={file.preview}
+                                                alt={`Preview ${index}`}
+                                                className="w-full h-full object-cover rounded-lg"
+                                            />
+                                            <button
+                                                onClick={() => removeFile(index)}
+                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                type="button"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex items-center">
+                                <input
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    accept="image/*"
+                                    className="hidden"
+                                    id="fileInput"
+                                    multiple
                                 />
-                            </label>
-                            <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>
-                                <BsArrowReturnLeft />
-                            </button>
+                                <label htmlFor="fileInput" className="cursor-pointer mx-2">
+                                    <Image
+                                        src="/images/attachment.svg"
+                                        alt="Attach file"
+                                        width={20}
+                                        height={20}
+                                    />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    placeholder="Message ZkSurfer"
+                                    className="bg-transparent flex-grow py-2 px-4 rounded-l-full outline-none text-white placeholder-[#A0AEC0] font-ttfirs"
+                                />
+                                <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>
+                                    <BsArrowReturnLeft />
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </footer>

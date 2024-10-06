@@ -219,15 +219,15 @@ Remember:
         }
 
         // Generate proof
-        const lastMessage = messages[messages.length - 1].content;
-        const proof = await generateProof(lastMessage);
+        // const lastMessage = messages[messages.length - 1].content;
+        // const proof = await generateProof(lastMessage);
 
-        // Verify proof
-        await verifyProof(proof);
+        // // Verify proof
+        // await verifyProof(proof);
 
-        // Combine response message with proof
-        finalResponse.proof = proof;
-        console.log("Proof", proof)
+        // // Combine response message with proof
+        // finalResponse.proof = proof;
+        // console.log("Proof", proof)
 
 
         return NextResponse.json(finalResponse);
