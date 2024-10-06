@@ -30,12 +30,13 @@ const ResultBlock: React.FC<ResultBlockProps> = ({ content, type, language, onMi
                                 onClick={onDownloadProof}
                                 className="flex items-center space-x-2  text-white  rounded"
                             >
-                                <span className='text-[#A0AEC0]'>Download Proof</span>
+                                <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Download Proof</span>
                                 <Image
                                     src="images/downloadProof.svg"
                                     alt="logo"
                                     width={30}
                                     height={30}
+                                    className='hover:text-[#00FF89]'
                                 />
                             </button>
                         </div>
@@ -45,12 +46,13 @@ const ResultBlock: React.FC<ResultBlockProps> = ({ content, type, language, onMi
                                     onClick={() => onMintNFT(`data:image/jpeg;base64,${content}`)}
                                     className="flex items-center space-x-2  text-white rounded"
                                 >
-                                    <span className='text-[#A0AEC0]'>Mint Nft</span>
+                                    <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Mint Nft</span>
                                     <Image
                                         src="images/nft.svg"
                                         alt="logo"
                                         width={30}
                                         height={30}
+                                        className='hover:text-[#00FF89]'
                                     />
                                 </button>
                             </div>

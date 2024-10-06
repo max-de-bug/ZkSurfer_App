@@ -1,4 +1,3 @@
-
 'use client';
 import { FC, useState, useEffect } from 'react';
 import { BiMenuAltLeft, BiMenuAltRight } from 'react-icons/bi';
@@ -9,8 +8,14 @@ import Image from 'next/image';
 import createNft from '../../component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
-import CodeBlock from '@/component/ui/CodeBlock';
 import ResultBlock from '@/component/ui/ResultBlock';
+import * as pdfjs from 'pdfjs-dist';
+
+interface FileObject {
+    file: File;
+    preview: string;
+    isPdf: boolean;
+}
 
 interface Message {
     role: 'user' | 'assistant';
@@ -19,23 +24,25 @@ interface Message {
         text?: string;
         image_url?: { url: string };
     }>;
-    type?: 'text' | 'image' | 'image_url'; //| 'text-pdf' | 'text-image-pdf' | 'pdf' |
+    type?: 'text' | 'image' | 'image_url';
     proof?: any;
 }
+
 
 const HomeContent: FC = () => {
     const wallet = useWallet();
     const { data: session, status } = useSession();
-    const [files, setFiles] = useState<Array<{ file: File, preview: string }>>([]);
+    const [files, setFiles] = useState<FileObject[]>([]);
     const [fileInput, setFileInput] = useState<File | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    // const [messages, setMessages] = useState<Message[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
     const [proofData, setProofData] = useState(null);
     const [resultType, setResultType] = useState('');
+    const [pdfContent, setPdfContent] = useState<string | null>(null);
+    const [currentPdfName, setCurrentPdfName] = useState<string | null>(null);
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
@@ -55,6 +62,10 @@ const HomeContent: FC = () => {
         }
     }, [session]);
 
+    useEffect(() => {
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+    }, []);
+
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
 
@@ -73,15 +84,44 @@ const HomeContent: FC = () => {
         });
     };
 
+    const extractTextFromPdf = async (file: File): Promise<string> => {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        const textPromises = Array.from({ length: pdf.numPages }, async (_, i) => {
+            const page = await pdf.getPage(i + 1);
+            const content = await page.getTextContent();
+            return content.items.map((item: any) => item.str).join(' ');
+        });
+
+        const texts = await Promise.all(textPromises);
+        return texts.join('\n');
+    };
+
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const selectedFiles = Array.from(e.target.files);
             if (files.length + selectedFiles.length <= 4) {
                 const newFiles = await Promise.all(
-                    selectedFiles.map(async (file) => ({
-                        file,
-                        preview: await fileToBase64(file)
-                    }))
+                    selectedFiles.map(async (file) => {
+                        if (file.type === 'application/pdf') {
+                            const pdfText = await extractTextFromPdf(file);
+                            setPdfContent(pdfText);
+                            setCurrentPdfName(file.name);
+                            return {
+                                file,
+                                preview: URL.createObjectURL(file),
+                                isPdf: true,
+                            };
+                        } else {
+                            return {
+                                file,
+                                preview: await fileToBase64(file),
+                                isPdf: false,
+                            };
+                        }
+                    })
                 );
                 setFiles([...files, ...newFiles]);
             } else {
@@ -100,39 +140,68 @@ const HomeContent: FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        let messageContent: any[] = [];
+        let displayMessageContent: any[] = [];
+        let apiMessageContent: any[] = [];
 
         if (files.length > 0) {
             // Handle case when files are present
             if (inputMessage.trim()) {
-                messageContent.push({
+                displayMessageContent.push({
+                    type: "text",
+                    text: inputMessage.trim()
+                });
+                apiMessageContent.push({
                     type: "text",
                     text: inputMessage.trim()
                 });
             }
 
 
-            // Add all image files
-            for (const fileObj of files) {
-                messageContent.push({
-                    type: "image_url",
-                    image_url: {
-                        url: fileObj.preview
-                    }
-                });
-            }
 
-            const userMessage: Message = {
+            for (const fileObj of files) {
+                if (fileObj.isPdf) {
+                    // For display message: only add filename
+                    displayMessageContent.push({
+                        type: "text",
+                        text: `[PDF: ${fileObj.file.name}]`
+                    });
+
+                    // For API message: add extracted text if available
+                    if (pdfContent && fileObj.file.name === currentPdfName) {
+                        apiMessageContent.push({
+                            type: "text",
+                            text: pdfContent
+                        });
+                    }
+                } else {
+                    // For images, add to both display and API messages
+                    const imageContent = {
+                        type: "image_url",
+                        image_url: {
+                            url: fileObj.preview
+                        }
+                    };
+                    displayMessageContent.push(imageContent);
+                    apiMessageContent.push(imageContent);
+                }
+            }
+            const displayMessage: Message = {
                 role: 'user',
-                content: messageContent
+                content: displayMessageContent
             };
 
-            setDisplayMessages(prev => [...prev, userMessage]);
+            const apiMessage: Message = {
+                role: 'user',
+                content: apiMessageContent
+            };
 
-            setApiMessages(prev => [...prev, userMessage]);
+            setDisplayMessages(prev => [...prev, displayMessage]);
+            setApiMessages(prev => [...prev, apiMessage]);
 
             setInputMessage('');
-            setFiles([]); // Clear all files
+            setFiles([]);
+            setPdfContent(null);
+            setCurrentPdfName(null);
             setIsLoading(true);
 
             const controller = new AbortController();
@@ -143,7 +212,7 @@ const HomeContent: FC = () => {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        messages: [...apiMessages, userMessage],
+                        messages: [...apiMessages, apiMessage],
                     }),
                     signal: controller.signal
                 });
@@ -163,18 +232,15 @@ const HomeContent: FC = () => {
                     assistantMessageForDisplay = {
                         role: 'assistant',
                         content: data.content,
-                        // type: 'image'
                     };
                     assistantMessageForAPI = {
                         role: 'assistant',
                         content: data.prompt || data.content,
-                        // type: 'text'
                     };
                 } else {
                     assistantMessageForDisplay = {
                         role: 'assistant',
                         content: data.content,
-                        // type: 'text'
                     };
                     assistantMessageForAPI = assistantMessageForDisplay;
                 }
@@ -260,12 +326,7 @@ const HomeContent: FC = () => {
         'Create top performing stock in Nifty 50',
     ];
 
-    const [count, setCount] = useState(0);
-    // const [nftResponse, setNftResponse] = useState<string | null>(null);  // Store the NFT response
-    const [loading, setLoading] = useState(false);  // Loading state
-    //both are hardcoded values
-    const name = "car";
-    const image = "0x1";
+    const [loading, setLoading] = useState(false);
 
 
     const handleMintNFT = async (base64Image: string) => {
@@ -311,28 +372,46 @@ const HomeContent: FC = () => {
     const renderMessageContent = (message: Message) => {
         if (Array.isArray(message.content)) {
             return (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col space-y-2">
                     {message.content.map((content, index) => {
                         if (content.type === 'text') {
+                            if (content.text?.startsWith('[PDF:')) {
+                                const pdfName = content.text.match(/\[PDF: (.*?)\]/)?.[1] || 'Unnamed PDF';
+                                return (
+                                    <div key={index} className="flex items-center space-x-2 bg-[#24284E] rounded-lg p-2 border border-[#BDA0FF]">
+                                        <Image
+                                            src="/images/pdf.svg"
+                                            alt="PDF icon"
+                                            width={20}
+                                            height={20}
+                                        />
+                                        <span className="text-[#BDA0FF] text-xs">{pdfName}</span>
+                                    </div>
+                                );
+                            }
                             return (
                                 <div key={index} className="text-white">
                                     {renderTextContent(content.text || '')}
                                 </div>
                             );
-                        } else if (content.type === 'image_url') {
-                            return (
-                                <div key={index} className="max-w-sm">
-                                    <img
-                                        src={content.image_url?.url}
-                                        alt="Uploaded content"
-                                        className="rounded-lg"
-                                    />
-                                </div>
-                            );
                         }
                         return null;
                     })}
+                    {/* New wrapper for images */}
+                    <div className="flex flex-row space-x-2">
+                        {message.content
+                            .filter(content => content.type === 'image_url')
+                            .map((content, index) => (
+                                <img
+                                    key={index}
+                                    src={content.image_url?.url}
+                                    alt="Uploaded content"
+                                    className="w-20 h-20 object-cover rounded-lg"
+                                />
+                            ))}
+                    </div>
                 </div>
+
             );
         } else if (typeof message.content === 'string') {
             if (message.type === 'image' || message.content.startsWith('/')) {
@@ -415,9 +494,6 @@ const HomeContent: FC = () => {
                         className='my-2'
                     />
                     <nav>
-                        {/* <button onClick={handleMintNFT} disabled={loading}>
-                            {loading ? 'Minting NFT...' : 'Mint NFT'}
-                        </button> */}
                         {menuItems.map((item, index) => (
                             <div key={index} className="py-2 px-4 hover:bg-gray-700 cursor-pointer">
                                 {item}
@@ -543,11 +619,17 @@ const HomeContent: FC = () => {
                                 <div className="flex flex-wrap gap-2 p-2">
                                     {files.map((file, index) => (
                                         <div key={index} className="relative w-20 h-20">
-                                            <img
-                                                src={file.preview}
-                                                alt={`Preview ${index}`}
-                                                className="w-full h-full object-cover rounded-lg"
-                                            />
+                                            {file.isPdf ? (
+                                                <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
+                                                    {file.file.name}
+                                                </div>
+                                            ) : (
+                                                <img
+                                                    src={file.preview}
+                                                    alt={`Preview ${index}`}
+                                                    className="w-full h-full object-cover rounded-lg"
+                                                />
+                                            )}
                                             <button
                                                 onClick={() => removeFile(index)}
                                                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
@@ -566,14 +648,14 @@ const HomeContent: FC = () => {
                                 <input
                                     type="file"
                                     onChange={handleFileChange}
-                                    accept="image/*"
+                                    accept="image/*,.pdf"
                                     className="hidden"
                                     id="fileInput"
                                     multiple
                                 />
                                 <label htmlFor="fileInput" className="cursor-pointer mx-2">
                                     <Image
-                                        src="/images/attachment.svg"
+                                        src="/images/Attach.svg"
                                         alt="Attach file"
                                         width={20}
                                         height={20}
