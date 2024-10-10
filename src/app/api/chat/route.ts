@@ -223,22 +223,16 @@ Remember:
             if (firstObject.type === 'text') {
                 console.log('Text:', firstObject.text); // Output the text if the type is 'text'
                 const proof = await generateProof(firstObject.text);
+                await verifyProof(proof);
+                finalResponse.proof = proof;
             } else {
                 console.log('The first object is not a text message');
             }
         } else {
             const proof = await generateProof(lastMessage)
-        }
-
-        //  Verify proof
-        if (proof) {
             await verifyProof(proof);
+            finalResponse.proof = proof;
         }
-
-        // Combine response message with proof
-        finalResponse.proof = proof;
-
-
 
         return NextResponse.json(finalResponse);
     } catch (error) {
