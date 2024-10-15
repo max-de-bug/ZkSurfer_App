@@ -57,8 +57,10 @@ const HomeContent: FC = () => {
     }, []);
 
     useEffect(() => {
-        if (session && session.user && session.user.email) {
-            setUserEmail(session.user.email);
+        if (session && session.user) {
+            //&& session.user.email
+            // setUserEmail(session.user.email);
+            setUserEmail('User');
         }
     }, [session]);
 
