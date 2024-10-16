@@ -11,6 +11,30 @@ import { useSession } from 'next-auth/react';
 import ResultBlock from '@/component/ui/ResultBlock';
 import * as pdfjs from 'pdfjs-dist';
 
+interface FileSystemFileHandle {
+    createWritable(): Promise<FileSystemWritableFileStream>;
+}
+
+interface FileSystemWritableFileStream {
+    write(data: any): Promise<void>;
+    close(): Promise<void>;
+}
+
+interface ShowSaveFilePickerOptions {
+    suggestedName?: string;
+    types?: Array<{
+        description: string;
+        accept: Record<string, string[]>;
+    }>;
+}
+
+// Extend the window interface
+declare global {
+    interface Window {
+        showSaveFilePicker?: (options?: ShowSaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+    }
+}
+
 interface FileObject {
     file: File;
     preview: string;
@@ -350,25 +374,39 @@ const HomeContent: FC = () => {
             return;
         }
 
-        let file: any;
-        try {
-            file = await (window as any).showSaveFilePicker({
-                suggestedName: 'proof.json',
-                types: [
-                    {
-                        description: 'JSON file',
-                        accept: {
-                            'application/json': ['.json'],
-                        },
-                    },
-                ],
-            });
-        } catch {
-            return console.log('User aborted file');
+        const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'proof.json',
+                    types: [{
+                        description: 'JSON File',
+                        accept: { 'application/json': ['.json'] },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } catch (err) {
+                console.error('Failed to save file:', err);
+                // Fall back to the alternative method
+                fallbackDownload(blob);
+            }
+        } else {
+            fallbackDownload(blob);
         }
-        const writeStream = await file.createWritable();
-        await writeStream.write(JSON.stringify(proofData, null, 4));
-        await writeStream.close();
+    };
+
+    const fallbackDownload = (blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'proof.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const renderMessageContent = (message: Message) => {
