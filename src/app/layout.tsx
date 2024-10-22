@@ -135,6 +135,7 @@ export default function RootLayout({
       <head />
       <body className={inter.className}>
         <Providers>
+          {/* Wrapping the app with both RainbowKit and Solana wallet providers */}
           <AppWalletProvider>
             {children}
           </AppWalletProvider>
