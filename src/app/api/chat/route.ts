@@ -109,10 +109,166 @@ function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.
     ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
 }
 
+// export async function POST(request: Request) {
+//     const { messages,directCommand } = await request.json();
+//     if (directCommand) {
+//         // Generate keys (keep your existing key generation)
+//         await generateKeys();
+
+//         // Directly call image generation
+//         const generatedImage = await generate_image(directCommand.prompt);
+
+//         // Generate and verify proof
+//         const proof = await generateProof(directCommand.prompt);
+//         await verifyProof(proof);
+
+//         return NextResponse.json({
+//             content: generatedImage,
+//             type: 'img',
+//             prompt: directCommand.prompt,
+//             proof
+//         });
+//     }
+
+//     try {
+//         console.log('Received request to /api/chat');
+//         const { messages } = await request.json();
+//         console.log('Parsed messages:', messages);
+
+//         if (!client.apiKey) {
+//             console.error('OPENAI_API_KEY is not set');
+//             throw new Error('API configuration is incomplete');
+//         }
+
+//         // Generate keys
+//         await generateKeys();
+
+//         // Add system prompt
+//         const tool_prompt = `You are an advanced AI assistant named ZKSurfer made by ZkAGI with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
+
+// <tools>
+// ${JSON.stringify(tools)}
+// </tools>
+
+// Guidelines for tool usage:
+
+// 1. Rely primarily on your own knowledge and capabilities. This should be your default approach for answering queries.
+
+// 2. Use tools only when absolutely necessary. Consider using a tool if:
+//    - The query explicitly requires real-time or external data you cannot access otherwise.
+//    - The task involves specialized computations or data processing beyond your built-in capabilities.
+//    - You need to verify critical information that you're unsure about.
+
+// 3. Before using a tool, carefully evaluate:
+//    - Is the information truly essential to answer the query?
+//    - Is there any way to provide a satisfactory response without the tool?
+//    - Will the tool provide significant value beyond what you can offer directly?
+
+// 4. If you determine a tool is necessary:
+//    - Verify the tool is listed in the provided <tools> section.
+//    - Use only the tools explicitly defined in the <tools> section. Do not create or invent new tools.
+//    - Use only the arguments required by the tool signature as defined in the <tools> section.
+//    - Call multiple tools in sequence if needed to gather all necessary information.
+
+// 5. To use a tool, format your request as follows:
+//    <tool_call>
+//    {"name": "<function-name>", "arguments": <args-dict>}
+//    </tool_call>
+
+// 6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
+
+// Remember: 
+// - Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.
+// - Only use tools that are explicitly defined in the <tools> section. Do not create, invent, or assume the existence of any tools not listed there.
+// - Adhere strictly to the defined tool signatures and do not attempt to use arguments or functionalities not specified in the tool definitions.`;
+
+//         // Add system message to the beginning of the messages array
+//         const updatedMessages = [
+//             { role: "system", content: tool_prompt },
+//             ...messages
+//         ];
+
+//         // const response = await openAIWithTimeout({
+//         //     model: "microsoft/Phi-3-mini-4k-instruct",
+//         //     messages: updatedMessages,
+//         // });
+
+
+//         const response = await openAIWithTimeout({
+//             model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+//             messages: updatedMessages,
+//         });
+
+
+//         console.log('resonse', response)
+//         const responseMessage = response.choices[0].message;
+
+//         let finalResponse: CustomResponse = { ...responseMessage };
+
+//         // Check for tool calls
+//         if (responseMessage.content) {
+//             const toolCallMatch = responseMessage.content.match(/<tool_call>([^]*?)<\/tool_call>/);
+//             if (toolCallMatch) {
+//                 const toolCallContent = toolCallMatch[1];
+//                 try {
+//                     const toolCall = JSON.parse(toolCallContent);
+//                     console.log('Tool call detected:', toolCall);
+
+//                     // Handle the tool call
+//                     switch (toolCall.name) {
+//                         case 'generate_image':
+//                             const generatedImage = await generate_image(toolCall.arguments.prompt);
+//                             finalResponse.content = generatedImage;
+//                             finalResponse.type = 'img';
+//                             finalResponse.prompt = responseMessage.content;
+//                             console.log('finalResponse', finalResponse)
+//                             break;
+//                         // Add cases for other tool calls as needed
+//                         default:
+//                             console.log('Unknown tool call:', toolCall.name);
+//                     }
+//                 } catch (error) {
+//                     console.error('Error parsing or executing tool call:', error);
+//                 }
+//             }
+//         }
+
+//         let proof: string | undefined;
+//         // Generate proof
+//         const lastMessage = messages[messages.length - 1].content;
+//         console.log('lastMessage', lastMessage)
+
+//         if (Array.isArray(lastMessage)) {
+//             const firstObject = lastMessage[0]; // Pick the first object from the array
+//             if (firstObject.type === 'text') {
+//                 console.log('Text:', firstObject.text); // Output the text if the type is 'text'
+//                 const proof = await generateProof(firstObject.text);
+//                 await verifyProof(proof);
+//                 finalResponse.proof = proof;
+//             } else {
+//                 console.log('The first object is not a text message');
+//             }
+//         } else {
+//             const proof = await generateProof(lastMessage)
+//             await verifyProof(proof);
+//             finalResponse.proof = proof;
+//         }
+
+//         return NextResponse.json(finalResponse);
+//     } catch (error) {
+//         console.error('Error in /api/chat:', error);
+//         return NextResponse.json(
+//             { error: 'An error occurred while processing your request' },
+//             { status: 500 }
+//         );
+//     }
+// }
+
 export async function POST(request: Request) {
     try {
         console.log('Received request to /api/chat');
-        const { messages } = await request.json();
+        // Parse request body once
+        const { messages, directCommand } = await request.json();
         console.log('Parsed messages:', messages);
 
         if (!client.apiKey) {
@@ -123,64 +279,74 @@ export async function POST(request: Request) {
         // Generate keys
         await generateKeys();
 
+        // Handle direct commands first
+        if (directCommand) {
+            // Generate image directly
+            const generatedImage = await generate_image(directCommand.prompt);
+
+            // Generate and verify proof
+            const proof = await generateProof(directCommand.prompt);
+            await verifyProof(proof);
+
+            return NextResponse.json({
+                content: generatedImage,
+                type: 'img',
+                prompt: directCommand.prompt,
+                proof
+            });
+        }
+
+        // If not a direct command, proceed with normal chat flow
         // Add system prompt
         const tool_prompt = `You are an advanced AI assistant named ZKSurfer made by ZkAGI with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
 
-<tools>
-${JSON.stringify(tools)}
-</tools>
+ <tools>
+ ${JSON.stringify(tools)}
+ </tools>
 
-Guidelines for tool usage:
+ Guidelines for tool usage:
 
-1. Rely primarily on your own knowledge and capabilities. This should be your default approach for answering queries.
+ 1. Rely primarily on your own knowledge and capabilities. This should be your default approach for answering queries.
 
-2. Use tools only when absolutely necessary. Consider using a tool if:
-   - The query explicitly requires real-time or external data you cannot access otherwise.
-   - The task involves specialized computations or data processing beyond your built-in capabilities.
-   - You need to verify critical information that you're unsure about.
+ 2. Use tools only when absolutely necessary. Consider using a tool if:
+    - The query explicitly requires real-time or external data you cannot access otherwise.
+    - The task involves specialized computations or data processing beyond your built-in capabilities.
+    - You need to verify critical information that you're unsure about.
 
-3. Before using a tool, carefully evaluate:
-   - Is the information truly essential to answer the query?
-   - Is there any way to provide a satisfactory response without the tool?
-   - Will the tool provide significant value beyond what you can offer directly?
+ 3. Before using a tool, carefully evaluate:
+    - Is the information truly essential to answer the query?
+    - Is there any way to provide a satisfactory response without the tool?
+    - Will the tool provide significant value beyond what you can offer directly?
 
-4. If you determine a tool is necessary:
-   - Verify the tool is listed in the provided <tools> section.
-   - Use only the tools explicitly defined in the <tools> section. Do not create or invent new tools.
-   - Use only the arguments required by the tool signature as defined in the <tools> section.
-   - Call multiple tools in sequence if needed to gather all necessary information.
+ 4. If you determine a tool is necessary:
+    - Verify the tool is listed in the provided <tools> section.
+    - Use only the tools explicitly defined in the <tools> section. Do not create or invent new tools.
+    - Use only the arguments required by the tool signature as defined in the <tools> section.
+    - Call multiple tools in sequence if needed to gather all necessary information.
 
-5. To use a tool, format your request as follows:
-   <tool_call>
-   {"name": "<function-name>", "arguments": <args-dict>}
-   </tool_call>
+ 5. To use a tool, format your request as follows:
+    <tool_call>
+    {"name": "<function-name>", "arguments": <args-dict>}
+    </tool_call>
 
-6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
+ 6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
 
-Remember: 
-- Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.
-- Only use tools that are explicitly defined in the <tools> section. Do not create, invent, or assume the existence of any tools not listed there.
-- Adhere strictly to the defined tool signatures and do not attempt to use arguments or functionalities not specified in the tool definitions.`;
+ Remember: 
+ - Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.
+ - Only use tools that are explicitly defined in the <tools> section. Do not create, invent, or assume the existence of any tools not listed there.
+ - Adhere strictly to the defined tool signatures and do not attempt to use arguments or functionalities not specified in the tool definitions.`;
 
-        // Add system message to the beginning of the messages array
         const updatedMessages = [
             { role: "system", content: tool_prompt },
             ...messages
         ];
-
-        // const response = await openAIWithTimeout({
-        //     model: "microsoft/Phi-3-mini-4k-instruct",
-        //     messages: updatedMessages,
-        // });
-
 
         const response = await openAIWithTimeout({
             model: "meta-llama/llama-3.2-11b-vision-instruct:free",
             messages: updatedMessages,
         });
 
-
-        console.log('resonse', response)
+        console.log('response', response);
         const responseMessage = response.choices[0].message;
 
         let finalResponse: CustomResponse = { ...responseMessage };
@@ -194,16 +360,14 @@ Remember:
                     const toolCall = JSON.parse(toolCallContent);
                     console.log('Tool call detected:', toolCall);
 
-                    // Handle the tool call
                     switch (toolCall.name) {
                         case 'generate_image':
                             const generatedImage = await generate_image(toolCall.arguments.prompt);
                             finalResponse.content = generatedImage;
                             finalResponse.type = 'img';
                             finalResponse.prompt = responseMessage.content;
-                            console.log('finalResponse', finalResponse)
+                            console.log('finalResponse', finalResponse);
                             break;
-                        // Add cases for other tool calls as needed
                         default:
                             console.log('Unknown tool call:', toolCall.name);
                     }
@@ -213,15 +377,14 @@ Remember:
             }
         }
 
-        let proof: string | undefined;
         // Generate proof
         const lastMessage = messages[messages.length - 1].content;
-        console.log('lastMessage', lastMessage)
+        console.log('lastMessage', lastMessage);
 
         if (Array.isArray(lastMessage)) {
-            const firstObject = lastMessage[0]; // Pick the first object from the array
+            const firstObject = lastMessage[0];
             if (firstObject.type === 'text') {
-                console.log('Text:', firstObject.text); // Output the text if the type is 'text'
+                console.log('Text:', firstObject.text);
                 const proof = await generateProof(firstObject.text);
                 await verifyProof(proof);
                 finalResponse.proof = proof;
@@ -229,12 +392,13 @@ Remember:
                 console.log('The first object is not a text message');
             }
         } else {
-            const proof = await generateProof(lastMessage)
+            const proof = await generateProof(lastMessage);
             await verifyProof(proof);
             finalResponse.proof = proof;
         }
 
         return NextResponse.json(finalResponse);
+
     } catch (error) {
         console.error('Error in /api/chat:', error);
         return NextResponse.json(

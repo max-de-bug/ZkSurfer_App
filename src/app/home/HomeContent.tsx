@@ -1523,6 +1523,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
 import ResultBlock from '@/component/ui/ResultBlock';
 import * as pdfjs from 'pdfjs-dist';
+import { useRouter } from 'next/navigation';
+import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 
 type Command = 'image-gen' | 'meme-coin';
 
@@ -1567,8 +1569,9 @@ interface Message {
         text?: string;
         image_url?: { url: string };
     }>;
-    type?: 'text' | 'image' | 'image_url';
+    type?: 'text' | 'image' | 'image_url' | 'command';
     proof?: any;
+    command?: string;
 }
 
 const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
@@ -1601,43 +1604,33 @@ const HomeContent: FC = () => {
     const [commandPart, setCommandPart] = useState('');
     const [normalPart, setNormalPart] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
-    // const [selectedCommand, setSelectedCommand] = useState<Command>(null);
+    const router = useRouter();
+    const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'meme-coin' | null>(null);
+
+    const { address } = useAccount();
+    const { data: walletClient } = useWalletClient();
+    const publicClient = usePublicClient();
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
 
-    // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     const value = e.target.value;
-    //     setInputMessage(value);
+    useEffect(() => {
+        const handleMarketClick = () => {
+            router.push('/marketplace');
+        };
 
-    //     if (value === '/') {
-    //         setShowCommandPopup(true);
-    //     } else if (!value.startsWith('/')) {
-    //         setShowCommandPopup(false);
-    //     }
-    // };
+        // Attach the handler to your marketplace button
+        const marketplaceButton = document.querySelector('[data-marketplace-button]');
+        if (marketplaceButton) {
+            marketplaceButton.addEventListener('click', handleMarketClick);
+        }
 
-    // const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    //     if (e.key === 'Escape') {
-    //         setShowCommandPopup(false);
-    //     }
-    // };
-
-    // const handleCommandSelect = (command: Command) => {
-    //     setInputMessage(`/${command} `);
-    //     setShowCommandPopup(false);
-    // };
-
-    // const handleSlashCommand = (e: { key: string; }) => {
-    //     if (e.key === '/' && inputMessage === '') {
-    //         setShowCommandPopup(true);
-    //     } else if (inputMessage.startsWith('/')) {
-    //         // Filter commands based on input
-    //         // You can implement this part to show filtered options as the user types
-    //     } else {
-    //         setShowCommandPopup(false);
-    //     }
-    // };
+        return () => {
+            if (marketplaceButton) {
+                marketplaceButton.removeEventListener('click', handleMarketClick);
+            }
+        };
+    }, [router]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -1686,8 +1679,6 @@ const HomeContent: FC = () => {
 
     useEffect(() => {
         if (session && session.user) {
-            //&& session.user.email
-            // setUserEmail(session.user.email);
             setUserEmail('User');
         }
     }, [session]);
@@ -1769,70 +1760,35 @@ const HomeContent: FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const fullMessage = `${commandPart}${normalPart}`.trim();
+        const fullMessage = inputMessage.trim();
 
-        let displayMessageContent: any[] = [];
-        let apiMessageContent: any[] = [];
+        // Check if message starts with a command
+        const isImageGen = fullMessage.startsWith('/image-gen');
+        const isMemeGen = fullMessage.startsWith('/meme-coin');
 
-        if (files.length > 0) {
-            // Handle case when files are present
-            if (inputMessage.trim()) {
-                displayMessageContent.push({
-                    type: "text",
-                    text: inputMessage.trim()
-                });
-                apiMessageContent.push({
-                    type: "text",
-                    text: inputMessage.trim()
-                });
-            }
+        if (isImageGen || isMemeGen) {
+
+            const commandType = isImageGen ? 'image-gen' : 'meme-coin';
+            setCurrentCommand(commandType);
+            // Extract the prompt part after the command
+            const promptText = fullMessage.replace(isImageGen ? '/image-gen' : '/meme-coin', '').trim();
 
 
-
-            for (const fileObj of files) {
-                if (fileObj.isPdf) {
-                    // For display message: only add filename
-                    displayMessageContent.push({
-                        type: "text",
-                        text: `[PDF: ${fileObj.file.name}]`
-                    });
-
-                    // For API message: add extracted text if available
-                    if (pdfContent && fileObj.file.name === currentPdfName) {
-                        apiMessageContent.push({
-                            type: "text",
-                            text: pdfContent
-                        });
-                    }
-                } else {
-                    // For images, add to both display and API messages
-                    const imageContent = {
-                        type: "image_url",
-                        image_url: {
-                            url: fileObj.preview
-                        }
-                    };
-                    displayMessageContent.push(imageContent);
-                    apiMessageContent.push(imageContent);
-                }
-            }
+            // Create message objects
             const displayMessage: Message = {
                 role: 'user',
-                content: displayMessageContent
+                content: fullMessage
             };
-
             const apiMessage: Message = {
                 role: 'user',
-                content: apiMessageContent
+                content: fullMessage,
+                type: 'command',
+                command: isMemeGen ? 'meme-coin' : 'image-gen'
             };
 
             setDisplayMessages(prev => [...prev, displayMessage]);
             setApiMessages(prev => [...prev, apiMessage]);
-
             setInputMessage('');
-            setFiles([]);
-            setPdfContent(null);
-            setCurrentPdfName(null);
             setIsLoading(true);
 
             const controller = new AbortController();
@@ -1844,6 +1800,10 @@ const HomeContent: FC = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         messages: [...apiMessages, apiMessage],
+                        directCommand: {
+                            type: commandType,
+                            prompt: promptText
+                        }
                     }),
                     signal: controller.signal
                 });
@@ -1855,95 +1815,204 @@ const HomeContent: FC = () => {
                 const data = await response.json();
                 setProofData(data.proof);
 
-                let assistantMessageForDisplay: Message;
-                let assistantMessageForAPI: Message;
+                const assistantMessage: Message = {
+                    role: 'assistant',
+                    content: data.content,
+                    type: 'image',
+                    command: isMemeGen ? 'meme-coin' : 'image-gen'
+                };
 
-                if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
-                    setResultType('image');
-                    assistantMessageForDisplay = {
-                        role: 'assistant',
-                        content: data.content,
-                    };
-                    assistantMessageForAPI = {
-                        role: 'assistant',
-                        content: data.prompt || data.content,
-                    };
-                } else {
-                    assistantMessageForDisplay = {
-                        role: 'assistant',
-                        content: data.content,
-                    };
-                    assistantMessageForAPI = assistantMessageForDisplay;
-                }
-
-                setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
-                setApiMessages(prev => [...prev, assistantMessageForAPI]);
+                setDisplayMessages(prev => [...prev, assistantMessage]);
+                setApiMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: data.prompt || data.content,
+                    type: 'image',
+                    command: isMemeGen ? 'meme-coin' : 'image-gen'
+                }]);
 
             } catch (error) {
                 console.error('Error:', error);
             } finally {
                 setIsLoading(false);
+                setCurrentCommand(null);
             }
-        } else {
-            // Existing text-only handling
-            const userMessage: Message = { role: 'user', content: inputMessage };
+        }
+        else {
+            let displayMessageContent: any[] = [];
+            let apiMessageContent: any[] = [];
 
-            setDisplayMessages((prev) => [...prev, userMessage]);
-
-            const apiMessage: Message = { role: 'user', content: inputMessage };
-            setApiMessages((prev) => [...prev, apiMessage]);
-
-            setInputMessage('');
-            setIsLoading(true);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: [...apiMessages, apiMessage],
-                    }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) throw new Error('Failed to get response');
-
-                const data = await response.json();
-
-                let assistantMessageForDisplay: Message;
-                let assistantMessageForAPI: Message;
-
-                setProofData(data.proof);
-
-                if (data.type === 'img') {
-                    setResultType(data.type)
-                    assistantMessageForDisplay = {
-                        role: 'assistant',
-                        content: data.content,
-                    };
-                    assistantMessageForAPI = {
-                        role: 'assistant',
-                        content: data.prompt,
-                    };
-                } else {
-                    assistantMessageForDisplay = {
-                        role: 'assistant',
-                        content: data.content,
-                    };
-                    assistantMessageForAPI = assistantMessageForDisplay;
+            if (files.length > 0) {
+                // Handle case when files are present
+                if (inputMessage.trim()) {
+                    displayMessageContent.push({
+                        type: "text",
+                        text: inputMessage.trim()
+                    });
+                    apiMessageContent.push({
+                        type: "text",
+                        text: inputMessage.trim()
+                    });
                 }
 
-                setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
-                setApiMessages((prev) => [...prev, assistantMessageForAPI]);
 
-            } catch (error) {
-                console.error('Error:', error);
-            } finally {
-                setIsLoading(false);
+
+                for (const fileObj of files) {
+                    if (fileObj.isPdf) {
+                        // For display message: only add filename
+                        displayMessageContent.push({
+                            type: "text",
+                            text: `[PDF: ${fileObj.file.name}]`
+                        });
+
+                        // For API message: add extracted text if available
+                        if (pdfContent && fileObj.file.name === currentPdfName) {
+                            apiMessageContent.push({
+                                type: "text",
+                                text: pdfContent
+                            });
+                        }
+                    } else {
+                        // For images, add to both display and API messages
+                        const imageContent = {
+                            type: "image_url",
+                            image_url: {
+                                url: fileObj.preview
+                            }
+                        };
+                        displayMessageContent.push(imageContent);
+                        apiMessageContent.push(imageContent);
+                    }
+                }
+                const displayMessage: Message = {
+                    role: 'user',
+                    content: displayMessageContent
+                };
+
+                const apiMessage: Message = {
+                    role: 'user',
+                    content: apiMessageContent
+                };
+
+                setDisplayMessages(prev => [...prev, displayMessage]);
+                setApiMessages(prev => [...prev, apiMessage]);
+
+                setInputMessage('');
+                setFiles([]);
+                setPdfContent(null);
+                setCurrentPdfName(null);
+                setIsLoading(true);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [...apiMessages, apiMessage],
+                        }),
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) throw new Error('Failed to get response');
+
+                    const data = await response.json();
+                    setProofData(data.proof);
+
+                    let assistantMessageForDisplay: Message;
+                    let assistantMessageForAPI: Message;
+
+                    if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
+                        setResultType('image');
+                        assistantMessageForDisplay = {
+                            role: 'assistant',
+                            content: data.content,
+                        };
+                        assistantMessageForAPI = {
+                            role: 'assistant',
+                            content: data.prompt || data.content,
+                        };
+                    } else {
+                        assistantMessageForDisplay = {
+                            role: 'assistant',
+                            content: data.content,
+                        };
+                        assistantMessageForAPI = assistantMessageForDisplay;
+                    }
+
+                    setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
+                    setApiMessages(prev => [...prev, assistantMessageForAPI]);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                } finally {
+                    setIsLoading(false);
+                    setCurrentCommand(null);
+                }
+            } else {
+                // Existing text-only handling
+                const userMessage: Message = { role: 'user', content: inputMessage };
+
+                setDisplayMessages((prev) => [...prev, userMessage]);
+
+                const apiMessage: Message = { role: 'user', content: inputMessage };
+                setApiMessages((prev) => [...prev, apiMessage]);
+
+                setInputMessage('');
+                setIsLoading(true);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [...apiMessages, apiMessage],
+                        }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) throw new Error('Failed to get response');
+
+                    const data = await response.json();
+
+                    let assistantMessageForDisplay: Message;
+                    let assistantMessageForAPI: Message;
+
+                    setProofData(data.proof);
+
+                    if (data.type === 'img') {
+                        setResultType(data.type)
+                        assistantMessageForDisplay = {
+                            role: 'assistant',
+                            content: data.content,
+                        };
+                        assistantMessageForAPI = {
+                            role: 'assistant',
+                            content: data.prompt,
+                        };
+                    } else {
+                        assistantMessageForDisplay = {
+                            role: 'assistant',
+                            content: data.content,
+                        };
+                        assistantMessageForAPI = assistantMessageForDisplay;
+                    }
+
+                    setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
+                    setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                } finally {
+                    setIsLoading(false);
+                }
             }
         }
         setCommandPart('');
@@ -1963,11 +2032,22 @@ const HomeContent: FC = () => {
 
 
     const handleMintNFT = async (base64Image: string) => {
+        if (!address || !walletClient || !publicClient) {
+            console.error("Wallet not connected");
+            return;
+        }
+
         setLoading(true);
         try {
-            const { signature, assetPublicKey } = await createNft(wallet, base64Image, wallet.publicKey?.toString() || '');
-            const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
-            window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
+            const result = await createNft({
+                walletClient,
+                publicClient,
+                base64Image,
+                contractAddress: '0xYourNFTContractAddress' // Replace with your actual NFT contract address
+            });
+
+            // Open transaction in block explorer
+            window.open(`https://etherscan.io/tx/${result.hash}`, '_blank', 'noopener,noreferrer');
         } catch (error) {
             console.error("Failed to mint NFT:", error);
         } finally {
@@ -2049,19 +2129,44 @@ const HomeContent: FC = () => {
                         {message.content
                             .filter(content => content.type === 'image_url')
                             .map((content, index) => (
-                                <img
+                                <Image
                                     key={index}
-                                    src={content.image_url?.url}
+                                    src={content.image_url?.url || ''}
                                     alt="Uploaded content"
-                                    className="w-20 h-20 object-cover rounded-lg"
+                                    width={80}
+                                    height={80}
+                                    className="object-cover rounded-lg"
+                                    layout="fixed"
+                                    quality={75}
                                 />
                             ))}
                     </div>
                 </div>
 
             );
-        } else if (typeof message.content === 'string') {
-            if (message.type === 'image' || message.content.startsWith('/')) {
+        }
+        else if (typeof message.content === 'string') {
+            // Check if it's a user message with a command
+            if (message.role === 'user') {
+                let displayedContent = message.content;
+
+                // Handle '/image-gen' and '/meme-coin'
+                if (displayedContent.startsWith('/image-gen')) {
+                    // Remove '/image-gen' and show "Generate image of"
+                    const prompt = displayedContent.replace('/image-gen', '').trim();
+                    displayedContent = `Generate image of: ${prompt}`;
+                } else if (displayedContent.startsWith('/meme-coin')) {
+                    // Remove '/meme-coin' and show "Generate a meme for"
+                    const prompt = displayedContent.replace('/meme-coin', '').trim();
+                    displayedContent = `Generate a meme for: ${prompt}`;
+                }
+
+                // Render the modified content
+                return <div className="text-white">{displayedContent}</div>;
+            }
+
+            // For assistant responses that are images
+            if (message.role === 'assistant' && message.type === 'image') {
                 return (
                     <ResultBlock
                         content={message.content}
@@ -2071,11 +2176,13 @@ const HomeContent: FC = () => {
                     />
                 );
             } else {
+                // For other assistant responses (text)
                 return renderTextContent(message.content);
             }
         }
         return null;
     };
+
 
     const renderTextContent = (content: string) => {
         const parts = content.split('```');
@@ -2132,6 +2239,15 @@ const HomeContent: FC = () => {
                     <div className="flex flex-col">
                         <div className="mb-4">ZkSurfer</div>
                         <div className="mb-4">Explore</div>
+                        <div className="mb-4 flex flex-row items-center justify-start gap-2" data-marketplace-button
+                            role="button"
+                            tabIndex={0}><span> <Image
+                                src="images/marketplace.svg"
+                                alt="explore marketplace"
+                                width={15}
+                                height={15}
+                                className='my-2'
+                            /></span>Meme Coin Playground</div>
                     </div>
                     <Image
                         src="images/Line.svg"
@@ -2242,6 +2358,8 @@ const HomeContent: FC = () => {
                                         type="image"
                                         onMintNFT={handleMintNFT}
                                         onDownloadProof={handleDownload}
+                                        imageResultType={message.command}
+                                        onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
                                     />
                                 ) : (
                                     <div className="inline-block p-1 rounded-lg text-white">
@@ -2271,10 +2389,13 @@ const HomeContent: FC = () => {
                                                     {file.file.name}
                                                 </div>
                                             ) : (
-                                                <img
+                                                <Image
                                                     src={file.preview}
                                                     alt={`Preview ${index}`}
+                                                    width={500}
+                                                    height={500}
                                                     className="w-full h-full object-cover rounded-lg"
+                                                    layout="responsive"
                                                 />
                                             )}
                                             <button
