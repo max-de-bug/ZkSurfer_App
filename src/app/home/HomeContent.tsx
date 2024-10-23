@@ -1606,6 +1606,7 @@ const HomeContent: FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
     const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'meme-coin' | null>(null);
+    const [memeData, setMemeData] = useState<{ name: string; description: string } | null>(null);
 
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
@@ -1613,6 +1614,119 @@ const HomeContent: FC = () => {
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
+
+    const compressImage = async (base64String: string, targetSizeKB: number = 450): Promise<string> => {
+        // Create an image element
+        const img = new window.Image();
+        await new Promise((resolve) => {
+            img.onload = resolve;
+            img.src = base64String;
+        });
+
+        const canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        let quality = 1.0;
+        let compressed = base64String;
+
+        // Start with original dimensions
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Function to get file size in KB
+        const getFileSizeKB = (base64String: string): number => {
+            const base64Length = base64String.split(',')[1].length;
+            const fileSizeBytes = (base64Length * 3) / 4;
+            return fileSizeBytes / 1024;
+        };
+
+        // Compress until size is under target
+        while (getFileSizeKB(compressed) > targetSizeKB && quality > 0.1) {
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                compressed = canvas.toDataURL('image/jpeg', quality);
+            }
+            quality -= 0.1;
+        }
+
+        // If still too large, reduce dimensions
+        if (getFileSizeKB(compressed) > targetSizeKB) {
+            let scale = 0.9;
+            while (getFileSizeKB(compressed) > targetSizeKB && scale > 0.1) {
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    compressed = canvas.toDataURL('image/jpeg', quality);
+                }
+                scale -= 0.1;
+            }
+        }
+
+        return compressed;
+    };
+
+    // Function to format base64 image properly
+    const formatBase64Image = (base64String: string): string => {
+        if (!base64String.startsWith('data:image/')) {
+            return `data:image/png;base64,${base64String}`;
+        }
+        return base64String;
+    };
+
+    // Update the handleMemeImageGeneration function in your HomeContent component
+    const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
+        try {
+            // Format and compress the image here instead of in the message handling
+            let formattedImage = imageData;
+            if (!imageData.startsWith('data:image/')) {
+                formattedImage = `data:image/png;base64,${imageData}`;
+            }
+            const compressedImage = await compressImage(formattedImage);
+
+            // First API call to upload the generated image
+            const imageUploadResponse = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{
+                        role: 'user',
+                        content: [{
+                            type: 'text',
+                            text: 'Provide a name and description for this image and response should contain only name and description in below format {"name":<generated_name>,"description":<generated_description>}'
+                        }, {
+                            type: 'image_url',
+                            image_url: {
+                                url: compressedImage // Using the compressed image
+                            }
+                        }]
+                    }]
+                })
+            });
+
+            if (!imageUploadResponse.ok) {
+                throw new Error('Failed to process image');
+            }
+
+            const data = await imageUploadResponse.json();
+            let parsedData;
+
+            try {
+                // Try to parse the response content as JSON
+                if (typeof data.content === 'string') {
+                    parsedData = JSON.parse(data.content);
+                } else {
+                    parsedData = data.content;
+                }
+
+                setMemeData(parsedData);
+            } catch (e) {
+                console.error('Failed to parse meme data:', e);
+            }
+        } catch (error) {
+            console.error('Error in meme image generation:', error);
+        }
+    };
 
     useEffect(() => {
         const handleMarketClick = () => {
@@ -1814,6 +1928,12 @@ const HomeContent: FC = () => {
 
                 const data = await response.json();
                 setProofData(data.proof);
+
+                if (isMemeGen) {
+                    if (data.content && typeof data.content === 'string') {
+                        await handleMemeImageGeneration(data.content, promptText);
+                    }
+                }
 
                 const assistantMessage: Message = {
                     role: 'assistant',
@@ -2018,7 +2138,13 @@ const HomeContent: FC = () => {
         setCommandPart('');
         setNormalPart('');
     };
-
+    const handleLaunchMemeCoin = () => {
+        if (memeData) {
+            router.push(`/memelaunch?name=${encodeURIComponent(memeData.name)}&description=${encodeURIComponent(memeData.description)}`);
+        } else {
+            router.push('/memelaunch');
+        }
+    };
 
     const menuItems = [
         'ZkSurfer',
@@ -2359,7 +2485,8 @@ const HomeContent: FC = () => {
                                         onMintNFT={handleMintNFT}
                                         onDownloadProof={handleDownload}
                                         imageResultType={message.command}
-                                        onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                        // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                        onLaunchMemeCoin={message.command === 'meme-coin' ? handleLaunchMemeCoin : undefined}
                                     />
                                 ) : (
                                     <div className="inline-block p-1 rounded-lg text-white">
