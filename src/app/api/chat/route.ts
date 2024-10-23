@@ -42,6 +42,67 @@ async function generateProof(text: string) {
     return result;
 }
 
+// async function verifyProof(proof: string) {
+//     console.log('Verifying proof:', proof);
+//     const response = await fetch('https://zynapse.zkagi.ai/api/verify-proof', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
+//         body: JSON.stringify({ proof }),
+//     });
+//     if (!response.ok) {
+//         throw new Error('Failed to verify proof');
+//     }
+//     const result = await response.json();
+//     console.log('Proof verified successfully:', result);
+//     return result;
+// }
+
+// async function generate_image(prompt: string) {
+//     console.log('Generating image...');
+
+//     const fetchWithTimeout = new Promise((resolve, reject) => {
+//         const timeout = setTimeout(() => {
+//             reject(new Error('Request timed out after 60 seconds'));
+//         }, 120000);
+
+//         fetch('https://zynapse.zkagi.ai/generate', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'api-key': `${process.env.API_KEY}`
+//             },
+//             body: JSON.stringify({
+//                 prompt,
+//                 width: 512,
+//                 height: 512,
+//                 num_steps: 4,
+//                 guidance: 3.5,
+//                 seed: -1,
+//                 add_sampling_metadata: true
+//             }),
+//         })
+//             .then(response => {
+//                 clearTimeout(timeout); // Clear timeout if request is successful
+//                 if (!response.ok) {
+//                     throw new Error(`Failed to generate image: ${response.statusText}`);
+//                 }
+//                 return response.json();
+//             })
+//             .then(result => resolve(result))
+//             .catch(err => reject(err));
+//     });
+
+//     try {
+//         const result: any = await fetchWithTimeout;
+//         console.log('result', result);
+//         return result.image;
+//     } catch (error) {
+//         console.error(error);
+//         throw error;
+//     }
+// }
+
+
 async function verifyProof(proof: string) {
     console.log('Verifying proof:', proof);
     const response = await fetch('https://zynapse.zkagi.ai/api/verify-proof', {
@@ -65,7 +126,7 @@ async function generate_image(prompt: string) {
             reject(new Error('Request timed out after 60 seconds'));
         }, 120000);
 
-        fetch('https://zynapse.zkagi.ai/generate', {
+        fetch('http://65.20.68.31:4000/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -75,10 +136,16 @@ async function generate_image(prompt: string) {
                 prompt,
                 width: 512,
                 height: 512,
-                num_steps: 4,
-                guidance: 3.5,
+                add_sampling_metadata: true,
+                num_steps: 20,
+                start_step: 0,
+                guidance: 4,
                 seed: -1,
-                add_sampling_metadata: true
+                id_weight: 1.0,
+                neg_prompt: "bad quality, worst quality, text, signature, watermark, extra limbs",
+                true_cfg: 1.0,
+                timestep_to_start_cfg: 1,
+                max_sequence_length: 128
             }),
         })
             .then(response => {
@@ -101,6 +168,8 @@ async function generate_image(prompt: string) {
         throw error;
     }
 }
+
+
 
 function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     return Promise.race([

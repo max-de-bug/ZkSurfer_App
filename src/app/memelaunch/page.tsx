@@ -110,7 +110,7 @@ interface FormData {
     description: string;
 }
 
-const MemeLaunch = () => {
+const MemeLaunchPage = () => {
     const searchParams = useSearchParams();
     const [formData, setFormData] = useState<FormData>({
         name: '',
@@ -121,14 +121,18 @@ const MemeLaunch = () => {
 
     // UseEffect to check URL params and auto-fill the form
     useEffect(() => {
+        // Get the name and description from URL params
         const name = searchParams.get('name');
         const description = searchParams.get('description');
 
-        setFormData(prev => ({
-            ...prev,
-            name: name || prev.name,
-            description: description || prev.description
-        }));
+        // Update form data if params exist
+        if (name || description) {
+            setFormData(prev => ({
+                ...prev,
+                name: name || prev.name,
+                description: description || prev.description
+            }));
+        }
     }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -210,4 +214,4 @@ const MemeLaunch = () => {
     );
 };
 
-export default MemeLaunch;
+export default MemeLaunchPage;

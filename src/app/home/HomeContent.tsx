@@ -1675,6 +1675,60 @@ const HomeContent: FC = () => {
     };
 
     // Update the handleMemeImageGeneration function in your HomeContent component
+    // const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
+    //     try {
+    //         // Format and compress the image here instead of in the message handling
+    //         let formattedImage = imageData;
+    //         if (!imageData.startsWith('data:image/')) {
+    //             formattedImage = `data:image/png;base64,${imageData}`;
+    //         }
+    //         const compressedImage = await compressImage(formattedImage);
+
+    //         // First API call to upload the generated image
+    //         const imageUploadResponse = await fetch('/api/chat', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({
+    //                 messages: [{
+    //                     role: 'user',
+    //                     content: [{
+    //                         type: 'text',
+    //                         text: 'Provide a name and description for this image and response should contain only name and description in below format {"name":<generated_name>,"description":<generated_description>}'
+    //                     }, {
+    //                         type: 'image_url',
+    //                         image_url: {
+    //                             url: compressedImage // Using the compressed image
+    //                         }
+    //                     }]
+    //                 }]
+    //             })
+    //         });
+
+    //         if (!imageUploadResponse.ok) {
+    //             throw new Error('Failed to process image');
+    //         }
+
+    //         const data = await imageUploadResponse.json();
+    //         console.log('data', data)
+    //         let parsedData;
+
+    //         try {
+    //             // Try to parse the response content as JSON
+    //             if (typeof data.content === 'string') {
+    //                 parsedData = JSON.parse(data.content);
+    //             } else {
+    //                 parsedData = data.content;
+    //             }
+
+    //             setMemeData(parsedData);
+    //         } catch (e) {
+    //             console.error('Failed to parse meme data:', e);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error in meme image generation:', error);
+    //     }
+    // };
+
     const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
         try {
             // Format and compress the image here instead of in the message handling
@@ -1693,7 +1747,7 @@ const HomeContent: FC = () => {
                         role: 'user',
                         content: [{
                             type: 'text',
-                            text: 'Provide a name and description for this image and response should contain only name and description in below format {"name":<generated_name>,"description":<generated_description>}'
+                            text: 'Analyze the given image and suggest a creative name and description that fit the theme and appearance of the image. Ensure the output is always in the format: {"name":<generated_name>, "description":<generated_description>}.Return only a JSON response in the following format: {"name":<generated_name>, "description":<generated_description>}.'
                         }, {
                             type: 'image_url',
                             image_url: {
@@ -1709,17 +1763,18 @@ const HomeContent: FC = () => {
             }
 
             const data = await imageUploadResponse.json();
+            console.log('Raw API response:', data);
+
             let parsedData;
-
             try {
-                // Try to parse the response content as JSON
-                if (typeof data.content === 'string') {
-                    parsedData = JSON.parse(data.content);
+                // Use a regular expression to extract the JSON portion from the content
+                const jsonMatch = data.content.match(/\{.*\}/);
+                if (jsonMatch && jsonMatch[0]) {
+                    parsedData = JSON.parse(jsonMatch[0]);
+                    setMemeData(parsedData); // Assuming setMemeData updates the UI with the extracted info
                 } else {
-                    parsedData = data.content;
+                    throw new Error('No JSON object found in response');
                 }
-
-                setMemeData(parsedData);
             } catch (e) {
                 console.error('Failed to parse meme data:', e);
             }
@@ -2138,9 +2193,22 @@ const HomeContent: FC = () => {
         setCommandPart('');
         setNormalPart('');
     };
+    // const handleLaunchMemeCoin = () => {
+    //     if (memeData) {
+    //         router.push(`/memelaunch?name=${encodeURIComponent(memeData.name)}&description=${encodeURIComponent(memeData.description)}`);
+    //     } else {
+    //         router.push('/memelaunch');
+    //     }
+    // };
+
     const handleLaunchMemeCoin = () => {
         if (memeData) {
-            router.push(`/memelaunch?name=${encodeURIComponent(memeData.name)}&description=${encodeURIComponent(memeData.description)}`);
+            const params = new URLSearchParams({
+                name: memeData.name,
+                description: memeData.description
+            }).toString();
+
+            router.push(`/memelaunch?${params}`);
         } else {
             router.push('/memelaunch');
         }
@@ -2335,6 +2403,10 @@ const HomeContent: FC = () => {
         });
     };
 
+    if (memeData) {
+        console.log('memeData.name', memeData.name)
+        console.log('memeData.des', memeData.description)
+    }
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex">
