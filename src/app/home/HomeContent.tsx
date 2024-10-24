@@ -11,14 +11,29 @@ import { useSession } from 'next-auth/react';
 import ResultBlock from '@/component/ui/ResultBlock';
 import * as pdfjs from 'pdfjs-dist';
 import { useRouter } from 'next/navigation';
-import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
+// import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { useMemeStore } from '@/stores/meme-store';
+import { ApifyClient } from 'apify-client';
 
-type Command = 'image-gen' | 'meme-coin';
+type Command = 'image-gen' | 'meme-coin' | 'content';
+
+interface TickerPopupProps {
+    tickers: string[];
+    onSelect: (ticker: string) => void;
+}
 
 interface CommandPopupProps {
-    onSelect: (command: Command) => void;
+    onSelect: (command: Command, option?: string) => void;
 }
+
+
+interface TickerOption {
+    name: string;
+}
+
+// interface CommandPopupProps {
+//     onSelect: (command: Command) => void;
+// }
 
 interface FileSystemFileHandle {
     createWritable(): Promise<FileSystemWritableFileStream>;
@@ -63,6 +78,23 @@ interface Message {
     seed?: string;
 }
 
+
+const apifyClient = new ApifyClient({
+    token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO'
+});
+
+
+// const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
+//     <div className="absolute bottom-full left-0 bg-[#171D3D] rounded-lg shadow-lg">
+//         <button onClick={() => onSelect('image-gen')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
+//             /image-gen
+//         </button>
+//         <button onClick={() => onSelect('meme-coin')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
+//             /meme-coin
+//         </button>
+//     </div>
+// );
+
 const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
     <div className="absolute bottom-full left-0 bg-[#171D3D] rounded-lg shadow-lg">
         <button onClick={() => onSelect('image-gen')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
@@ -71,8 +103,27 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
         <button onClick={() => onSelect('meme-coin')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
             /meme-coin
         </button>
+        <button onClick={() => onSelect('content')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
+            /content
+        </button>
     </div>
 );
+
+
+const TickerPopup: React.FC<TickerPopupProps> = ({ tickers, onSelect }) => (
+    <div className="absolute bottom-full left-0 bg-[#171D3D] rounded-lg shadow-lg">
+        {tickers.map((ticker, index) => (
+            <button
+                key={index}
+                onClick={() => onSelect(ticker)}
+                className="block w-full text-left px-4 py-2 hover:bg-[#24284E]"
+            >
+                {ticker}
+            </button>
+        ))}
+    </div>
+);
+
 
 
 const HomeContent: FC = () => {
@@ -96,14 +147,18 @@ const HomeContent: FC = () => {
     const router = useRouter();
     const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'meme-coin' | null>(null);
 
-    const { address } = useAccount();
-    const { data: walletClient } = useWalletClient();
-    const publicClient = usePublicClient();
+    // const { address } = useAccount();
+    // const { data: walletClient } = useWalletClient();
+    // const publicClient = usePublicClient();
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
 
     const [currentSeed, setCurrentSeed] = useState<string | null>(null);
+    const [tickerOptions, setTickerOptions] = useState<TickerOption[]>([]);
+    const [showTickerPicker, setShowTickerPicker] = useState(false);
+    const [showTickerPopup, setShowTickerPopup] = useState(false);
+    const [tickers, setTickers] = useState<string[]>([]);
 
     const [memeGenerationData, setMemeGenerationData] = useState<{
         name: string;
@@ -112,6 +167,27 @@ const HomeContent: FC = () => {
         base64Image: string;
         seed: number;
     } | null>(null);
+
+    useEffect(() => {
+        const fetchTickerOptions = async () => {
+            if (wallet.publicKey) {
+                try {
+                    const response = await fetch(`https://zynapse.zkagi.ai/getTickersByWallet/${wallet.publicKey.toString()}`, {
+                        headers: {
+                            'api-key': 'zk-123321'
+                        }
+                    });
+                    if (!response.ok) throw new Error('Failed to fetch tickers');
+                    const data = await response.json();
+                    setTickers(data.tickers); // Only set the tickers array
+                } catch (error) {
+                    console.error('Error fetching tickers:', error);
+                }
+            }
+        };
+
+        fetchTickerOptions();
+    }, [wallet.publicKey]);
 
     const compressImage = async (base64String: string, targetSizeKB: number = 450): Promise<string> => {
         // Create an image element
@@ -163,6 +239,58 @@ const HomeContent: FC = () => {
 
         return compressed;
     };
+
+    // const processTwitterData = async (twitterUrl: any) => {
+    //     const client = new ApifyClient({
+    //         token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO'
+    //     });
+
+    //     try {
+    //         const run = await client.actor('quacker/twitter-scraper').call({
+    //             input: {
+    //                 searchMode: 'user',
+    //                 user: twitterUrl,
+    //                 maxTweets: 10
+    //             }
+    //         });
+
+    //         const { output } = await run.waitForFinish();
+    //         return output;
+    //     } catch (error) {
+    //         console.error('Error fetching tweets:', error);
+    //         return null;
+    //     }
+    // };
+
+    const processTwitterData = async (twitterUrl: string) => {
+        const client = new ApifyClient({
+            token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+        });
+
+        try {
+            // Start the actor run
+            const run = await client.actor('quacker/twitter-scraper').call({
+                input: {
+                    searchMode: 'user',
+                    user: twitterUrl,
+                    maxTweets: 10,
+                },
+            });
+
+            // Wait for the run to finish
+            await client.run(run.id).waitForFinish();
+
+            // Get the output from the dataset (if the actor stores results in a dataset)
+            const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+            return items; // Return the tweets or other data fetched
+        } catch (error) {
+            console.error('Error fetching tweets:', error);
+            return null;
+        }
+    };
+
+
 
     // Function to format base64 image properly
     const formatBase64Image = (base64String: string): string => {
@@ -248,14 +376,27 @@ const HomeContent: FC = () => {
         };
     }, [router]);
 
+    // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const value = e.target.value;
+    //     setInputMessage(value);
+
+    //     if (value === '/') {
+    //         setShowCommandPopup(true);
+    //     } else if (!value.startsWith('/')) {
+    //         setShowCommandPopup(false);
+    //     }
+    // };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setInputMessage(value);
 
         if (value === '/') {
             setShowCommandPopup(true);
-        } else if (!value.startsWith('/')) {
+            setShowTickerPopup(false);
+        } else if (!value) {
             setShowCommandPopup(false);
+            setShowTickerPopup(false);
         }
     };
 
@@ -265,11 +406,11 @@ const HomeContent: FC = () => {
         }
     };
 
-    const handleCommandSelect = (command: Command) => {
-        setInputMessage(`/${command} `);
-        setShowCommandPopup(false);
-        inputRef.current?.focus();
-    };
+    // const handleCommandSelect = (command: Command) => {
+    //     setInputMessage(`/${command} `);
+    //     setShowCommandPopup(false);
+    //     inputRef.current?.focus();
+    // };
 
     const getStyledInputContent = () => {
         const parts = inputMessage.split(' ');
@@ -283,6 +424,25 @@ const HomeContent: FC = () => {
         }
         return inputMessage;
     };
+
+    const handleCommandSelect = (command: Command) => {
+        if (command === 'content') {
+            setInputMessage('/content ');
+            setShowCommandPopup(false);
+            setShowTickerPopup(true);
+        } else {
+            setInputMessage(`/${command} `);
+            setShowCommandPopup(false);
+        }
+        inputRef.current?.focus();
+    };
+
+    const handleTickerSelect = (ticker: string) => {
+        setInputMessage(`/content ${ticker}`);
+        setShowTickerPopup(false);
+        inputRef.current?.focus();
+    };
+
 
     useEffect(() => {
         const handleResize = () => {
@@ -381,8 +541,87 @@ const HomeContent: FC = () => {
         // Check if message starts with a command
         const isImageGen = fullMessage.startsWith('/image-gen');
         const isMemeGen = fullMessage.startsWith('/meme-coin');
+        const isContent = fullMessage.startsWith('/content');
 
-        if (isImageGen || isMemeGen) {
+        if (isImageGen || isMemeGen || isContent) {
+
+
+            if (fullMessage.startsWith('/content')) {
+                // const ticker = fullMessage.replace('/content', '').trim();
+                const ticker = fullMessage.split('content')[1]?.split('tweet')[0]?.trim() || '';
+
+                try {
+                    const response = await fetch(`https://zynapse.zkagi.ai/contentengine_knowledgebase/${ticker}`, {
+                        headers: {
+                            'api-key': 'zk-123321'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error('Failed to fetch content');
+                    const data = await response.json();
+                    console.log('data', data)
+
+                    // Extract training data and Twitter URL
+                    const trainingData = data.training_data || [];
+                    let twitterUrl = '';
+
+                    // Look for Twitter URL in the urls array
+                    if (data.urls && Array.isArray(data.urls)) {
+                        twitterUrl = data.urls.find((url: string) => url.includes('twitter.com')) || '';
+                    }
+
+                    let twitterData = null;
+                    if (twitterUrl) {
+                        // Extract username from Twitter URL
+                        const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
+                        if (username) {
+                            twitterData = await processTwitterData(username);
+                        }
+                    }
+
+                    // Combine data for text generation
+                    const combinedData = {
+                        training_data: trainingData,
+                        twitter_data: twitterData
+                    };
+
+                    // Make the text generation API call using existing chat endpoint
+                    const textGenResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [
+                                ...apiMessages,
+                                {
+                                    role: 'user',
+                                    content: JSON.stringify(combinedData)
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!textGenResponse.ok) throw new Error('Failed to generate text');
+                    const textGenData = await textGenResponse.json();
+
+
+                    const displayMessage: Message = {
+                        role: 'user',
+                        content: fullMessage
+                    };
+
+                    setDisplayMessages(prev => [...prev, displayMessage]);
+
+                    const assistantMessage: Message = {
+                        role: 'assistant',
+                        content: data.content || 'No content available',
+                        type: 'text'
+                    };
+                    setDisplayMessages(prev => [...prev, assistantMessage]);
+
+                } catch (error) {
+                    console.error('Error fetching content:', error);
+                }
+            }
 
             const commandType = isImageGen ? 'image-gen' : 'meme-coin';
             setCurrentCommand(commandType);
@@ -647,14 +886,14 @@ const HomeContent: FC = () => {
     const setMemeData = useMemeStore((state) => state.setMemeData);
 
     const handleLaunchMemeCoin = () => {
-        if (memeGenerationData && currentSeed && address) {
+        if (memeGenerationData && currentSeed && wallet) {
             setMemeData({
                 name: memeGenerationData.name,
                 description: memeGenerationData.description,
                 prompt: memeGenerationData.prompt,
                 base64Image: memeGenerationData.base64Image,
                 seed: currentSeed,
-                wallet: address
+                wallet: wallet.publicKey ? wallet.publicKey.toString() : ''
             });
             router.push('/memelaunch');
         } else {
@@ -674,23 +913,36 @@ const HomeContent: FC = () => {
     const [loading, setLoading] = useState(false);
 
 
-    const handleMintNFT = async (base64Image: string) => {
-        if (!address || !walletClient || !publicClient) {
-            console.error("Wallet not connected");
-            return;
-        }
+    // const handleMintNFT = async (base64Image: string) => {
+    //     if (!address || !walletClient || !publicClient) {
+    //         console.error("Wallet not connected");
+    //         return;
+    //     }
 
+    //     setLoading(true);
+    //     try {
+    //         const result = await createNft({
+    //             walletClient,
+    //             publicClient,
+    //             base64Image,
+    //             contractAddress: '0xYourNFTContractAddress' // Replace with your actual NFT contract address
+    //         });
+
+    //         // Open transaction in block explorer
+    //         window.open(`https://etherscan.io/tx/${result.hash}`, '_blank', 'noopener,noreferrer');
+    //     } catch (error) {
+    //         console.error("Failed to mint NFT:", error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
+    const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
         try {
-            const result = await createNft({
-                walletClient,
-                publicClient,
-                base64Image,
-                contractAddress: '0xYourNFTContractAddress' // Replace with your actual NFT contract address
-            });
-
-            // Open transaction in block explorer
-            window.open(`https://etherscan.io/tx/${result.hash}`, '_blank', 'noopener,noreferrer');
+            const { signature, assetPublicKey } = await createNft(wallet, base64Image, wallet.publicKey?.toString() || '');
+            const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
+            window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
         } catch (error) {
             console.error("Failed to mint NFT:", error);
         } finally {
@@ -851,11 +1103,6 @@ const HomeContent: FC = () => {
             }
         });
     };
-
-
-    console.log('memeGenerationData', memeGenerationData)
-    console.log('currentSeed', currentSeed)
-    console.log('address', address)
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex">
@@ -1090,8 +1337,19 @@ const HomeContent: FC = () => {
                                         placeholder="Message ZkSurfer"
                                         className="bg-transparent flex-grow outline-none text-white placeholder-[#A0AEC0] font-ttfirs w-full opacity-0"
                                     />
-                                    {showCommandPopup && (
+                                    {/* {showCommandPopup && (
                                         <CommandPopup onSelect={handleCommandSelect} />
+                                    )} */}
+                                    {showCommandPopup && (
+                                        <CommandPopup
+                                            onSelect={handleCommandSelect}
+                                        />
+                                    )}
+                                    {showTickerPopup && (
+                                        <TickerPopup
+                                            tickers={tickers}
+                                            onSelect={handleTickerSelect}
+                                        />
                                     )}
                                 </div>
                                 <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>

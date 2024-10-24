@@ -168,7 +168,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                                 >
                                     <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Launch MemeCoin</span>
                                     <Image
-                                        src="images/rocket.svg"
+                                        src="images/meme.svg"
                                         alt="launch"
                                         width={30}
                                         height={30}
