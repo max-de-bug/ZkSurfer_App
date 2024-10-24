@@ -162,7 +162,11 @@ async function generate_image(prompt: string) {
     try {
         const result: any = await fetchWithTimeout;
         console.log('result', result);
-        return result.image;
+        // return result.image;
+        return {
+            image: result.image,
+            seed: result.seed // Include seed in return value
+        };
     } catch (error) {
         console.error(error);
         throw error;
@@ -358,9 +362,10 @@ export async function POST(request: Request) {
             await verifyProof(proof);
 
             return NextResponse.json({
-                content: generatedImage,
+                content: generatedImage.image,
                 type: 'img',
                 prompt: directCommand.prompt,
+                seed: generatedImage.seed,
                 proof
             });
         }
@@ -432,7 +437,7 @@ export async function POST(request: Request) {
                     switch (toolCall.name) {
                         case 'generate_image':
                             const generatedImage = await generate_image(toolCall.arguments.prompt);
-                            finalResponse.content = generatedImage;
+                            finalResponse.content = generatedImage.image;
                             finalResponse.type = 'img';
                             finalResponse.prompt = responseMessage.content;
                             console.log('finalResponse', finalResponse);
