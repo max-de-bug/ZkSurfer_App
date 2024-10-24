@@ -65,7 +65,7 @@ async function generate_image(prompt: string) {
             reject(new Error('Request timed out after 60 seconds'));
         }, 120000);
 
-        fetch('https://zynapse.zkagi.ai/generate', {
+        fetch('https://zynapse.zkagi.ai/generate-image', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -75,10 +75,16 @@ async function generate_image(prompt: string) {
                 prompt,
                 width: 512,
                 height: 512,
-                num_steps: 4,
-                guidance: 3.5,
+                add_sampling_metadata: true,
+                num_steps: 20,
+                start_step: 0,
+                guidance: 4,
                 seed: -1,
-                add_sampling_metadata: true
+                id_weight: 1.0,
+                neg_prompt: "bad quality, worst quality, text, signature, watermark, extra limbs",
+                true_cfg: 1.0,
+                timestep_to_start_cfg: 1,
+                max_sequence_length: 128
             }),
         })
             .then(response => {
