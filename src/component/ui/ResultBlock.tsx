@@ -1,81 +1,10 @@
-// import React, { useState } from 'react';
-// import Image from 'next/image';
-
-// interface ResultBlockProps {
-//     content: string;
-//     type: 'image' | 'code';
-//     onMintNFT?: (content: string) => void;
-//     onDownloadProof: () => void;
-// }
-
-// const ResultBlock: React.FC<ResultBlockProps> = ({ content, type, onMintNFT, onDownloadProof }) => {
-//     const [isCopied, setIsCopied] = useState(false);
-
-//     const copyToClipboard = () => {
-//         navigator.clipboard.writeText(content).then(() => {
-//             setIsCopied(true);
-//             setTimeout(() => setIsCopied(false), 2000);
-//         });
-//     };
-
-//     console.log('type', type)
-
-//     return (
-//         <div className="bg-gray-800 rounded-lg p-4 my-2">
-//             {type === 'image' ? (
-//                 <div>
-//                     <img src={`data:image/jpeg;base64,${content}`} alt="Generated content" className="w-full rounded-lg" />
-//                     <div className="mt-2 flex space-x-2">
-//                         <button
-//                             onClick={onDownloadProof}
-//                             className="bg-blue-500 text-white px-2 py-1 rounded"
-//                         >
-//                             Download Proof
-//                         </button>
-//                         {onMintNFT && (
-//                             <button
-//                                 onClick={() => onMintNFT(`data:image/jpeg;base64,${content}`)}
-//                                 className="bg-green-500 text-white px-2 py-1 rounded"
-//                             >
-//                                 Mint NFT
-//                             </button>
-//                         )}
-//                     </div>
-//                 </div>
-//             ) : (
-//                 <div>
-//                     <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto">
-//                         <code>{content}</code>
-//                     </pre>
-//                     <div className="mt-2 flex space-x-2">
-//                         <button
-//                             onClick={onDownloadProof}
-//                             className="bg-blue-500 text-white px-2 py-1 rounded"
-//                         >
-//                             Download Proof
-//                         </button>
-//                         <button
-//                             onClick={copyToClipboard}
-//                             className="bg-purple-500 text-white px-2 py-1 rounded"
-//                         >
-//                             {isCopied ? 'Copied!' : 'Copy to Clipboard'}
-//                         </button>
-//                     </div>
-//                 </div>
-//             )}
-//         </div>
-//     );
-// };
-
-// export default ResultBlock;
-
 import React, { useState } from 'react';
 import Image from 'next/image';
 
 interface ResultBlockProps {
     content: string;
     type: 'image' | 'code';
-    language?: string; // Optional prop to show the programming language for code blocks
+    language?: string;
     onMintNFT?: (content: string) => void;
     onDownloadProof: () => void;
 }
@@ -101,12 +30,13 @@ const ResultBlock: React.FC<ResultBlockProps> = ({ content, type, language, onMi
                                 onClick={onDownloadProof}
                                 className="flex items-center space-x-2  text-white  rounded"
                             >
-                                <span className='text-[#A0AEC0]'>Download Proof</span>
+                                <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Download Proof</span>
                                 <Image
                                     src="images/downloadProof.svg"
                                     alt="logo"
                                     width={30}
                                     height={30}
+                                    className='hover:text-[#00FF89]'
                                 />
                             </button>
                         </div>
@@ -116,12 +46,13 @@ const ResultBlock: React.FC<ResultBlockProps> = ({ content, type, language, onMi
                                     onClick={() => onMintNFT(`data:image/jpeg;base64,${content}`)}
                                     className="flex items-center space-x-2  text-white rounded"
                                 >
-                                    <span className='text-[#A0AEC0]'>Mint Nft</span>
+                                    <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Mint Nft</span>
                                     <Image
                                         src="images/nft.svg"
                                         alt="logo"
                                         width={30}
                                         height={30}
+                                        className='hover:text-[#00FF89]'
                                     />
                                 </button>
                             </div>
