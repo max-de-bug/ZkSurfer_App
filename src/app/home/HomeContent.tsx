@@ -78,23 +78,6 @@ interface Message {
     seed?: string;
 }
 
-
-const apifyClient = new ApifyClient({
-    token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO'
-});
-
-
-// const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
-//     <div className="absolute bottom-full left-0 bg-[#171D3D] rounded-lg shadow-lg">
-//         <button onClick={() => onSelect('image-gen')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
-//             /image-gen
-//         </button>
-//         <button onClick={() => onSelect('meme-coin')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
-//             /meme-coin
-//         </button>
-//     </div>
-// );
-
 const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
     <div className="absolute bottom-full left-0 bg-[#171D3D] rounded-lg shadow-lg">
         <button onClick={() => onSelect('image-gen')} className="block w-full text-left px-4 py-2 hover:bg-[#24284E]">
@@ -240,27 +223,6 @@ const HomeContent: FC = () => {
         return compressed;
     };
 
-    // const processTwitterData = async (twitterUrl: any) => {
-    //     const client = new ApifyClient({
-    //         token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO'
-    //     });
-
-    //     try {
-    //         const run = await client.actor('quacker/twitter-scraper').call({
-    //             input: {
-    //                 searchMode: 'user',
-    //                 user: twitterUrl,
-    //                 maxTweets: 10
-    //             }
-    //         });
-
-    //         const { output } = await run.waitForFinish();
-    //         return output;
-    //     } catch (error) {
-    //         console.error('Error fetching tweets:', error);
-    //         return null;
-    //     }
-    // };
 
     const processTwitterData = async (twitterUrl: string) => {
         const client = new ApifyClient({
@@ -268,27 +230,31 @@ const HomeContent: FC = () => {
         });
 
         try {
+            const input = {
+                handles: [twitterUrl],
+                tweetsDesired: 10,
+                proxyConfig: { useApifyProxy: true },
+            };
+
             // Start the actor run
-            const run = await client.actor('quacker/twitter-scraper').call({
-                input: {
-                    searchMode: 'user',
-                    user: twitterUrl,
-                    maxTweets: 10,
-                },
-            });
+            const run = await client.actor("quacker/twitter-scraper").call(input);
 
             // Wait for the run to finish
             await client.run(run.id).waitForFinish();
 
-            // Get the output from the dataset (if the actor stores results in a dataset)
+            // Get the output from the dataset
             const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
-            return items; // Return the tweets or other data fetched
+            // Extract only the full_text from each tweet item
+            const tweetTexts = items.map(item => item.full_text);
+
+            return tweetTexts;
         } catch (error) {
             console.error('Error fetching tweets:', error);
             return null;
         }
     };
+
 
 
 
@@ -335,11 +301,12 @@ const HomeContent: FC = () => {
             const data = await imageUploadResponse.json();
 
             try {
-                const jsonMatch = data.content.match(/\{.*\}/);
+                // const jsonMatch = data.content.match(/\{.*\}/);
+                const jsonMatch = data.content.match(/```json\n({[\s\S]*?})\n```/);
                 console.log('jsonMatch', jsonMatch)
-                console.log('jsonMatch[0]', jsonMatch[0])
+                console.log('jsonMatch[0]', jsonMatch[1])
                 if (jsonMatch && jsonMatch[0]) {
-                    const parsedData = JSON.parse(jsonMatch[0]);
+                    const parsedData = JSON.parse(jsonMatch[1]);
                     console.log('parsedData', parsedData)
                     setMemeGenerationData({
                         ...parsedData,
@@ -376,17 +343,6 @@ const HomeContent: FC = () => {
         };
     }, [router]);
 
-    // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     const value = e.target.value;
-    //     setInputMessage(value);
-
-    //     if (value === '/') {
-    //         setShowCommandPopup(true);
-    //     } else if (!value.startsWith('/')) {
-    //         setShowCommandPopup(false);
-    //     }
-    // };
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setInputMessage(value);
@@ -405,12 +361,6 @@ const HomeContent: FC = () => {
             setShowCommandPopup(false);
         }
     };
-
-    // const handleCommandSelect = (command: Command) => {
-    //     setInputMessage(`/${command} `);
-    //     setShowCommandPopup(false);
-    //     inputRef.current?.focus();
-    // };
 
     const getStyledInputContent = () => {
         const parts = inputMessage.split(' ');
@@ -545,12 +495,11 @@ const HomeContent: FC = () => {
 
         if (isImageGen || isMemeGen || isContent) {
 
-
             if (fullMessage.startsWith('/content')) {
-                // const ticker = fullMessage.replace('/content', '').trim();
                 const ticker = fullMessage.split('content')[1]?.split('tweet')[0]?.trim() || '';
 
                 try {
+                    // First fetch ticker info
                     const response = await fetch(`https://zynapse.zkagi.ai/contentengine_knowledgebase/${ticker}`, {
                         headers: {
                             'api-key': 'zk-123321'
@@ -559,23 +508,23 @@ const HomeContent: FC = () => {
 
                     if (!response.ok) throw new Error('Failed to fetch content');
                     const data = await response.json();
-                    console.log('data', data)
 
                     // Extract training data and Twitter URL
                     const trainingData = data.training_data || [];
+                    console.log('trainingData', trainingData)
                     let twitterUrl = '';
+                    let twitterData = null;
 
                     // Look for Twitter URL in the urls array
                     if (data.urls && Array.isArray(data.urls)) {
                         twitterUrl = data.urls.find((url: string) => url.includes('twitter.com')) || '';
-                    }
 
-                    let twitterData = null;
-                    if (twitterUrl) {
-                        // Extract username from Twitter URL
-                        const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
-                        if (username) {
-                            twitterData = await processTwitterData(username);
+                        if (twitterUrl) {
+                            // Extract username from Twitter URL
+                            const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
+                            if (username) {
+                                twitterData = await processTwitterData(username);
+                            }
                         }
                     }
 
@@ -585,42 +534,49 @@ const HomeContent: FC = () => {
                         twitter_data: twitterData
                     };
 
-                    // Make the text generation API call using existing chat endpoint
+                    // Add user message to display
+                    const userMessage: Message = {
+                        role: 'user',
+                        content: fullMessage
+                    };
+                    setDisplayMessages(prev => [...prev, userMessage]);
+
+                    // Make single API call with combined data
                     const textGenResponse = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            messages: [
-                                ...apiMessages,
-                                {
-                                    role: 'user',
-                                    content: JSON.stringify(combinedData)
-                                }
-                            ]
+                            messages: [{
+                                role: 'user',
+                                // content: JSON.stringify(combinedData)
+                                content: `generate a tweet content and create a prompt that i can pass to a image gen model so that it can generate a image which i can post with  the generated tweet. The response should be in given json {'tweet':<generated_tweet>,'prompt':<generated_prompt>} using following json data: ${JSON.stringify(combinedData)}`
+                            }]
                         })
                     });
 
                     if (!textGenResponse.ok) throw new Error('Failed to generate text');
                     const textGenData = await textGenResponse.json();
 
-
-                    const displayMessage: Message = {
-                        role: 'user',
-                        content: fullMessage
-                    };
-
-                    setDisplayMessages(prev => [...prev, displayMessage]);
-
+                    // Display assistant message with generated content
                     const assistantMessage: Message = {
                         role: 'assistant',
-                        content: data.content || 'No content available',
+                        content: textGenData.content,
                         type: 'text'
                     };
                     setDisplayMessages(prev => [...prev, assistantMessage]);
+                    setInputMessage('');
 
                 } catch (error) {
-                    console.error('Error fetching content:', error);
+                    console.error('Error in content command:', error);
+                    // Add error message to display
+                    const errorMessage: Message = {
+                        role: 'assistant',
+                        content: 'Sorry, there was an error processing your request.',
+                        type: 'text'
+                    };
+                    setDisplayMessages(prev => [...prev, errorMessage]);
                 }
+                return; // Exit here to prevent further processing
             }
 
             const commandType = isImageGen ? 'image-gen' : 'meme-coin';
@@ -911,31 +867,6 @@ const HomeContent: FC = () => {
     ];
 
     const [loading, setLoading] = useState(false);
-
-
-    // const handleMintNFT = async (base64Image: string) => {
-    //     if (!address || !walletClient || !publicClient) {
-    //         console.error("Wallet not connected");
-    //         return;
-    //     }
-
-    //     setLoading(true);
-    //     try {
-    //         const result = await createNft({
-    //             walletClient,
-    //             publicClient,
-    //             base64Image,
-    //             contractAddress: '0xYourNFTContractAddress' // Replace with your actual NFT contract address
-    //         });
-
-    //         // Open transaction in block explorer
-    //         window.open(`https://etherscan.io/tx/${result.hash}`, '_blank', 'noopener,noreferrer');
-    //     } catch (error) {
-    //         console.error("Failed to mint NFT:", error);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
 
     const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
@@ -1337,9 +1268,6 @@ const HomeContent: FC = () => {
                                         placeholder="Message ZkSurfer"
                                         className="bg-transparent flex-grow outline-none text-white placeholder-[#A0AEC0] font-ttfirs w-full opacity-0"
                                     />
-                                    {/* {showCommandPopup && (
-                                        <CommandPopup onSelect={handleCommandSelect} />
-                                    )} */}
                                     {showCommandPopup && (
                                         <CommandPopup
                                             onSelect={handleCommandSelect}

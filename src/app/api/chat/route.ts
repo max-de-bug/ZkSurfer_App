@@ -204,7 +204,8 @@ export async function POST(request: Request) {
         ];
 
         const response = await openAIWithTimeout({
-            model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+            // model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+            model: "mistralai/Pixtral-12B-2409",
             messages: updatedMessages,
         });
 
