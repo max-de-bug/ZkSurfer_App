@@ -1,0 +1,267 @@
+{
+    "version": "0.1.0",
+    "name": "solana_pump_fun",
+    "instructions": [
+      {
+        "name": "initialize",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": true, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [
+          { "name": "initParams", "type": { "defined": "PlatformInitParams" } }
+        ]
+      },
+      {
+        "name": "changeOwner",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "newOwner", "type": "publicKey" }]
+      },
+      {
+        "name": "changeFees",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "newFees", "type": "u64" }]
+      },
+      {
+        "name": "changeTotalSupply",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "newTotalSupply", "type": "u64" }]
+      },
+      {
+        "name": "changeVirtualSolAmount",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "newVirtualSolAmount", "type": "u64" }]
+      },
+      {
+        "name": "changeTargetPoolBalance",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "newTargetPoolBalance", "type": "u64" }]
+      },
+      {
+        "name": "withdrawFees",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": false, "isSigner": true },
+          { "name": "systemProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": []
+      },
+      {
+        "name": "createToken",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": true, "isSigner": true },
+          { "name": "metadata", "isMut": true, "isSigner": false },
+          { "name": "mint", "isMut": true, "isSigner": false },
+          { "name": "tokenAccount", "isMut": true, "isSigner": false },
+          { "name": "tokenInfo", "isMut": true, "isSigner": false },
+          { "name": "systemProgram", "isMut": false, "isSigner": false },
+          { "name": "tokenProgram", "isMut": false, "isSigner": false },
+          { "name": "tokenMetadataProgram", "isMut": false, "isSigner": false },
+          { "name": "rent", "isMut": false, "isSigner": false }
+        ],
+        "args": [
+          {
+            "name": "createTokenParams",
+            "type": { "defined": "CreateTokenParams" }
+          }
+        ]
+      },
+      {
+        "name": "buyTokens",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": true, "isSigner": true },
+          { "name": "mint", "isMut": false, "isSigner": false },
+          { "name": "tokenInfo", "isMut": true, "isSigner": false },
+          { "name": "sourceTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "systemProgram", "isMut": false, "isSigner": false },
+          { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "solAmount", "type": "u64" }]
+      },
+      {
+        "name": "sellTokens",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": true, "isSigner": true },
+          { "name": "mint", "isMut": false, "isSigner": false },
+          { "name": "tokenInfo", "isMut": true, "isSigner": false },
+          { "name": "sourceTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "systemProgram", "isMut": false, "isSigner": false },
+          { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [
+          { "name": "tokenAmount", "type": "u64" },
+          { "name": "name", "type": "string" }
+        ]
+      },
+      {
+        "name": "addLiquidity",
+        "accounts": [
+          { "name": "platform", "isMut": true, "isSigner": false },
+          { "name": "signer", "isMut": true, "isSigner": true },
+          { "name": "mint", "isMut": false, "isSigner": false },
+          { "name": "tokenInfo", "isMut": true, "isSigner": false },
+          { "name": "sourceTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+          { "name": "systemProgram", "isMut": false, "isSigner": false },
+          { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        ],
+        "args": [{ "name": "name", "type": "string" }]
+      }
+    ],
+    "accounts": [
+      {
+        "name": "Platform",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            { "name": "owner", "type": "publicKey" },
+            { "name": "feeInBps", "type": "u64" },
+            { "name": "accumulatedFees", "type": "u64" },
+            { "name": "totalSupply", "type": "u64" },
+            { "name": "virtualSol", "type": "u64" },
+            { "name": "targetPoolBalance", "type": "u64" }
+          ]
+        }
+      },
+      {
+        "name": "TokenInfo",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            { "name": "token", "type": "publicKey" },
+            { "name": "creator", "type": "publicKey" },
+            { "name": "totalSupply", "type": "u64" },
+            { "name": "virtualSol", "type": "u64" },
+            { "name": "solReserve", "type": "u64" },
+            { "name": "tokenReserve", "type": "u64" },
+            { "name": "targetPoolBalance", "type": "u64" },
+            { "name": "launched", "type": "bool" }
+          ]
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "PlatformInitParams",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            { "name": "owner", "type": "publicKey" },
+            { "name": "feeInBps", "type": "u64" },
+            { "name": "totalSupply", "type": "u64" },
+            { "name": "virtualSol", "type": "u64" },
+            { "name": "targetPoolBalance", "type": "u64" }
+          ]
+        }
+      },
+      {
+        "name": "CreateTokenParams",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "symbol", "type": "string" },
+            { "name": "uri", "type": "string" }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "name": "PlatformInitialized",
+        "fields": [
+          { "name": "platform", "type": "publicKey", "index": false },
+          { "name": "owner", "type": "publicKey", "index": false }
+        ]
+      },
+      {
+        "name": "OwnerChanged",
+        "fields": [{ "name": "newOwner", "type": "publicKey", "index": false }]
+      },
+      {
+        "name": "FeesChanged",
+        "fields": [{ "name": "newFees", "type": "u64", "index": false }]
+      },
+      {
+        "name": "TotalSupplyChanged",
+        "fields": [{ "name": "newTotalSupply", "type": "u64", "index": false }]
+      },
+      {
+        "name": "VirtualSolChanged",
+        "fields": [
+          { "name": "newVirtualSolAmount", "type": "u64", "index": false }
+        ]
+      },
+      {
+        "name": "TargetPoolBalanceChanged",
+        "fields": [
+          { "name": "newTargetPoolBalance", "type": "u64", "index": false }
+        ]
+      },
+      {
+        "name": "FeesWithdrawn",
+        "fields": [{ "name": "amount", "type": "u64", "index": false }]
+      },
+      {
+        "name": "TokenCreated",
+        "fields": [{ "name": "token", "type": "publicKey", "index": false }]
+      },
+      {
+        "name": "TokensSold",
+        "fields": [
+          { "name": "token", "type": "publicKey", "index": false },
+          { "name": "by", "type": "publicKey", "index": false },
+          { "name": "amount", "type": "u64", "index": false }
+        ]
+      },
+      {
+        "name": "LiquidityAdded",
+        "fields": [
+          { "name": "token", "type": "publicKey", "index": false },
+          { "name": "solAmount", "type": "u64", "index": false },
+          { "name": "tokenAmount", "type": "u64", "index": false }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "code": 6000,
+        "name": "ExcessiveFees",
+        "msg": "Fee in bips should not exceed 500"
+      },
+      { "code": 6001, "name": "NotOwner", "msg": "Not owner" },
+      {
+        "code": 6002,
+        "name": "BondingCurveBreached",
+        "msg": "Bonding curve breached"
+      },
+      { "code": 6003, "name": "AlreadyLaunched", "msg": "Already launched" },
+      { "code": 6004, "name": "NotLaunched", "msg": "Not launched" }
+    ]
+  }
