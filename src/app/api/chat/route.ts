@@ -73,7 +73,7 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
             reject(new Error('Request timed out after 60 seconds'));
         }, 120000);
 
-        fetch('http://65.20.68.31:4000/generate', {
+        fetch('https://zynapse.zkagi.ai/generate-image', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
