@@ -229,7 +229,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                         </div>
                     </div>
                     {language && <div className="text-sm text-gray-400 mb-1">{language}</div>}
-                    <pre className="bg-gray-900 p-4 rounded-lg overflow-x-fit">
+                    <pre className="bg-gray-900 p-4 rounded-lg  max-w-3xl whitespace-pre-wrap">
                         <code>{content}</code>
                     </pre>
                 </div>

@@ -877,6 +877,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemeStore } from '@/stores/meme-store';
 import * as pdfjs from 'pdfjs-dist';
+import TokenCreator from './setup';
+import { useAnchorWallet } from "@solana/wallet-adapter-react";
 
 interface FormDataType {
     name: string;
@@ -899,6 +901,7 @@ interface FormDataType {
 
 const MemeLaunchPage = () => {
     const router = useRouter();
+    const wallet = useAnchorWallet();
     const { memeData, resetMemeData } = useMemeStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -1023,7 +1026,7 @@ const MemeLaunchPage = () => {
                     training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
                 },
                 wallet_address: formData.walletAddress,
-                image_base64: formData.imageBase64.slice(0, 100),
+                image_base64: formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
                 seed: formData.seed,
                 user_prompt: formData.prompt
             };
@@ -1037,6 +1040,37 @@ const MemeLaunchPage = () => {
             if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
             const result = await response.json();
             console.log('Coin launched successfully:', result);
+
+            // Create token using TokenCreator
+            // const tokenCreator = TokenCreator({
+            //     tokenData: {
+            //         name: formData.name,
+            //         ticker: formData.ticker,
+            //         description: formData.description,
+            //         imageBase64: formData.imageBase64
+            //     }
+            // });
+
+            // console.log('tokenCreator', tokenCreator)
+
+            // await (tokenCreator).createToken();
+            if (wallet) {
+                const tokenCreator = await TokenCreator({
+                    wallet,
+                    tokenData: {
+                        name: formData.name,
+                        ticker: formData.ticker,
+                        description: formData.description,
+                        imageBase64: formData.imageBase64
+                    }
+                });
+
+                await tokenCreator.createToken();
+
+                console.log('Token created successfully');
+            } else {
+                console.log('error')
+            }
 
             resetMemeData();
 
