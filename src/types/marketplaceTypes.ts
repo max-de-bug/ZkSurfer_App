@@ -1,9 +1,23 @@
 export interface Coin {
-    id: number;
+    id: string;  // Changed from number to string
     name: string;
-    marketCap: string;
+    symbol: string;
+    description: string;
     image: string;
-    description?: string;
-    tags?: string[];
-    price?: string;
+    address?: string;
+}
+
+// API response interface
+export interface ApiCoin {
+    _id: string;
+    coin_name: string;
+    ticker: string;
+    description: string;
+    image_base64: string;
+    memecoin_address?: string;
+}
+
+export interface ApiResponse {
+    success: boolean;
+    data: ApiCoin[];
 }

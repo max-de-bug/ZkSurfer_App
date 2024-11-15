@@ -996,11 +996,121 @@ const MemeLaunchPage = () => {
         });
     };
 
+    // const handleSubmit = async (e: React.FormEvent) => {
+    //     e.preventDefault();
+    //     setIsSubmitting(true);
+
+    //     try {
+    //         const pdfTexts = await Promise.all(
+    //             formData.trainingPdfs.map(async (file) => {
+    //                 const arrayBuffer = await file.arrayBuffer();
+    //                 const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    //                 const textPromises = Array.from({ length: pdf.numPages }, async (_, i) => {
+    //                     const page = await pdf.getPage(i + 1);
+    //                     const content = await page.getTextContent();
+    //                     return content.items.map((item: any) => item.str).join(' ');
+    //                 });
+    //                 const texts = await Promise.all(textPromises);
+    //                 return texts.join('\n');
+    //             })
+    //         );
+
+    //         const apiPayload = {
+    //             coin_name: formData.name,
+    //             memecoin_address: "0x1234567890abcdef",
+    //             ticker: formData.ticker,
+    //             description: formData.description,
+    //             urls: formData.trainingUrls,
+    //             training_data: {
+    //                 pdfs: pdfTexts,
+    //                 images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+    //                 training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+    //             },
+    //             wallet_address: formData.walletAddress,
+    //             image_base64: formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+    //             seed: formData.seed,
+    //             user_prompt: formData.prompt
+    //         };
+
+    //         const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+    //             body: JSON.stringify(apiPayload)
+    //         });
+
+    //         if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
+    //         const result = await response.json();
+    //         console.log('Coin launched successfully:', result);
+
+    //         // Create token using TokenCreator
+    //         // const tokenCreator = TokenCreator({
+    //         //     tokenData: {
+    //         //         name: formData.name,
+    //         //         ticker: formData.ticker,
+    //         //         description: formData.description,
+    //         //         imageBase64: formData.imageBase64
+    //         //     }
+    //         // });
+
+    //         // console.log('tokenCreator', tokenCreator)
+
+    //         // await (tokenCreator).createToken();
+    //         if (wallet) {
+    //             console.log('hi')
+    //             const tokenCreator = await TokenCreator({
+    //                 wallet,
+    //                 tokenData: {
+    //                     name: formData.name,
+    //                     ticker: formData.ticker,
+    //                     description: formData.description,
+    //                     imageBase64: formData.imageBase64
+    //                 }
+    //             });
+
+    //             await tokenCreator.createToken();
+
+    //             console.log('Token created successfully');
+    //         } else {
+    //             console.log('error')
+    //         }
+
+    //         resetMemeData();
+
+    //     } catch (error) {
+    //         console.error('Error launching coin:', error);
+    //     } finally {
+    //         setIsSubmitting(false);
+    //     }
+    // };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
+            let mintAddress = "";
+
+            // First create the token and get the mint address
+            if (wallet) {
+                const tokenCreator = await TokenCreator({
+                    wallet,
+                    tokenData: {
+                        name: formData.name,
+                        ticker: formData.ticker,
+                        description: formData.description,
+                        imageBase64: formData.imageBase64
+                    }
+                });
+
+                // Create token and get mint address
+                await tokenCreator.createToken();
+                mintAddress = tokenCreator.getMintAddress(formData.name).toString();
+                console.log('Token created successfully with mint address:', mintAddress);
+            } else {
+                throw new Error('Wallet not connected');
+            }
+
+            // Process PDF files
             const pdfTexts = await Promise.all(
                 formData.trainingPdfs.map(async (file) => {
                     const arrayBuffer = await file.arrayBuffer();
@@ -1015,8 +1125,10 @@ const MemeLaunchPage = () => {
                 })
             );
 
+            // Prepare and send API payload with the mint address
             const apiPayload = {
                 coin_name: formData.name,
+                memecoin_address: mintAddress, // Use the mint address from token creation
                 ticker: formData.ticker,
                 description: formData.description,
                 urls: formData.trainingUrls,
@@ -1038,44 +1150,15 @@ const MemeLaunchPage = () => {
             });
 
             if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
+
             const result = await response.json();
             console.log('Coin launched successfully:', result);
-
-            // Create token using TokenCreator
-            // const tokenCreator = TokenCreator({
-            //     tokenData: {
-            //         name: formData.name,
-            //         ticker: formData.ticker,
-            //         description: formData.description,
-            //         imageBase64: formData.imageBase64
-            //     }
-            // });
-
-            // console.log('tokenCreator', tokenCreator)
-
-            // await (tokenCreator).createToken();
-            if (wallet) {
-                const tokenCreator = await TokenCreator({
-                    wallet,
-                    tokenData: {
-                        name: formData.name,
-                        ticker: formData.ticker,
-                        description: formData.description,
-                        imageBase64: formData.imageBase64
-                    }
-                });
-
-                await tokenCreator.createToken();
-
-                console.log('Token created successfully');
-            } else {
-                console.log('error')
-            }
 
             resetMemeData();
 
         } catch (error) {
-            console.error('Error launching coin:', error);
+            console.error('Error in coin launch process:', error);
+            throw error; // Re-throw to be handled by the component's error boundary
         } finally {
             setIsSubmitting(false);
         }

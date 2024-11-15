@@ -329,6 +329,13 @@ const TokenCreator = async ({ wallet, tokenData }: { wallet: AnchorWallet; token
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
   const programId = new PublicKey("ESxkgjA2FoZ3WrAt3aEewaaZ9nzZsaJfWe3DxffbED2Q");
 
+  const getMintAddress = (tokenName: string): PublicKey => {
+    return anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("mint"), Buffer.from(tokenName)],
+      programId
+    )[0];
+  };
+
   const createToken = async () => {
     if (!wallet) {
       throw new Error("Wallet not connected");
@@ -336,7 +343,7 @@ const TokenCreator = async ({ wallet, tokenData }: { wallet: AnchorWallet; token
 
     const metadataUri = await uploadToPinata(tokenData.imageBase64, tokenData);
     const uri = `https://gateway.pinata.cloud/ipfs/${metadataUri}`;
-    console.log('uri', uri)
+    console.log('uri is', uri)
 
     const provider = new AnchorProvider(connection, wallet, {
       preflightCommitment: "confirmed",
@@ -404,7 +411,8 @@ const TokenCreator = async ({ wallet, tokenData }: { wallet: AnchorWallet; token
   };
 
   return {
-    createToken
+    createToken,
+    getMintAddress
   };
 };
 

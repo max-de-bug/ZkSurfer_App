@@ -976,6 +976,7 @@ const HomeContent: FC = () => {
                         twitter_data: twitterData
                     };
 
+                    console.log('combinedData', combinedData)
                     const imageUrl = `data:image/png;base64,${tickerInfoUse.image_base64}`;
 
                     const textGenResponse = await fetch('/api/chat', {
@@ -985,7 +986,23 @@ const HomeContent: FC = () => {
                             messages: [
                                 {
                                     role: "system",
-                                    content: `you are an helpful AI assistant which can generate content using the given knowledge base. Generate exactly ${numberOfTweets} unique tweets. Respond with tweets in the following JSON format: {"tweets": [{"tweet": "tweet1"}, {"tweet": "tweet2"}, ...]}. If the user asks to generate image related to tweet then generate a prompt that should have a character consistency given in attached image and content related to tweet. Always create a prompt with character and tweet content related to user requirements and respond in given format: {"prompt": <generated_prompt>} strictly follow the response format  ${JSON.stringify(combinedData)}`
+                                    content: `You are a helpful AI assistant trained to create content based on a given knowledge base. Using the example tweets provided in ${JSON.stringify(twitterData)}, learn the unique tone, style, and personality reflected in the writing, such as humor, formality, common themes, and favorite topics. Generate exactly ${numberOfTweets} new tweets in a style inspired by the given tweets, but ensure the wording, topics, and expressions are unique.
+
+Output the tweets in the following JSON format:
+
+{
+  "tweets": [
+    {"tweet": "tweet1"},
+    {"tweet": "tweet2"},
+    ...
+  ]
+}
+
+If the user requests an image related to a tweet, generate a detailed prompt for an image that aligns with the character style (see attached image) and matches the tweet's content. Use the format:
+{
+  "prompt": "<generated_prompt>"
+}
+In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary knowledge for topics to include in the tweets. Keep responses strictly in these formats.`
                                 },
                                 {
                                     role: 'user',
