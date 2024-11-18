@@ -160,7 +160,8 @@ const MarketplacePage: FC = () => {
         image: apiCoin.image_base64.startsWith('data:image/png;base64,')
             ? apiCoin.image_base64
             : `data:image/png;base64,${apiCoin.image_base64}`,
-        address: apiCoin.memecoin_address
+        address: apiCoin.memecoin_address,
+        marketCap: undefined
     });
 
     useEffect(() => {
