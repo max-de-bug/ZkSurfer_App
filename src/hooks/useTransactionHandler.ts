@@ -2,6 +2,7 @@ import { FC, useState } from 'react';
 import { VersionedTransaction, Connection } from '@solana/web3.js';
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAnchorWallet } from "@solana/wallet-adapter-react";
 
 interface TransactionHandlerProps {
     coin: {
@@ -15,6 +16,7 @@ interface TransactionHandlerProps {
 
 export const useTransactionHandler = () => {
     const { publicKey } = useWallet();
+    const wallet = useAnchorWallet();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -48,6 +50,9 @@ export const useTransactionHandler = () => {
         setIsLoading(true);
 
         try {
+            console.log('publicKey.toString()', publicKey.toString())
+            console.log('action', action)
+            console.log('coin.address', coin.address)
             const response = await fetch('https://pumpportal.fun/api/trade-local', {
                 method: 'POST',
                 headers: {
@@ -73,14 +78,19 @@ export const useTransactionHandler = () => {
             const data = await response.arrayBuffer();
             const tx = VersionedTransaction.deserialize(new Uint8Array(data));
 
-            const signature = await connection.sendTransaction(tx);
+            if (wallet?.signTransaction) {
+                const signedTx = await wallet.signTransaction(tx)
+                const signature = await connection.sendTransaction(signedTx);
 
-            toast({
-                title: "Transaction Successful",
-                description: `View on Solscan: https://solscan.io/tx/${signature}`,
-            });
+                console.log('signature2', signature)
+                toast({
+                    title: "Transaction Successful",
+                    description: `View on Solscan: https://solscan.io/tx/${signature}`,
+                });
 
-            return signature;
+                return signature;
+            }
+
 
         } catch (error) {
             console.error('Transaction error:', error);
