@@ -1,4 +1,7 @@
+import { ReactNode } from "react";
+
 export interface Coin {
+    marketCap: ReactNode;
     id: string;  // Changed from number to string
     name: string;
     symbol: string;
