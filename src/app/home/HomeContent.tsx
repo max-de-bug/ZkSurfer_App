@@ -28,6 +28,7 @@ import GeneratedTweetsTable from '@/component/ui/GenerateTweetTable';
 import TweetTable from '@/component/ui/TweetTable';
 import CharacterGenForm from '@/component/ui/CharecterGen';
 import { TokenCreator } from '../memelaunch/tokenCreator';
+import { CustomWalletButton } from '@/component/ui/CustomWalletButton';
 
 
 interface GeneratedTweet {
@@ -2589,6 +2590,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 </div>
                             )}
                         </div>
+                        <div className="mb-4"><CustomWalletButton /></div>
 
                     </div>
 
@@ -2821,10 +2823,12 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     className="hidden"
                                     id="fileInput"
                                     multiple
+                                    disabled={!wallet.connected}
                                 />
                                 <label
                                     htmlFor="fileInput"
-                                    className="cursor-pointer flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2"
+                                    className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                        }`}
                                     style={{
                                         height: '2.5rem', // Match the initial height of the textarea
                                     }}
@@ -2857,6 +2861,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                             target.style.height = '2.5rem'; // Reset to the default height
                                             target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
                                         }}
+                                        disabled={!wallet.connected}
                                     />
 
                                     {showCommandPopup && (
@@ -2874,7 +2879,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     style={{
                                         height: '1.5rem', // Same height as the textarea
                                     }}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !wallet.connected}
                                 >
                                     <BsArrowReturnLeft />
                                 </button>
