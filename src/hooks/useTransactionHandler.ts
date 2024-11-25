@@ -50,9 +50,7 @@ export const useTransactionHandler = () => {
         setIsLoading(true);
 
         try {
-            console.log('publicKey.toString()', publicKey.toString())
-            console.log('action', action)
-            console.log('coin.address', coin.address)
+            console.log('amount from sell', amount)
             const response = await fetch('https://pumpportal.fun/api/trade-local', {
                 method: 'POST',
                 headers: {
@@ -62,8 +60,8 @@ export const useTransactionHandler = () => {
                     publicKey: publicKey.toString(),
                     action: action,
                     mint: coin.address,
-                    denominatedInSol: "false",
-                    amount: 1000,
+                    denominatedInSol: "true",
+                    amount: parseFloat(amount),
                     slippage: 10,
                     priorityFee: 0.00001,
                     pool: "pump"

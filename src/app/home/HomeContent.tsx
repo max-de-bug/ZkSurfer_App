@@ -26,6 +26,8 @@ import { useTwitterStore } from '@/stores/twitter-store';
 import TokenSetup from '@/component/ui/TokenSetup';
 import GeneratedTweetsTable from '@/component/ui/GenerateTweetTable';
 import TweetTable from '@/component/ui/TweetTable';
+import CharacterGenForm from '@/component/ui/CharecterGen';
+import { TokenCreator } from '../memelaunch/tokenCreator';
 
 
 interface GeneratedTweet {
@@ -34,7 +36,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'meme-coin' | 'content';
-type Command = 'image-gen' | 'meme-coin' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves';
+type Command = 'image-gen' | 'meme-coin' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -152,11 +154,19 @@ const HomeContent: FC = () => {
     const [showCommandPopup, setShowCommandPopup] = useState(false);
     const [commandPart, setCommandPart] = useState('');
     const [normalPart, setNormalPart] = useState('');
-    const inputRef = useRef<HTMLInputElement>(null);
+    // const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
     const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'meme-coin' | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [activeNavbarTicker, setActiveNavbarTicker] = useState<string | null>(null);
+    const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
+
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+
+    const [launchMode, setLaunchMode] = useState<boolean>(false);
+    const [launchCoins, setLaunchCoins] = useState<any[]>([]);
+
+
 
     // const [showTickerTable, setShowTickerTable] = useState(false);
     const { setAvailableTickers, setSelectedMemeTicker, availableTickers } = useTickerStore();
@@ -187,6 +197,8 @@ const HomeContent: FC = () => {
     const [tickers, setTickers] = useState<string[]>([]);
 
     const [tweets, setTweets] = useState([]);
+    const [filteredCoins, setFilteredCoins] = useState([]);
+
 
     const [memeGenerationData, setMemeGenerationData] = useState<{
         name: string;
@@ -434,7 +446,26 @@ const HomeContent: FC = () => {
         };
     }, [router]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const value = e.target.value;
+    //     setInputMessage(value);
+
+    //     if (value === '/') {
+    //         setShowCommandPopup(true);
+    //         setShowTickerPopup(false);
+    //     } else if (!value) {
+    //         setShowCommandPopup(false);
+    //         setShowTickerPopup(false);
+    //     }
+    // };
+
+    // const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    //     if (e.key === 'Escape') {
+    //         setShowCommandPopup(false);
+    //     }
+    // };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
         setInputMessage(value);
 
@@ -447,11 +478,13 @@ const HomeContent: FC = () => {
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Escape') {
             setShowCommandPopup(false);
         }
     };
+
+
 
     const getStyledInputContent = () => {
         const parts = inputMessage.split(' ');
@@ -516,6 +549,23 @@ const HomeContent: FC = () => {
     const handleTickerClick = (ticker: string) => {
         setActiveNavbarTicker(prevTicker => prevTicker === ticker ? null : ticker);
     };
+
+    // const handleCommandSelect = (command: Command) => {
+    //     if (command === 'select' || command === 'launch') {
+    //         setInputMessage(`/${command} `)
+    //         const displayMessage: Message = {
+    //             role: 'assistant',
+    //             content: <TickerSelector /> as ReactNode,
+    //         };
+    //         setDisplayMessages(prev => [...prev, displayMessage]);
+    //         setShowCommandPopup(false);
+    //     } else {
+    //         setInputMessage(`/${command} `);
+    //         setShowCommandPopup(false);
+    //     }
+    //     inputRef.current?.focus();
+    // };
+
 
 
     // const handleTickerSelect = (ticker: string) => {
@@ -1259,6 +1309,238 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             return;
         }
 
+        if (fullMessage.startsWith('/character-gen')) {
+            const { selectedTicker } = useTickerStore.getState();
+
+            if (!selectedTicker) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+                return;
+            }
+
+            const characterMessage: Message = {
+                role: 'assistant',
+                content: <CharacterGenForm /> as ReactNode,
+                type: 'command'
+            };
+            setDisplayMessages(prev => [...prev, characterMessage]);
+            setInputMessage('');
+            return;
+        }
+
+
+        // if (fullMessage.startsWith('/launch')) {
+        //     const { selectedTicker } = useTickerStore.getState();
+
+        //     // Step 1: Check if a ticker is selected
+        //     if (!selectedTicker) {
+        //         const errorMessage: Message = {
+        //             role: 'assistant',
+        //             content: 'No ticker selected. Please use /select command first to choose a ticker.',
+        //             type: 'text',
+        //         };
+        //         setDisplayMessages((prev) => [...prev, errorMessage]);
+        //         return;
+        //     }
+
+        //     // Step 2: Fetch coin info for the selected ticker
+        //     try {
+        //         const response = await fetch('https://zynapse.zkagi.ai/api/coins', {
+        //             method: 'GET',
+        //             headers: {
+        //                 'Content-Type': 'application/json',
+        //                 'api-key': 'zk-123321',
+        //             },
+        //         });
+
+        //         if (!response.ok) {
+        //             throw new Error('Failed to fetch coin info.');
+        //         }
+
+        //         const coins = await response.json();
+
+        //         // Filter coins that match the selected ticker and have `memcoin_address` as `null`
+        //         const filteredCoins = coins.data.filter(
+        //             (coin: { ticker: string; memcoin_address: any; }) => coin.ticker === selectedTicker && !coin.memcoin_address
+        //         );
+        //         console.log('filteredCoins', filteredCoins)
+
+        //         // Step 3: Show filtered coin options
+        //         // const coinOptionsMessage: Message = {
+        //         //     role: 'assistant',
+        //         //     content: (
+        //         //         <div>
+        //         //             <p>Select a coin to launch:</p>
+        //         //             <ul>
+        //         //                 {filteredCoins.map((coin: { _id: string; coin_name: string }) => (
+        //         //                     <li key={coin._id}>
+        //         //                         <button
+        //         //                             onClick={() => handleLaunchCoin(coin._id)}
+        //         //                             className="text-blue-500 underline"
+        //         //                         >
+        //         //                             {coin.coin_name}
+        //         //                         </button>
+        //         //                     </li>
+        //         //                 ))}
+        //         //             </ul>
+        //         //         </div>
+        //         //     ),
+        //         //     type: 'text',
+        //         // };
+
+        //         // setDisplayMessages((prev) => [...prev, coinOptionsMessage]);
+        //         // const coinOptionsMessage: Message = {
+        //         //     role: 'assistant',
+        //         //     content: (
+        //         //         <div>
+        //         //             <p>Select a coin to launch:</p>
+        //         //             <table className="min-w-full bg-white border-collapse border border-gray-200">
+        //         //                 <thead>
+        //         //                     <tr>
+        //         //                         <th className="border border-gray-300 px-4 py-2">ID</th>
+        //         //                         <th className="border border-gray-300 px-4 py-2">Coin Name</th>
+        //         //                         <th className="border border-gray-300 px-4 py-2">Action</th>
+        //         //                     </tr>
+        //         //                 </thead>
+        //         //                 <tbody>
+        //         //                     {filteredCoins.length > 0 ? (
+        //         //                         filteredCoins.map((coin: { _id: string; coin_name: string }) => (
+        //         //                             <tr key={coin._id} className="hover:bg-gray-100">
+        //         //                                 <td className="border border-gray-300 px-4 py-2">{coin._id}</td>
+        //         //                                 <td className="border border-gray-300 px-4 py-2">{coin.coin_name}</td>
+        //         //                                 <td className="border border-gray-300 px-4 py-2">
+        //         //                                     <button
+        //         //                                         onClick={() => handleLaunchCoin(coin._id)}
+        //         //                                         className="text-blue-500 underline hover:text-blue-700"
+        //         //                                     >
+        //         //                                         Launch
+        //         //                                     </button>
+        //         //                                 </td>
+        //         //                             </tr>
+        //         //                         ))
+        //         //                     ) : (
+        //         //                         <tr>
+        //         //                             <td colSpan={3} className="border border-gray-300 px-4 py-2 text-center">
+        //         //                                 No coins available
+        //         //                             </td>
+        //         //                         </tr>
+        //         //                     )}
+        //         //                 </tbody>
+        //         //             </table>
+        //         //         </div>
+        //         //     ),
+        //         //     type: 'text',
+        //         // };
+
+        //         // setDisplayMessages((prev) => [...prev, coinOptionsMessage]);
+        //         const coinOptionsMessage: Message = {
+        //             role: 'assistant',
+        //             content: (
+        //                 <div className="w-full max-w-2xl bg-[#171D3D] rounded-lg p-4 shadow-lg">
+        //                     <div className="mb-4 text-white font-semibold">Available Coins:</div>
+        //                     <table className="w-full border-collapse">
+        //                         <thead>
+        //                             <tr className="text-left text-gray-400">
+        //                                 <th className="p-2">#</th>
+        //                                 <th className="p-2">Coin Name</th>
+        //                                 <th className="p-2">Action</th>
+        //                             </tr>
+        //                         </thead>
+        //                         <tbody>
+        //                             {filteredCoins.length > 0 ? (
+        //                                 filteredCoins.map((coin: { _id: string; coin_name: string }, index: number) => (
+        //                                     <tr
+        //                                         key={coin._id}
+        //                                         className="border-t border-gray-700 hover:bg-[#24284E] cursor-pointer"
+        //                                         onClick={() => handleLaunchCoin(coin._id)}
+        //                                     >
+        //                                         <td className="p-2 text-gray-400">{index + 1}</td>
+        //                                         <td className="p-2 text-white">{coin.coin_name}</td>
+        //                                         <td className="p-2">
+        //                                             <button className="text-blue-500 underline hover:text-blue-700">
+        //                                                 Launch
+        //                                             </button>
+        //                                         </td>
+        //                                     </tr>
+        //                                 ))
+        //                             ) : (
+        //                                 <tr>
+        //                                     <td colSpan={3} className="p-2 text-center text-gray-400">
+        //                                         No coins available
+        //                                     </td>
+        //                                 </tr>
+        //                             )}
+        //                         </tbody>
+        //                     </table>
+        //                     <div className="mt-4 text-gray-400 text-sm">
+        //                         Enter /select [number] to choose a coin
+        //                     </div>
+        //                 </div>
+        //             ),
+        //             type: 'text',
+        //         };
+
+        //         setDisplayMessages((prev) => [...prev, coinOptionsMessage]);
+
+
+        //     } catch (error) {
+        //         const errorMessage: Message = {
+        //             role: 'assistant',
+        //             content: `Error: ${error}`,
+        //             type: 'text',
+        //         };
+        //         setDisplayMessages((prev) => [...prev, errorMessage]);
+        //     }
+        //     return;
+        // }
+
+        if (fullMessage.startsWith('/launch')) {
+            const { selectedTicker } = useTickerStore.getState();
+
+            if (!selectedTicker) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+                return;
+            }
+
+            const parts = fullMessage.trim().split(/\s+/);
+
+            if (parts.length === 1) {
+                // If just "/launch", show the table
+                await showCoinsTable();
+            } else if (parts.length === 2) {
+                // If "/launch [number]", map the number to the coin's _id
+                const coinIndexStr = parts[1];
+                const coinIndex = parseInt(coinIndexStr, 10) - 1; // Adjust for zero-based index
+
+                // Validate the index
+                if (isNaN(coinIndex) || coinIndex < 0 || coinIndex >= filteredCoins.length) {
+                    const errorMessage: Message = {
+                        role: 'assistant',
+                        content: 'Invalid coin number. Please enter a valid number from the list.',
+                        type: 'text',
+                    };
+                    setDisplayMessages((prev) => [...prev, errorMessage]);
+                    return;
+                }
+
+                const selectedCoin = filteredCoins[coinIndex];
+                const coinId = selectedCoin._id;
+
+                // Pass the actual _id to handleLaunchCoin
+                await handleLaunchCoin(coinId);
+            }
+            return;
+        }
+
 
         // Check if message starts with a command
         const isImageGen = fullMessage.startsWith('/image-gen');
@@ -1828,6 +2110,213 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         setNormalPart('');
     };
 
+    const showCoinsTable = async () => {
+        const { selectedTicker } = useTickerStore.getState();
+        try {
+            const response = await fetch('https://zynapse.zkagi.ai/api/coins', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'zk-123321',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch coin info.');
+            }
+
+            const coins = await response.json();
+            const filteredCoins = coins.data.filter(
+                (coin: { ticker: string; memcoin_address: any; }) =>
+                    coin.ticker === selectedTicker && !coin.memcoin_address
+            );
+            setFilteredCoins(filteredCoins);
+
+            const coinOptionsMessage: Message = {
+                role: 'assistant',
+                content: (
+                    <div className="w-full max-w-2xl bg-[#171D3D] rounded-lg p-4 shadow-lg">
+                        <div className="mb-4 text-white font-semibold">Available Coins:</div>
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="text-left text-gray-400">
+                                    <th className="p-2">#</th>
+                                    <th className="p-2">Coin Name</th>
+                                    <th className="p-2">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredCoins.length > 0 ? (
+                                    filteredCoins.map((coin: { _id: string; coin_name: string }, index: number) => (
+                                        <tr
+                                            key={coin._id}
+                                            className="border-t border-gray-700 hover:bg-[#24284E] cursor-pointer"
+                                        >
+                                            <td className="p-2 text-gray-400">{index + 1}</td>
+                                            <td className="p-2 text-white">{coin.coin_name}</td>
+                                            <td className="p-2">
+                                                <button
+                                                    className="text-blue-500 underline hover:text-blue-700"
+                                                    onClick={() => handleLaunchCoin(coin._id)}
+                                                >
+                                                    Launch
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={3} className="p-2 text-center text-gray-400">
+                                            No coins available
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                        <div className="mt-4 text-gray-400 text-sm">
+                            Enter /launch [id] to launch a specific coin
+                        </div>
+                    </div>
+                ),
+                type: 'text',
+            };
+
+            setDisplayMessages((prev) => [...prev, coinOptionsMessage]);
+        } catch (error) {
+            const errorMessage: Message = {
+                role: 'assistant',
+                content: `Error: ${error}`,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, errorMessage]);
+        }
+    };
+
+
+    const handleLaunchCoin = async (coinId: string) => {
+        const { selectedTicker } = useTickerStore.getState();
+
+        if (!selectedTicker) {
+            console.error('Ticker not selected.');
+            return;
+        }
+
+        try {
+            // Get the coin details for the selected coin ID
+            const response = await fetch('https://zynapse.zkagi.ai/api/coins', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'zk-123321',
+                },
+            });
+
+            const coin = await response.json();
+            const coins = coin.data;
+            // const selectedCoin = coins.find((coin: { _id: string; }) => coin._id === coinId);
+
+            const selectedCoin = coins.find((coin: { _id: any; }) => {
+                return coin._id === coinId;
+            });
+
+            let memecoinAddress = '';
+            if (wallet) {
+                const tokenResult = await TokenCreator({
+                    name: selectedCoin.coin_name,
+                    symbol: selectedCoin.ticker,
+                    description: selectedCoin.description,
+                    imageBase64: 'data:image/png;base64,' + selectedCoin.image_base64,
+                    wallet
+                });
+
+                console.log('Token created successfully:', tokenResult.signature);
+                memecoinAddress = tokenResult.mintAddress;
+            }
+            else {
+                throw new Error('Wallet not connected');
+            }
+
+            if (!selectedCoin) {
+                throw new Error('Coin not found.');
+            }
+
+            // Perform the POST request to the `pmpCoinLaunch` API
+            const launchResponse = await fetch('http:/zynapse.zkagi.ai/api/pmpCoinLaunch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ticker: selectedTicker,
+                    memecoin_address: selectedCoin.address,
+                }),
+            });
+
+            if (!launchResponse.ok) {
+                throw new Error('Failed to launch coin.');
+            }
+
+            // Notify the user about the success
+            const successMessage: Message = {
+                role: 'assistant',
+                content: `Successfully launched memecoin for ticker: ${selectedTicker}`,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, successMessage]);
+        } catch (error) {
+            const errorMessage: Message = {
+                role: 'assistant',
+                content: `Error: ${error}`,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, errorMessage]);
+        }
+    };
+
+    // const handleLaunchCoin = async (coinId: string) => {
+    //     const { selectedTicker } = useTickerStore.getState();
+
+    //     if (!selectedTicker) {
+    //         console.error('Ticker not selected.');
+    //         return;
+    //     }
+
+    //     try {
+    //         // Perform the POST request to launch the coin on pump.fun
+    //         const launchResponse = await fetch('https://pump.fun/api/launch', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'api-key': 'your-pump-fun-api-key', // Replace with actual API key if needed
+    //             },
+    //             body: JSON.stringify({
+    //                 ticker: selectedTicker,
+    //                 coin_id: coinId,
+    //             }),
+    //         });
+
+    //         if (!launchResponse.ok) {
+    //             throw new Error('Failed to launch coin.');
+    //         }
+
+    //         // Notify the user about the success
+    //         const successMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Successfully launched coin for ticker: ${selectedTicker}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, successMessage]);
+    //     } catch (error) {
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Error: ${error}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //     }
+    // };
+
+
     const setMemeData = useMemeStore((state) => state.setMemeData);
 
     const handleLaunchMemeCoin = () => {
@@ -2046,7 +2535,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         )}
                     </div>
                     <div className="flex flex-col">
-                        <div className="mb-4">ZkSurfer</div>
+                        <div className="mb-4">ZkTerminal</div>
                         <div className="mb-4">Explore</div>
                         <div className="mb-4 flex flex-row items-center justify-start gap-2" data-marketplace-button
                             role="button"
@@ -2155,7 +2644,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 height={30}
                             />
                         </div>
-                        <div className='font-ttfirs text-xl'>ZkSurfer</div>
+                        <div className='font-ttfirs text-xl'>ZkTerminal</div>
                     </div>
                     <div className="flex items-center space-x-4">
                         {/* Add ticker display here */}
@@ -2235,7 +2724,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                             'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
                                             } ${!isMobile ? `mt-0.5` : ``}`}
                                     >
-                                        {message.role === 'user' ? userEmail : 'ZkSurfer'}
+                                        {message.role === 'user' ? userEmail : 'ZkTerminal'}
 
                                     </span>
                                     {message.role !== 'user' && (
@@ -2322,6 +2811,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     ))}
                                 </div>
                             )}
+
+
                             <div className="flex items-center">
                                 <input
                                     type="file"
@@ -2331,7 +2822,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     id="fileInput"
                                     multiple
                                 />
-                                <label htmlFor="fileInput" className="cursor-pointer mx-2">
+                                <label
+                                    htmlFor="fileInput"
+                                    className="cursor-pointer flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2"
+                                    style={{
+                                        height: '2.5rem', // Match the initial height of the textarea
+                                    }}
+                                >
                                     <Image
                                         src="/images/Attach.svg"
                                         alt="Attach file"
@@ -2339,35 +2836,51 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         height={20}
                                     />
                                 </label>
-                                <div className="relative w-full flex items-center bg-transparent py-2 px-4 rounded-l-full">
-                                    <div className="absolute left-4 right-4 pointer-events-none whitespace-pre">
-                                        {getStyledInputContent()}
-                                    </div>
-                                    <input
+
+                                {/* Textarea for input */}
+                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
+                                    <textarea
                                         ref={inputRef}
-                                        type="text"
                                         value={inputMessage}
                                         onChange={handleInputChange}
                                         onKeyDown={handleKeyDown}
-                                        placeholder="Message ZkSurfer"
-                                        className="bg-transparent flex-grow outline-none text-white placeholder-[#A0AEC0] font-ttfirs w-full opacity-0"
+                                        placeholder="Message ZkTerminal"
+                                        className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
+                                        style={{
+                                            lineHeight: '1.5',
+                                            height: '2.5rem', // Same initial height as the label
+                                            maxHeight: '10rem', // Limit height to 10rem
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onInput={(e) => {
+                                            const target = e.target as HTMLTextAreaElement;
+                                            target.style.height = '2.5rem'; // Reset to the default height
+                                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
+                                        }}
                                     />
+
                                     {showCommandPopup && (
-                                        <CommandPopup
-                                            onSelect={handleCommandSelect}
-                                        />
+                                        <CommandPopup onSelect={handleCommandSelect} />
                                     )}
                                     {showTickerPopup && (
-                                        <TickerPopup
-                                            tickers={tickers}
-                                            onSelect={handleTickerSelect}
-                                        />
+                                        <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
                                     )}
                                 </div>
-                                <button type="submit" className="bg-white text-black p-1 m-1 rounded-md font-bold" disabled={isLoading}>
+
+                                {/* Submit button */}
+                                <button
+                                    type="submit"
+                                    className="bg-white text-black p-1 m-1 rounded-md font-bold"
+                                    style={{
+                                        height: '1.5rem', // Same height as the textarea
+                                    }}
+                                    disabled={isLoading}
+                                >
                                     <BsArrowReturnLeft />
                                 </button>
                             </div>
+
+
                         </form>
                     </div>
                 </footer>

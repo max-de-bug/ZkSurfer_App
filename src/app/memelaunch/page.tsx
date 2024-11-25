@@ -41,7 +41,7 @@
 //         const description = searchParams.get('description');
 
 //         if (name || description) {
-//             setFormData(prev => ({
+//             setqData(prev => ({
 //                 ...prev,
 //                 name: name || prev.name,
 //                 description: description || prev.description
@@ -1020,21 +1020,21 @@ const MemeLaunchPage = () => {
             //     mintAddress = tokenCreator.getMintAddress(formData.name).toString();
             //     console.log('Token created successfully with mint address:', mintAddress);
             // }
-            if (wallet) {
-                const tokenResult = await TokenCreator({
-                    name: formData.name,
-                    symbol: formData.ticker,
-                    description: formData.description,
-                    imageBase64: formData.imageBase64,
-                    wallet
-                });
+            // if (wallet) {
+            //     const tokenResult = await TokenCreator({
+            //         name: formData.name,
+            //         symbol: formData.ticker,
+            //         description: formData.description,
+            //         imageBase64: formData.imageBase64,
+            //         wallet
+            //     });
 
-                console.log('Token created successfully:', tokenResult.signature);
-                mintAddress = tokenResult.mintAddress;
-            }
-            else {
-                throw new Error('Wallet not connected');
-            }
+            //     console.log('Token created successfully:', tokenResult.signature);
+            //     mintAddress = tokenResult.mintAddress;
+            // }
+            // else {
+            //     throw new Error('Wallet not connected');
+            // }
 
             // Process PDF files
             const pdfTexts = await Promise.all(
@@ -1054,7 +1054,7 @@ const MemeLaunchPage = () => {
             // Prepare and send API payload with the mint address
             const apiPayload = {
                 coin_name: formData.name,
-                memecoin_address: mintAddress, // Use the mint address from token creation
+                memecoin_address: mintAddress || null, // Use the mint address from token creation
                 ticker: formData.ticker,
                 description: formData.description,
                 urls: formData.trainingUrls,
