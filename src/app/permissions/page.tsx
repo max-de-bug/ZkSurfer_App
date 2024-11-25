@@ -26,10 +26,10 @@ const Permission: React.FC = () => {
                 <div>
                     <div className="text-left">
                         <h1 className="text-4xl font-bold mb-4 font-ttfirs">
-                            Allow ZkSurfer to Automate Tasks
+                            Allow ZkTerminal to Automate Tasks
                         </h1>
                         <p className="mb-6 font-ttfirs text-[#A0AEC0]">
-                            ZkSurfer requires the following permissions to function correctly. Please
+                            ZkTerminal requires the following permissions to function correctly. Please
                             grant these permissions to proceed.
                         </p>
                     </div>
@@ -43,7 +43,7 @@ const Permission: React.FC = () => {
 
                     <div className=" mb-6 max-w-md w-full mt-5 font-sourceCode text-[#A0AEC0]">
                         <p className="text-md">
-                            ZkSurfer requires the following permissions to function correctly. Please grant these
+                            ZkTerminal requires the following permissions to function correctly. Please grant these
                             permissions to proceed.:
                         </p>
                         <ol className="list-decimal list-inside mt-2 text-md">

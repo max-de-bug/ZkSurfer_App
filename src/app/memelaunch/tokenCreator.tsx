@@ -139,6 +139,7 @@ const uploadToPinata = async (base64Image: string, name: string, symbol: string,
     const url = `https://api.pinata.cloud/pinning/pinFileToIPFS`;
 
     try {
+        console.log('base64Image', base64Image)
         const base64ToBlob = (base64: string, contentType: string) => {
             const byteCharacters = atob(base64.split(',')[1]);
             const byteArrays = [];

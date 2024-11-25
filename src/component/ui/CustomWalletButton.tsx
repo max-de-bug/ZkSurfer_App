@@ -27,7 +27,7 @@ export const CustomWalletButton = () => {
 
   useEffect(() => {
     if (publicKey && !connecting) {
-      router.push('/congratulations');
+      router.push('/');
     }
   }, [publicKey, connecting, router]);
 

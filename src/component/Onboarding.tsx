@@ -15,19 +15,19 @@ const Onboarding: React.FC = () => {
     {
       title: "Automate your web tasks effortlessly",
       description:
-        "Discover how ZkSurfer can save you time and enhance your productivity..",
+        "Discover how ZkTerminal can save you time and enhance your productivity..",
       image: "/images/onboarding/1.png",
     },
     {
       title: "Automate Repetitive Tasks",
       description:
-        "ZkSurfer automates tasks like form filling, clicking buttons, and navigating websites, allowing you to focus on more important work.",
+        "ZkTerminal automates tasks like form filling, clicking buttons, and navigating websites, allowing you to focus on more important work.",
       image: "/images/onboarding/2.png",
     },
     {
       title: "Save Time and Energy",
       description:
-        "With ZkSurfer handling mundane tasks, you can concentrate on what truly matters, improving efficiency and productivity.",
+        "With ZkTerminal handling mundane tasks, you can concentrate on what truly matters, improving efficiency and productivity.",
       image: "/images/onboarding/3.png",
     },
   ];

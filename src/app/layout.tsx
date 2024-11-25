@@ -8,10 +8,10 @@ import '../../polyfills';
 
 const inter = Inter({ subsets: ["latin"] });
 
-const APP_NAME = "ZkSurfer";
-const APP_DEFAULT_TITLE = "ZkSurfer - Solana PWA App";
-const APP_TITLE_TEMPLATE = "%s - ZkSurfer";
-const APP_DESCRIPTION = "ZkSurfer - A PWA-enabled Solana dApp";
+const APP_NAME = "ZkTerminal";
+const APP_DEFAULT_TITLE = "ZkTerminal - Solana PWA App";
+const APP_TITLE_TEMPLATE = "%s - ZkTerminal";
+const APP_DESCRIPTION = "ZkTerminal - A PWA-enabled Solana dApp";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,

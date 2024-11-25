@@ -201,7 +201,7 @@ export async function POST(request: Request) {
 
 
         const updatedMessages = [
-            { role: "system", content: 'You are an advanced AI assistant named ZKSurfer made by ZkAGI' },
+            { role: "system", content: 'You are an advanced AI assistant named ZkTerminal made by ZkAGI' },
             ...messages
         ];
 
