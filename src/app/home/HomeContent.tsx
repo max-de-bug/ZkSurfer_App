@@ -200,6 +200,12 @@ const HomeContent: FC = () => {
     const [tweets, setTweets] = useState([]);
     const [filteredCoins, setFilteredCoins] = useState([]);
 
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [displayMessages, isLoading]);
+
 
     const [memeGenerationData, setMemeGenerationData] = useState<{
         name: string;
@@ -1533,7 +1539,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     return;
                 }
 
-                const selectedCoin = filteredCoins[coinIndex];
+                const selectedCoin = filteredCoins[coinIndex] as { _id: string };
                 const coinId = selectedCoin._id;
 
                 // Pass the actual _id to handleLaunchCoin
@@ -2776,6 +2782,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
                         </div>
                     )}
+                    <div ref={messagesEndRef} />
                 </div>
 
                 <footer className="w-full py-4 flex justify-center px-4">
