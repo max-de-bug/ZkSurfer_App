@@ -1019,11 +1019,27 @@ const HomeContent: FC = () => {
                     let twitterData = null;
 
                     if (tickerInfoUse.urls && Array.isArray(tickerInfoUse.urls)) {
-                        twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com')) || '';
+                        twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com') || url.includes('x.com')) || '';
                         if (twitterUrl) {
-                            const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
-                            if (username) {
-                                twitterData = await processTwitterData(username);
+                            // const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
+                            // if (username) {
+                            //     twitterData = await processTwitterData(username);
+                            // }
+                            try {
+                                const urlObj = new URL(twitterUrl);
+                                const pathname = urlObj.pathname;
+                                const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+                                let username = '';
+
+                                if (pathSegments.length > 0) {
+                                    username = pathSegments[0];
+                                }
+
+                                if (username) {
+                                    twitterData = await processTwitterData(username);
+                                }
+                            } catch (error) {
+                                console.error('Invalid URL:', twitterUrl);
                             }
                         }
                     }
@@ -2138,6 +2154,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     coin.ticker === selectedTicker && !coin.memcoin_address
             );
             setFilteredCoins(filteredCoins);
+
+            console.log('filteredcoins', filteredCoins)
 
             const coinOptionsMessage: Message = {
                 role: 'assistant',

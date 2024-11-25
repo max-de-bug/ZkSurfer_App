@@ -276,114 +276,127 @@ import { ApifyClient } from 'apify-client';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 const CharacterGenForm = () => {
-    const { selectedTicker, tickerInfo } = useTickerStore();
-    const currentTickerInfo = selectedTicker ? tickerInfo[selectedTicker] : null;
-    const { publicKey } = useWallet();
+  const { selectedTicker, tickerInfo } = useTickerStore();
+  const currentTickerInfo = selectedTicker ? tickerInfo[selectedTicker] : null;
+  const { publicKey } = useWallet();
 
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        username: ''
-    });
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    username: ''
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-    const handleSubmit = async (e: { preventDefault: () => void; }) => {
-        e.preventDefault();
-        setError('');
+  const handleSubmit = async (e: { preventDefault: () => void; }) => {
+    e.preventDefault();
+    setError('');
 
-        if (!selectedTicker) {
-            setError('No ticker selected. Please select a ticker first.');
-            return;
-        }
+    if (!selectedTicker) {
+      setError('No ticker selected. Please select a ticker first.');
+      return;
+    }
 
-        if (!formData.email || !formData.password || !formData.username) {
-            setError('All fields are required');
-            return;
-        }
+    if (!formData.email || !formData.password || !formData.username) {
+      setError('All fields are required');
+      return;
+    }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
-            setError('Please enter a valid email address');
-            return;
-        }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
 
-        const processTwitterData = async (twitterUrl: string) => {
-            const client = new ApifyClient({
-                token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
-            });
+    const processTwitterData = async (twitterUrl: string) => {
+      const client = new ApifyClient({
+        token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+      });
 
+      try {
+        const input = {
+          handles: [twitterUrl],
+          tweetsDesired: 10,
+          proxyConfig: { useApifyProxy: true },
+        };
+
+        // Start the actor run
+        const run = await client.actor("quacker/twitter-scraper").call(input);
+
+        // Wait for the run to finish
+        await client.run(run.id).waitForFinish();
+
+        // Get the output from the dataset
+        const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+        // Extract only the full_text from each tweet item
+        const tweetTexts = items.map(item => item.full_text);
+
+        return tweetTexts;
+      } catch (error) {
+        console.error('Error fetching tweets:', error);
+        return null;
+      }
+    };
+
+
+    try {
+      // First, get the ticker info and training data
+      const imageUrl = currentTickerInfo?.image_base64 ?
+        `data:image/png;base64,${currentTickerInfo.image_base64}` : '';
+
+      const trainingData = currentTickerInfo?.training_data || [];
+
+      const { tickerInfo, selectedTicker } = useTickerStore.getState();
+      if (selectedTicker) {
+        const tickerInfoUse = tickerInfo[selectedTicker];
+        let twitterUrl = '';
+        let twitterData = null;
+
+        if (tickerInfoUse.urls && Array.isArray(tickerInfoUse.urls)) {
+          twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com') || url.includes('x.com')) || '';
+          if (twitterUrl) {
             try {
-                const input = {
-                    handles: [twitterUrl],
-                    tweetsDesired: 10,
-                    proxyConfig: { useApifyProxy: true },
-                };
+              const urlObj = new URL(twitterUrl);
+              const pathname = urlObj.pathname;
+              const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+              let username = '';
 
-                // Start the actor run
-                const run = await client.actor("quacker/twitter-scraper").call(input);
+              if (pathSegments.length > 0) {
+                username = pathSegments[0];
+              }
 
-                // Wait for the run to finish
-                await client.run(run.id).waitForFinish();
-
-                // Get the output from the dataset
-                const { items } = await client.dataset(run.defaultDatasetId).listItems();
-
-                // Extract only the full_text from each tweet item
-                const tweetTexts = items.map(item => item.full_text);
-
-                return tweetTexts;
+              if (username) {
+                twitterData = await processTwitterData(username);
+              }
             } catch (error) {
-                console.error('Error fetching tweets:', error);
-                return null;
+              console.error('Invalid URL:', twitterUrl);
             }
+          }
+        }
+
+        const combinedData = {
+          training_data: trainingData,
+          twitter_data: twitterData
         };
 
 
-        try {
-            // First, get the ticker info and training data
-            const imageUrl = currentTickerInfo?.image_base64 ?
-                `data:image/png;base64,${currentTickerInfo.image_base64}` : '';
 
-            const trainingData = currentTickerInfo?.training_data || [];
+        console.log('trainingData', trainingData)
 
-            const { tickerInfo, selectedTicker } = useTickerStore.getState();
-            if (selectedTicker) {
-                const tickerInfoUse = tickerInfo[selectedTicker];
-                let twitterUrl = '';
-                let twitterData = null;
-
-                if (tickerInfoUse.urls && Array.isArray(tickerInfoUse.urls)) {
-                    twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com')) || '';
-                    if (twitterUrl) {
-                        const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
-                        if (username) {
-                            twitterData = await processTwitterData(username);
-                        }
-                    }
-                }
-
-                const combinedData = {
-                    training_data: trainingData,
-                    twitter_data: twitterData
-                };
-
-
-
-
-                // Make the AI character generation request
-                const characterGenResponse = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: [
-                            {
-                                role: "system",
-                                content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
+        // Make the AI character generation request
+        const characterGenResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
 
 Name: The character's name.
 Clients: A list of clients (if any).
-ModelProvider: The model provider (e.g., "openai").
+ModelProvider: The model provider (e.g., "zkagi").
 Settings:
 Secrets: Any secrets related to the character.
 Voice: Voice settings, including the model (e.g., "en_US-male-medium").
@@ -408,8 +421,8 @@ Example Input:
 
 User-provided data:
 - Name: John Doe
-- Clients: ClientA, ClientB
-- ModelProvider: openai
+- Clients: TWITTER
+- ModelProvider: zkagi
 - Settings:
   - Secrets: {}
   - Voice:
@@ -459,8 +472,8 @@ Example Output:
 
 {
   "name": "John Doe",
-  "clients": ["ClientA", "ClientB"],
-  "modelProvider": "openai",
+  "clients": ["TWITTER"],
+  "modelProvider": "zkagi",
   "settings": {
     "secrets": {},
     "voice": {
@@ -552,179 +565,184 @@ Example Output:
 Your Task:
 
 Generate a character.json file based on the user-provided data following the structure and format outlined above.`
-                            },
-                            {
-                                role: 'user',
-                                content: [
-                                    {
-                                        type: 'text',
-                                        text: `Generate a character.json using given data ${twitterData}`
-                                    },
-                                ]
-                            }
-                        ]
-                    })
-                });
-
-                if (!characterGenResponse.ok) {
-                    throw new Error('Failed to generate character profile');
-                }
-
-                const characterData = await characterGenResponse.json();
-
-                console.log('characterData', characterData)
-
-
-
-                // Now send the character data to the backend
-                // const backendResponse = await fetch('https://zynapse.zkagi.ai/generate-character', {
-                //     method: 'POST',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //         'api-key': 'zk-123321'
-                //     },
-                //     body: JSON.stringify({
-                //         ticker: selectedTicker,
-                //         tickerInfo: currentTickerInfo,
-                //         userData: {
-                //             email: formData.email,
-                //             username: formData.username,
-                //             password: formData.password
-                //         },
-                //         characterProfile: characterData.content
-                //     })
-                // });
-
-                // if (!backendResponse.ok) {
-                //     throw new Error('Failed to save character data');
-                // }
-
-                //     setSuccess(true);
-                // }
-
-                // Extract JSON content from the response
-                const contentString = characterData.content;
-                const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
-                let characterJson = null;
-
-                if (jsonMatch && jsonMatch[1]) {
-                    characterJson = JSON.parse(jsonMatch[1]);
-                    // Update the secrets with form data
-                    characterJson.settings.secrets = {
-                        TWITTER_USERNAME: formData.username,
-                        TWITTER_PASSWORD: formData.password,
-                        TWITTER_EMAIL: formData.email
-                    };
-                } else {
-                    throw new Error('Failed to parse character JSON from response');
-                }
-
-                // Make the call to save character data
-                const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'zk-123321'
-                    },
-                    body: JSON.stringify({
-                        wallet_address: publicKey, // You might want to get this from somewhere
-                        ticker: selectedTicker,
-                        characteristics: characterJson
-                    })
-                });
-
-                if (!saveResponse.ok) {
-                    throw new Error('Failed to save character data');
-                }
-
-                setSuccess(true);
-            }
-        } catch (err) {
-            setError('Failed to generate character. Please try again.');
-            console.error('Character generation error:', err);
-        }
-    };
-
-    const handleChange = (e: { target: { name: any; value: any; }; }) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Generate a character.json using given data.
+- The character name should be set to ${selectedTicker}
+- Use the given tweets to understand the voice tone and style of character ${twitterData}.
+- Use the training data to generate rest of the data for the character ${JSON.stringify(trainingData)},
+                    `
+                  },
+                ]
+              }
+            ]
+          })
         });
-    };
 
-    return (
-        <Card className="w-full max-w-md bg-[#171D3D] text-white">
-            <CardHeader>
-                <CardTitle className="text-xl font-bold">
-                    Character Generation Setup
-                    {selectedTicker && (
-                        <span className="block text-sm text-gray-400 mt-2">
-                            Selected Ticker: {selectedTicker}
-                        </span>
-                    )}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {error && (
-                    <Alert variant="destructive" className="mb-4">
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
-                {success ? (
-                    <Alert className="mb-4 bg-green-600">
-                        <AlertTitle>Success!</AlertTitle>
-                        <AlertDescription>
-                            Character generation process has started for {selectedTicker}
-                        </AlertDescription>
-                    </Alert>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block mb-2">Twitter Email</label>
-                            <Input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                className="w-full bg-[#24284E] border-[#BDA0FF]"
-                                placeholder="Enter your email"
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-2">Twitter Username</label>
-                            <Input
-                                type="text"
-                                name="username"
-                                value={formData.username}
-                                onChange={handleChange}
-                                className="w-full bg-[#24284E] border-[#BDA0FF]"
-                                placeholder="Choose a username"
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-2">Twitter Password</label>
-                            <Input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="w-full bg-[#24284E] border-[#BDA0FF]"
-                                placeholder="Enter your password"
-                            />
-                        </div>
-                        <Button
-                            type="submit"
-                            className="w-full bg-gradient-to-r from-[#BDA0FF] to-[#6D47FF]"
-                            disabled={!selectedTicker}
-                        >
-                            Generate Character
-                        </Button>
-                    </form>
-                )}
-            </CardContent>
-        </Card>
-    );
+        if (!characterGenResponse.ok) {
+          throw new Error('Failed to generate character profile');
+        }
+
+        const characterData = await characterGenResponse.json();
+
+        console.log('characterData', characterData)
+
+
+
+        // Now send the character data to the backend
+        // const backendResponse = await fetch('https://zynapse.zkagi.ai/generate-character', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'api-key': 'zk-123321'
+        //     },
+        //     body: JSON.stringify({
+        //         ticker: selectedTicker,
+        //         tickerInfo: currentTickerInfo,
+        //         userData: {
+        //             email: formData.email,
+        //             username: formData.username,
+        //             password: formData.password
+        //         },
+        //         characterProfile: characterData.content
+        //     })
+        // });
+
+        // if (!backendResponse.ok) {
+        //     throw new Error('Failed to save character data');
+        // }
+
+        //     setSuccess(true);
+        // }
+
+        // Extract JSON content from the response
+        const contentString = characterData.content;
+        const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
+        let characterJson = null;
+
+        if (jsonMatch && jsonMatch[1]) {
+          characterJson = JSON.parse(jsonMatch[1]);
+          characterJson.clients = ["TWITTER"]
+          // Update the secrets with form data
+          characterJson.settings.secrets = {
+            TWITTER_USERNAME: formData.username,
+            TWITTER_PASSWORD: formData.password,
+            TWITTER_EMAIL: formData.email
+          };
+        } else {
+          throw new Error('Failed to parse character JSON from response');
+        }
+
+        // Make the call to save character data
+        const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': 'zk-123321'
+          },
+          body: JSON.stringify({
+            wallet_address: publicKey, // You might want to get this from somewhere
+            ticker: selectedTicker,
+            characteristics: characterJson
+          })
+        });
+
+        if (!saveResponse.ok) {
+          throw new Error('Failed to save character data');
+        }
+
+        setSuccess(true);
+      }
+    } catch (err) {
+      setError('Failed to generate character. Please try again.');
+      console.error('Character generation error:', err);
+    }
+  };
+
+  const handleChange = (e: { target: { name: any; value: any; }; }) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  return (
+    <Card className="w-full max-w-md bg-[#171D3D] text-white">
+      <CardHeader>
+        <CardTitle className="text-xl font-bold">
+          Character Generation Setup
+          {selectedTicker && (
+            <span className="block text-sm text-gray-400 mt-2">
+              Selected Ticker: {selectedTicker}
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {success ? (
+          <Alert className="mb-4 bg-green-600">
+            <AlertTitle>Success!</AlertTitle>
+            <AlertDescription>
+              Character generation process has started for {selectedTicker}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block mb-2">Twitter Email</label>
+              <Input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full bg-[#24284E] border-[#BDA0FF]"
+                placeholder="Enter your email"
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Twitter Username</label>
+              <Input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                className="w-full bg-[#24284E] border-[#BDA0FF]"
+                placeholder="Choose a username"
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Twitter Password</label>
+              <Input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full bg-[#24284E] border-[#BDA0FF]"
+                placeholder="Enter your password"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-[#BDA0FF] to-[#6D47FF]"
+              disabled={!selectedTicker}
+            >
+              Generate Character
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
 };
 
 export default CharacterGenForm;

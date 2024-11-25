@@ -27,11 +27,12 @@ async function generateKeys() {
 }
 
 async function generateProof(text: string) {
+    const limitedText = text.substring(0, 500);
     console.log('Generating proof for text:', text);
     const response = await fetch('https://zynapse.zkagi.ai/api/generate-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: limitedText }),
     });
     if (!response.ok) {
         throw new Error('Failed to generate proof');
