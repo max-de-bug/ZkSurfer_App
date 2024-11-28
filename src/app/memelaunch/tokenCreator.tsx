@@ -218,13 +218,11 @@ export const TokenCreator = async ({
     wallet: any;
 }) => {
     try {
-        // Initialize connection
         const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=c2c41dbf-5595-41fe-8a91-0aa78afba298".trim();
 
         try {
             const web3Connection = new Connection(RPC_ENDPOINT, { commitment: 'confirmed' });
             console.log("Connected to:", RPC_ENDPOINT);
-            // Continue with token creation logic...
         } catch (error) {
             console.error("Connection error:", error);
             throw error;
@@ -232,10 +230,8 @@ export const TokenCreator = async ({
 
         const web3Connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
-        // Generate random keypair for token
         const mintKeypair = Keypair.generate();
 
-        // Create form data for metadata
         const ipfsFormData = new FormData();
 
         if (imageBase64) {
