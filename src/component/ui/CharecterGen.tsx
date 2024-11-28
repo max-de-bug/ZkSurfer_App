@@ -274,11 +274,13 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useTickerStore } from '@/stores/ticker-store';
 import { ApifyClient } from 'apify-client';
 import { useWallet } from '@solana/wallet-adapter-react';
+import CharecterJsonEditor from './CharecterJsonEditor';
 
 const CharacterGenForm = () => {
   const { selectedTicker, tickerInfo } = useTickerStore();
   const currentTickerInfo = selectedTicker ? tickerInfo[selectedTicker] : null;
   const { publicKey } = useWallet();
+  const [characterJson, setCharacterJson] = useState<any | null>(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -624,42 +626,111 @@ Generate a character.json file based on the user-provided data following the str
         const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
         let characterJson = null;
 
+        // if (jsonMatch && jsonMatch[1]) {
+        //   characterJson = JSON.parse(jsonMatch[1]);
+        //   characterJson.clients = ["TWITTER"]
+        //   // Update the secrets with form data
+        //   characterJson.settings.secrets = {
+        //     TWITTER_USERNAME: formData.username,
+        //     TWITTER_PASSWORD: formData.password,
+        //     TWITTER_EMAIL: formData.email
+        //   };
         if (jsonMatch && jsonMatch[1]) {
-          characterJson = JSON.parse(jsonMatch[1]);
-          characterJson.clients = ["TWITTER"]
-          // Update the secrets with form data
-          characterJson.settings.secrets = {
+          const parsedJson = JSON.parse(jsonMatch[1]);
+          parsedJson.clients = ["TWITTER"];
+          parsedJson.settings.secrets = {
             TWITTER_USERNAME: formData.username,
             TWITTER_PASSWORD: formData.password,
             TWITTER_EMAIL: formData.email
           };
+          setCharacterJson(parsedJson);
         } else {
           throw new Error('Failed to parse character JSON from response');
         }
 
-        // Make the call to save character data
-        const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'api-key': 'zk-123321'
-          },
-          body: JSON.stringify({
-            wallet_address: publicKey, // You might want to get this from somewhere
-            ticker: selectedTicker,
-            characteristics: characterJson
-          })
-        });
+        // // Make the call to save character data
+        // const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'api-key': 'zk-123321'
+        //   },
+        //   body: JSON.stringify({
+        //     wallet_address: publicKey, // You might want to get this from somewhere
+        //     ticker: selectedTicker,
+        //     characteristics: characterJson
+        //   })
+        // });
 
-        if (!saveResponse.ok) {
-          throw new Error('Failed to save character data');
-        }
+        // if (!saveResponse.ok) {
+        //   throw new Error('Failed to save character data');
+        // }
 
-        setSuccess(true);
+        // setSuccess(true);
       }
     } catch (err) {
       setError('Failed to generate character. Please try again.');
       console.error('Character generation error:', err);
+    }
+  };
+
+  // const handleConfirmCharacter = async (finalJson: any) => {
+  //   try {
+  //     // Make the call to save character data
+  //     const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'api-key': 'zk-123321'
+  //       },
+  //       body: JSON.stringify({
+  //         wallet_address: publicKey,
+  //         ticker: selectedTicker,
+  //         characteristics: finalJson
+  //       })
+  //     });
+
+  //     if (!saveResponse.ok) {
+  //       throw new Error('Failed to save character data');
+  //     }
+
+  //     setSuccess(true);
+  //     setCharacterJson(null); // Reset character JSON state
+  //   } catch (err) {
+  //     setError('Failed to save character. Please try again.');
+  //     console.error('Character save error:', err);
+  //   }
+  // };
+  const handleConfirmCharacter = async (finalJson: any) => {
+    try {
+      const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': 'zk-123321'
+        },
+        body: JSON.stringify({
+          wallet_address: publicKey,
+          ticker: selectedTicker,
+          characteristics: finalJson
+        })
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save character data');
+      }
+
+      // Reset form data and set success
+      setFormData({
+        email: '',
+        password: '',
+        username: ''
+      });
+      setSuccess(true);
+      setCharacterJson(null);
+    } catch (err) {
+      setError('Failed to save character. Please try again.');
+      console.error('Character save error:', err);
     }
   };
 
@@ -671,6 +742,86 @@ Generate a character.json file based on the user-provided data following the str
   };
 
   return (
+    // <Card className="w-full max-w-md bg-[#171D3D] text-white">
+    //   <CardHeader>
+    //     <CardTitle className="text-xl font-bold">
+    //       Character Generation Setup
+    //       {selectedTicker && (
+    //         <span className="block text-sm text-gray-400 mt-2">
+    //           Selected Ticker: {selectedTicker}
+    //         </span>
+    //       )}
+    //     </CardTitle>
+    //   </CardHeader>
+    //   <CardContent>
+    //     {error && (
+    //       <Alert variant="destructive" className="mb-4">
+    //         <AlertTitle>Error</AlertTitle>
+    //         <AlertDescription>{error}</AlertDescription>
+    //       </Alert>
+    //     )}
+    //     {success ? (
+    //       <Alert className="mb-4 bg-green-600">
+    //         <AlertTitle>Success!</AlertTitle>
+    //         <AlertDescription>
+    //           Character generation process has started for {selectedTicker}
+    //         </AlertDescription>
+    //       </Alert>
+    //     ) : (
+    //       <form onSubmit={handleSubmit} className="space-y-4">
+    //         <div>
+    //           <label className="block mb-2">Twitter Email</label>
+    //           <Input
+    //             type="email"
+    //             name="email"
+    //             value={formData.email}
+    //             onChange={handleChange}
+    //             className="w-full bg-[#24284E] border-[#BDA0FF]"
+    //             placeholder="Enter your email"
+    //           />
+    //         </div>
+    //         <div>
+    //           <label className="block mb-2">Twitter Username</label>
+    //           <Input
+    //             type="text"
+    //             name="username"
+    //             value={formData.username}
+    //             onChange={handleChange}
+    //             className="w-full bg-[#24284E] border-[#BDA0FF]"
+    //             placeholder="Choose a username"
+    //           />
+    //         </div>
+    //         <div>
+    //           <label className="block mb-2">Twitter Password</label>
+    //           <Input
+    //             type="password"
+    //             name="password"
+    //             value={formData.password}
+    //             onChange={handleChange}
+    //             className="w-full bg-[#24284E] border-[#BDA0FF]"
+    //             placeholder="Enter your password"
+    //           />
+    //         </div>
+    //         <Button
+    //           type="submit"
+    //           className="w-full bg-gradient-to-r from-[#BDA0FF] to-[#6D47FF]"
+    //           disabled={!selectedTicker}
+    //         >
+    //           Generate Character
+    //         </Button>
+    //       </form>
+    //     )}
+    //     {characterJson && (
+    //       <div className="mt-4">
+    //         <CharecterJsonEditor
+    //           initialJson={characterJson}
+    //           onConfirm={handleConfirmCharacter}
+    //           onCancel={() => setCharacterJson(null)}
+    //         />
+    //       </div>
+    //     )}
+    //   </CardContent>
+    // </Card>
     <Card className="w-full max-w-md bg-[#171D3D] text-white">
       <CardHeader>
         <CardTitle className="text-xl font-bold">
@@ -689,13 +840,20 @@ Generate a character.json file based on the user-provided data following the str
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
         {success ? (
           <Alert className="mb-4 bg-green-600">
             <AlertTitle>Success!</AlertTitle>
             <AlertDescription>
-              Character generation process has started for {selectedTicker}
+              Character for {selectedTicker} has been successfully generated and saved.
             </AlertDescription>
           </Alert>
+        ) : characterJson ? (
+          <CharecterJsonEditor
+            initialJson={characterJson}
+            onConfirm={handleConfirmCharacter}
+            onCancel={() => setCharacterJson(null)}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

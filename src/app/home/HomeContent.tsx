@@ -716,7 +716,7 @@ const HomeContent: FC = () => {
         if (!selectedTicker) {
             const errorMessage: Message = {
                 role: 'assistant',
-                content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                content: 'No agent selected. Please use /select command first to choose an agent.',
                 type: 'text'
             };
             setDisplayMessages(prev => [...prev, errorMessage]);
@@ -948,7 +948,7 @@ const HomeContent: FC = () => {
             if (!selectedTicker) {
                 const errorMessage: Message = {
                     role: 'assistant',
-                    content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                    content: 'No agent selected. Please use /select command first to choose an agent.',
                     type: 'text'
                 };
                 setDisplayMessages(prev => [...prev, errorMessage]);
@@ -1209,7 +1209,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             if (!activeNavbarTicker) {
                 const errorMessage: Message = {
                     role: 'assistant',
-                    content: 'No ticker selected. Please select a ticker first.',
+                    content: 'No agent selected. Please select an agent first.',
                     type: 'text'
                 };
                 setDisplayMessages(prev => [...prev, errorMessage]);
@@ -1338,7 +1338,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             if (!selectedTicker) {
                 const errorMessage: Message = {
                     role: 'assistant',
-                    content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                    content: 'No agent selected. Please use /select command first to choose an agent.',
                     type: 'text'
                 };
                 setDisplayMessages(prev => [...prev, errorMessage]);
@@ -1527,7 +1527,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             if (!selectedTicker) {
                 const errorMessage: Message = {
                     role: 'assistant',
-                    content: 'No ticker selected. Please use /select command first to choose a ticker.',
+                    content: 'No agent selected. Please use /select command first to choose an agent.',
                     type: 'text',
                 };
                 setDisplayMessages((prev) => [...prev, errorMessage]);
@@ -2222,7 +2222,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         const { selectedTicker } = useTickerStore.getState();
 
         if (!selectedTicker) {
-            console.error('Ticker not selected.');
+            console.error('Agent not selected.');
             return;
         }
 
@@ -2534,100 +2534,96 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 text-white ">
-            {/* Sidebar code remains the same */}
-
+        <div className="flex h-screen bg-gray-900 text-white">
             <div
                 className={`
                     ${isMobile ? (isMenuOpen ? 'block' : 'hidden') : 'block'} 
                     ${isMobile ? 'w-3/4' : 'w-64'} 
-                    bg-[#08121f] h-screen overflow-y-auto fixed left-0 top-0 z-20
+                    bg-[#08121f] fixed left-0 h-full border rounded-lg
                 `}
             >
-                <div className="p-4">
-                    <div className="flex items-center justify-between mb-10">
-                        <div className="relative bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full mr-4">
-                            <input
-                                type="text"
-                                placeholder="Search"
-                                className="w-full bg-[#08121f] text-white p-2 rounded-lg"
-                            />
-                        </div>
-                        {isMobile && (
-                            <button onClick={toggleMenu} className="text-white flex justify-center items-center font-sourceCode">
-                                <BiMenuAltRight size={32} />
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex flex-col">
-                        <div className="mb-4">ZkTerminal</div>
-                        <div className="mb-4">Explore</div>
-                        <div className="mb-4 flex flex-row items-center justify-start gap-2" data-marketplace-button
-                            role="button"
-                            tabIndex={0}><span> <Image
-                                src="images/marketplace.svg"
-                                alt="explore marketplace"
-                                width={15}
-                                height={15}
-                                className='my-2'
-                            /></span>Meme Coin Playground</div>
-                        {/* <div className="mb-4">
-                            <h3 className="text-lg font-semibold mb-2">Tickers</h3>
-                            <div className="space-y-2">
-                                {tickers.map((ticker, index) => (
-                                    <div
-                                        key={index}
-                                        className="cursor-pointer hover:bg-gray-700 p-2 rounded"
-                                        onClick={() => handleTickerSelect(ticker)}
-                                    >
-                                        {ticker}
-                                    </div>
-                                ))}
+                <div className="flex flex-col h-full">
+                    {/* Search Input and Header */}
+                    <div className="p-4 flex-shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div className="relative bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full mr-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search"
+                                    className="w-full bg-[#08121f] text-white p-2 rounded-lg"
+                                />
                             </div>
-                        </div> */}
-                        <Image
-                            src="images/Line.svg"
-                            alt="Welcome Line"
-                            width={550}
-                            height={50}
-                            className='my-2'
-                        />
-                        <div className="mb-4">
-                            <h3
-                                className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-                                onClick={toggleDropdown}
-                            >
-                                Tickers
-                                {isDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
-                            </h3>
-                            {isDropdownOpen && (
-                                <div className="space-y-2">
-                                    {tickers.map((ticker, index) => (
-                                        <div
-                                            key={index}
-                                            className="cursor-pointer hover:bg-gray-700 p-2 rounded"
-                                            onClick={() => handleTickerSelect(ticker)}
-                                        >
-                                            {ticker}
-                                        </div>
-                                    ))}
-                                </div>
+                            {isMobile && (
+                                <button onClick={toggleMenu} className="text-white flex justify-center items-center font-sourceCode">
+                                    <BiMenuAltRight size={32} />
+                                </button>
                             )}
                         </div>
-                        <div className="mb-4"><CustomWalletButton /></div>
-
                     </div>
 
-
-                    {/* <nav>
-                        {menuItems.map((item, index) => (
-                            <div key={index} className="py-2 px-4 hover:bg-gray-700 cursor-pointer">
-                                {item}
+                    {/* Main Content */}
+                    <div className="flex-grow overflow-y-auto p-4">
+                        <div className="flex flex-col">
+                            <div className="mb-4">ZkTerminal</div>
+                            <div className="mb-4">Explore</div>
+                            <div
+                                className="mb-4 flex flex-row items-center justify-start gap-2 cursor-pointer"
+                                data-marketplace-button
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <Image
+                                    src="images/marketplace.svg"
+                                    alt="explore marketplace"
+                                    width={15}
+                                    height={15}
+                                    className="my-2"
+                                />
+                                Meme Coin Playground
                             </div>
-                        ))}
-                    </nav> */}
+                            <Image
+                                src="images/Line.svg"
+                                alt="Welcome Line"
+                                width={550}
+                                height={50}
+                                className="my-2"
+                            />
+                            <div className="mb-4">
+                                <h3
+                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
+                                    onClick={toggleDropdown}
+                                >
+                                    Agents
+                                    {isDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
+                                </h3>
+                                {isDropdownOpen && (
+                                    <div
+                                        className="space-y-2 overflow-y-auto"
+                                        style={{ maxHeight: '20rem' }}
+                                    >
+                                        {tickers.map((ticker, index) => (
+                                            <div
+                                                key={index}
+                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded"
+                                                onClick={() => handleTickerSelect(ticker)}
+                                            >
+                                                {ticker}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 flex-shrink-0">
+                        <div>
+                            <CustomWalletButton />
+                        </div>
+                    </div>
                 </div>
             </div>
+
 
             {/* Main content */}
             <div className={`flex-1 flex flex-col bg-[#08121f] ${!isMobile ? 'ml-64' : ''}`}>
@@ -2705,6 +2701,9 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 </button>
                             </div>
                         )}
+                        <div>
+                            <CustomWalletButton />
+                        </div>
                         <button className="text-black bg-white p-1 rounded-lg">
                             <FaPen />
                         </button>

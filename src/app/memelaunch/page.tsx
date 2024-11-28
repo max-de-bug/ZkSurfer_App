@@ -1313,7 +1313,7 @@ const MemeLaunchPage = () => {
                         disabled={isSubmitting}
                         className="w-full bg-white text-black font-bold py-4 rounded-lg mt-6 disabled:opacity-50"
                     >
-                        {isSubmitting ? 'CREATING COIN...' : 'CREATE COIN'}
+                        {isSubmitting ? 'CREATING AGENT...' : 'CREATE AGENT'}
                     </button>
                 </form>
             </div>
