@@ -5,6 +5,7 @@ import "./globals.css";
 import AppWalletProvider from "@/component/AppWalletProvider";
 import Providers from "@/component/Provider";
 import '../../polyfills';
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -64,6 +65,7 @@ export default function RootLayout({
         <Providers>
           <AppWalletProvider>
             {children}
+            <Toaster position="top-right" richColors />
           </AppWalletProvider>
         </Providers>
       </body>
