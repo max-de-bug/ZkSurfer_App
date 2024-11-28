@@ -281,6 +281,7 @@ const CharacterGenForm = () => {
   const currentTickerInfo = selectedTicker ? tickerInfo[selectedTicker] : null;
   const { publicKey } = useWallet();
   const [characterJson, setCharacterJson] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false); // New state for loader
 
   const [formData, setFormData] = useState({
     email: '',
@@ -293,20 +294,24 @@ const CharacterGenForm = () => {
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (!selectedTicker) {
       setError('No ticker selected. Please select a ticker first.');
+      setLoading(false);
       return;
     }
 
     if (!formData.email || !formData.password || !formData.username) {
       setError('All fields are required');
+      setLoading(false);
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
+      setLoading(false);
       return;
     }
 
@@ -587,6 +592,7 @@ Generate a character.json file based on the user-provided data following the str
 
         if (!characterGenResponse.ok) {
           throw new Error('Failed to generate character profile');
+
         }
 
         const characterData = await characterGenResponse.json();
@@ -670,6 +676,7 @@ Generate a character.json file based on the user-provided data following the str
       }
     } catch (err) {
       setError('Failed to generate character. Please try again.');
+      setLoading(false);
       console.error('Character generation error:', err);
     }
   };
@@ -894,7 +901,11 @@ Generate a character.json file based on the user-provided data following the str
               className="w-full bg-gradient-to-r from-[#BDA0FF] to-[#6D47FF]"
               disabled={!selectedTicker}
             >
-              Generate Character
+              {loading ? (
+                <span>Submitting...</span>
+              ) : (
+                'Generate Character'
+              )}
             </Button>
           </form>
         )}

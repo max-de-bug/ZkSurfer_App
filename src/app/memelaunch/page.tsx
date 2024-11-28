@@ -879,6 +879,7 @@ import { useMemeStore } from '@/stores/meme-store';
 import * as pdfjs from 'pdfjs-dist';
 import { TokenCreator } from './tokenCreator';
 import { useAnchorWallet } from "@solana/wallet-adapter-react";
+import { toast } from 'sonner';
 
 interface FormDataType {
     name: string;
@@ -1079,11 +1080,13 @@ const MemeLaunchPage = () => {
 
             const result = await response.json();
             console.log('Coin launched successfully:', result);
+            toast.success(`Coin "${formData.name}" has been successfully created!`);
 
             resetMemeData();
 
         } catch (error) {
             console.error('Error in coin launch process:', error);
+            toast.error('Failed to create the coin. Please try again.');
             throw error; // Re-throw to be handled by the component's error boundary
         } finally {
             setIsSubmitting(false);
