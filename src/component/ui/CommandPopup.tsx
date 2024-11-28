@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'meme-coin' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
+type Command = 'image-gen' | 'create-agent' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
 
 interface CommandOption {
     command: Command;
@@ -165,8 +165,8 @@ interface CommandPopupProps {
 const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
     const commands: CommandOption[] = [
         {
-            command: 'meme-coin',
-            description: 'Generate meme coin image and default data',
+            command: 'create-agent',
+            description: 'Generate setient meme/agent coin ',
         },
         {
             command: 'image-gen',

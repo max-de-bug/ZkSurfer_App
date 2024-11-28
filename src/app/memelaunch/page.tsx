@@ -902,6 +902,7 @@ interface FormDataType {
 
 const MemeLaunchPage = () => {
     const router = useRouter();
+    const MAX_FILE_SIZE_MB = 5;
     const wallet = useAnchorWallet();
     const { memeData, resetMemeData } = useMemeStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -976,18 +977,45 @@ const MemeLaunchPage = () => {
         setShowTrainingOptions(false);
     };
 
+    // const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'pdf' | 'image') => {
+    //     const files = e.target.files;
+    //     if (files && files.length > 0) {
+    //         setFormData((prev) => ({
+    //             ...prev,
+    //             [type === 'pdf' ? 'trainingPdfs' : 'trainingImages']: [
+    //                 ...prev[type === 'pdf' ? 'trainingPdfs' : 'trainingImages'],
+    //                 files[0]
+    //             ]
+    //         }));
+    //     }
+    // };
+
+    const calculateTotalFileSize = (files: File[]) => {
+        return files.reduce((total, file) => total + file.size, 0) / (1024 * 1024); // Convert bytes to MB
+    };
+
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'pdf' | 'image') => {
         const files = e.target.files;
         if (files && files.length > 0) {
+            const newFile = files[0];
+            const existingFiles = type === 'pdf' ? formData.trainingPdfs : formData.trainingImages;
+
+            const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
+            if (totalSize > MAX_FILE_SIZE_MB) {
+                toast.error('Total uploaded file size exceeds 5 MB.');
+                return;
+            }
+
             setFormData((prev) => ({
                 ...prev,
                 [type === 'pdf' ? 'trainingPdfs' : 'trainingImages']: [
                     ...prev[type === 'pdf' ? 'trainingPdfs' : 'trainingImages'],
-                    files[0]
+                    newFile
                 ]
             }));
         }
     };
+
 
     const handleTwitterUrlChange = (index: number, url: string) => {
         setFormData((prev) => {
@@ -996,6 +1024,8 @@ const MemeLaunchPage = () => {
             return { ...prev, trainingUrls: updatedUrls };
         });
     };
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1101,12 +1131,37 @@ const MemeLaunchPage = () => {
         }));
     };
 
+
+    const removeTrainingFile = (type: 'pdf' | 'image', index: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            [type === 'pdf' ? 'trainingPdfs' : 'trainingImages']: prev[
+                type === 'pdf' ? 'trainingPdfs' : 'trainingImages'
+            ].filter((_, i) => i !== index)
+        }));
+    };
+
+    const removeTrainingUrl = (index: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            trainingUrls: prev.trainingUrls.filter((_, i) => i !== index)
+        }));
+    };
+
+
     return (
         <div className="min-h-screen bg-[#08121f] text-white p-4">
             <div className="max-w-xl mx-auto">
-                <div className="mb-6 flex items-center">
+                {/* <div className="mb-6 flex items-center">
                     <ArrowLeft className="w-6 h-6 mr-4" />
+                </div> */}
+                <div className="mb-6 flex items-center">
+                    <ArrowLeft
+                        className="w-6 h-6 mr-4 cursor-pointer"
+                        onClick={() => router.back()}
+                    />
                 </div>
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block mb-2 text-sm">Name</label>
@@ -1129,7 +1184,7 @@ const MemeLaunchPage = () => {
                             value={formData.ticker}
                             onChange={handleChange}
                             className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                            placeholder="Mememlord"
+                            placeholder="Enter Ticker Name"
                             required
                         />
                     </div>
@@ -1169,7 +1224,9 @@ const MemeLaunchPage = () => {
 
 
                     <div>
-                        <label className="block mb-2 text-sm">Training Data</label>
+                        <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
+                            Maximum total upload size: 5 MB (including PDFs and images).
+                        </span></label>
                         <button
                             type="button"
                             onClick={() => setShowTrainingOptions(true)}
@@ -1201,56 +1258,107 @@ const MemeLaunchPage = () => {
                         )}
 
                         {showPdfUpload && (
-                            <div className="mt-4">
-                                <label className="block mb-2 text-sm">Upload PDF</label>
+                            <div className="relative mt-5">
+                                <button
+                                    type="button"
+                                    className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
+                                    onClick={() => document.getElementById('fileInput')?.click()}
+                                >
+                                    Upload PDF type Training Data
+                                </button>
                                 <input
                                     type="file"
+                                    id="fileInput"
                                     accept=".pdf"
                                     onChange={(e) => handleFileUpload(e, 'pdf')}
-                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                    className="hidden"
                                 />
                             </div>
                         )}
 
                         {showImageUpload && (
-                            <div className="mt-4">
-                                <label className="block mb-2 text-sm">Upload Image</label>
+                            <div className="relative mt-4">
+                                <button
+                                    type="button"
+                                    className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
+                                    onClick={() => document.getElementById('imageInput')?.click()}
+                                >
+                                    Upload Image type Training Data
+                                </button>
                                 <input
                                     type="file"
+                                    id="imageInput"
                                     accept="image/*"
                                     onChange={(e) => handleFileUpload(e, 'image')}
-                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                    className="hidden"
                                 />
                             </div>
                         )}
 
                         {/* Display uploaded files */}
-                        {formData.trainingPdfs.length > 0 && (
+                        {/* {formData.trainingPdfs.length > 0 && (
                             <div className="mt-4">
-                                <p className="text-sm font-medium">Uploaded PDFs:</p>
+                                <p className="text-sm font-medium">Uploaded Training PDFs:</p>
                                 <ul className="list-disc pl-5">
                                     {formData.trainingPdfs.map((file, index) => (
                                         <li key={index} className="text-sm">{file.name}</li>
                                     ))}
                                 </ul>
                             </div>
-                        )}
+                        )} */}
 
+                        {formData.trainingPdfs.length > 0 && (
+                            <div className="mt-4">
+                                <p className="text-sm font-medium">Uploaded Training PDFs:</p>
+                                <ul className="list-disc pl-5">
+                                    {formData.trainingPdfs.map((file, index) => (
+                                        <li key={index} className="flex items-center text-sm">
+                                            {file.name}
+                                            <button
+                                                onClick={() => removeTrainingFile('pdf', index)}
+                                                className="ml-2 text-red-500 hover:text-red-700"
+                                            >
+                                                ✕
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {/* 
                         {formData.trainingImages.length > 0 && (
                             <div className="mt-4">
-                                <p className="text-sm font-medium">Uploaded Images:</p>
+                                <p className="text-sm font-medium">Uploaded Training Images:</p>
                                 <ul className="list-disc pl-5">
                                     {formData.trainingImages.map((file, index) => (
                                         <li key={index} className="text-sm">{file.name}</li>
                                     ))}
                                 </ul>
                             </div>
-                        )}
+                        )}*/}
                     </div>
+                    {formData.trainingImages.length > 0 && (
+                        <div className="mt-4">
+                            <p className="text-sm font-medium">Uploaded Training Images:</p>
+                            <ul className="list-disc pl-5">
+                                {formData.trainingImages.map((file, index) => (
+                                    <li key={index} className="flex items-center text-sm">
+                                        {file.name}
+                                        <button
+                                            onClick={() => removeTrainingFile('image', index)}
+                                            className="ml-2 text-red-500 hover:text-red-700"
+                                        >
+                                            ✕
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
-                    {formData.trainingUrls.map((url, index) => (
+                    {/* {formData.trainingUrls.map((url, index) => (
                         <div key={index} className="mt-2">
-                            <label className="block mb-2 text-sm">Twitter URL {index + 1}</label>
+                            <label className="block mb-2 text-sm">Twitter URL {index + 1} for training data</label>
                             <input
                                 type="text"
                                 name="twitter"
@@ -1258,6 +1366,23 @@ const MemeLaunchPage = () => {
                                 onChange={(e) => handleTwitterUrlChange(index, e.target.value)}
                                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
                             />
+                        </div>
+                    ))} */}
+                    {formData.trainingUrls.map((url, index) => (
+                        <div key={index} className="flex items-center mt-2">
+                            <input
+                                type="text"
+                                name="twitter"
+                                value={url}
+                                onChange={(e) => handleTwitterUrlChange(index, e.target.value)}
+                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            />
+                            <button
+                                onClick={() => removeTrainingUrl(index)}
+                                className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                                ✕
+                            </button>
                         </div>
                     ))}
                     <div>
