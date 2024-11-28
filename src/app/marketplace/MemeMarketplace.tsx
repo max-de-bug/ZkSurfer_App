@@ -191,13 +191,23 @@ const MarketplacePage: FC = () => {
                 if (data.success) {
                     // Convert all coins to UI format
                     const convertedCoins = data.data.map(convertApiCoinToUiCoin);
+                    console.log('wallet.publicKey?.toString()', wallet.publicKey?.toString())
 
                     // Filter memecoins (coins with valid memecoin_address)
-                    const validMemecoins = convertedCoins.filter(coin =>
-                        coin.address &&
-                        coin.address !== "0x1234567890abcdef" &&
-                        wallet.publicKey?.toString() === coin.address
-                    );
+                    // const validMemecoins = convertedCoins.filter(coin =>
+                    //     coin.address &&
+                    //     coin.address !== "0x1234567890abcdef" &&
+                    //     wallet.publicKey?.toString() === coin.address
+                    // );
+                    const validMemecoins = convertedCoins.filter(coin => {
+                        console.log('Checking coin:', coin); // Log each coin
+                        return (
+                            coin.address &&
+                            coin.address !== "0x1234567890abcdef" &&
+                            wallet.publicKey?.toString() === coin.address
+                        );
+                    });
+
 
                     setAllCoins(convertedCoins);
                     setMemeCoins(validMemecoins);
@@ -271,7 +281,7 @@ const MarketplacePage: FC = () => {
                 <div className="text-center text-red-500">{error}</div>
             ) : (
                 <>
-                    <div className="px-5">
+                    {/* <div className="px-5">
                         <h2 className="text-xl font-semibold mb-4 font-ttfirs text-[#fff]">Meme Coins</h2>
                         <div className="space-y-4">
                             {filteredMemeCoins.map(coin => (
@@ -284,11 +294,11 @@ const MarketplacePage: FC = () => {
                         </div>
                     </div>
 
-                    <Separator />
+                    <Separator /> */}
 
                     <div className="px-5">
-                        <h2 className="text-xl font-semibold mb-4 font-ttfirs text-[#fff]">Other Coins</h2>
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <h2 className="text-xl font-semibold mb-4 font-ttfirs text-[#fff]">Meme Coins</h2>
+                        {/* <div className="flex flex-wrap gap-2 mb-4">
                             {tags.map(tag => (
                                 <Badge
                                     key={tag}
@@ -301,7 +311,7 @@ const MarketplacePage: FC = () => {
                                     {tag}
                                 </Badge>
                             ))}
-                        </div>
+                        </div> */}
 
                         <div className="space-y-4">
                             {filteredOtherCoins.map(coin => (
