@@ -36,8 +36,8 @@ interface GeneratedTweet {
     id?: number;
 }
 
-//type Command = 'image-gen' | 'meme-coin' | 'content';
-type Command = 'image-gen' | 'meme-coin' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
+//type Command = 'image-gen' | 'create-agent' | 'content';
+type Command = 'image-gen' | 'create-agent' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -157,7 +157,7 @@ const HomeContent: FC = () => {
     const [normalPart, setNormalPart] = useState('');
     // const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
-    const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'meme-coin' | null>(null);
+    const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'create-agent' | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [activeNavbarTicker, setActiveNavbarTicker] = useState<string | null>(null);
     const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
@@ -205,6 +205,24 @@ const HomeContent: FC = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
+
+    const commandPopupRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                commandPopupRef.current &&
+                !commandPopupRef.current.contains(event.target as Node)
+            ) {
+                setShowCommandPopup(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
 
     const [memeGenerationData, setMemeGenerationData] = useState<{
@@ -472,18 +490,39 @@ const HomeContent: FC = () => {
     //     }
     // };
 
+    // const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    //     const value = e.target.value;
+    //     setInputMessage(value);
+
+    //     if (value === '/') {
+    //         setShowCommandPopup(true);
+    //         setShowTickerPopup(false);
+    //     } else if (!value) {
+    //         setShowCommandPopup(false);
+    //         setShowTickerPopup(false);
+    //     }
+    // };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
         setInputMessage(value);
 
+        // Open command prompt if only "/" is typed
         if (value === '/') {
             setShowCommandPopup(true);
             setShowTickerPopup(false);
-        } else if (!value) {
+        }
+        // Close the command prompt if anything is typed after "/"
+        else if (value.startsWith('/')) {
+            const command = value.split(' ')[0]; // Get the first part after "/"
+            if (command.length > 1) {
+                setShowCommandPopup(false);
+            }
+        } else {
             setShowCommandPopup(false);
-            setShowTickerPopup(false);
         }
     };
+
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Escape') {
@@ -1567,7 +1606,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
         // Check if message starts with a command
         const isImageGen = fullMessage.startsWith('/image-gen');
-        const isMemeGen = fullMessage.startsWith('/meme-coin');
+        const isMemeGen = fullMessage.startsWith('/create-agent');
         const isContent = fullMessage.startsWith('/content');
 
         if (isImageGen || isMemeGen || isContent || activeNavbarTicker) {
@@ -1873,10 +1912,10 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             //     return; // Exit here to prevent further processing
             // }
 
-            const commandType = isImageGen ? 'image-gen' : 'meme-coin';
+            const commandType = isImageGen ? 'image-gen' : 'create-agent';
             setCurrentCommand(commandType);
             // Extract the prompt part after the command
-            const promptText = fullMessage.replace(isImageGen ? '/image-gen' : '/meme-coin', '').trim();
+            const promptText = fullMessage.replace(isImageGen ? '/image-gen' : '/create-agent', '').trim();
 
 
             // Create message objects
@@ -1888,7 +1927,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 role: 'user',
                 content: fullMessage,
                 type: 'command',
-                command: isMemeGen ? 'meme-coin' : 'image-gen'
+                command: isMemeGen ? 'create-agent' : 'image-gen'
             };
 
             setDisplayMessages(prev => [...prev, displayMessage]);
@@ -1933,7 +1972,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     role: 'assistant',
                     content: data.content,
                     type: 'image',
-                    command: isMemeGen ? 'meme-coin' : 'image-gen'
+                    command: isMemeGen ? 'create-agent' : 'image-gen'
                 };
 
                 setDisplayMessages(prev => [...prev, assistantMessage]);
@@ -1941,7 +1980,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     role: 'assistant',
                     content: data.prompt || data.content,
                     type: 'image',
-                    command: isMemeGen ? 'meme-coin' : 'image-gen'
+                    command: isMemeGen ? 'create-agent' : 'image-gen'
                 }]);
 
             } catch (error) {
@@ -2479,9 +2518,9 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     // Remove '/image-gen' and show "Generate image of"
                     const prompt = displayedContent.replace('/image-gen', '').trim();
                     displayedContent = `Generate image of: ${prompt}`;
-                } else if (displayedContent.startsWith('/meme-coin')) {
-                    // Remove '/meme-coin' and show "Generate a meme for"
-                    const prompt = displayedContent.replace('/meme-coin', '').trim();
+                } else if (displayedContent.startsWith('/create-agent')) {
+                    // Remove '/create-agent' and show "Generate a meme for"
+                    const prompt = displayedContent.replace('/create-agent', '').trim();
                     displayedContent = `Generate a meme for: ${prompt}`;
                 }
 
@@ -2783,7 +2822,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         onDownloadProof={handleDownload}
                                         imageResultType={message.command}
                                         // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                        onLaunchMemeCoin={message.command === 'meme-coin' ? handleLaunchMemeCoin : undefined}
+                                        onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
                                     />
                                 ) : (
                                     <div className="inline-block p-1 rounded-lg text-white">
@@ -2871,7 +2910,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         ref={inputRef}
                                         value={inputMessage}
                                         onChange={handleInputChange}
-                                        // onKeyDown={handleKeyDown}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !e.shiftKey) {
                                                 e.preventDefault(); // Prevent default new line
@@ -2895,7 +2933,9 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     />
 
                                     {showCommandPopup && (
-                                        <CommandPopup onSelect={handleCommandSelect} />
+                                        <div ref={commandPopupRef}>
+                                            <CommandPopup onSelect={handleCommandSelect} />
+                                        </div>
                                     )}
                                     {showTickerPopup && (
                                         <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />

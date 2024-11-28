@@ -114,7 +114,7 @@ import { useRouter } from 'next/navigation';
 interface ResultBlockProps {
     content: string;
     type: 'image' | 'code';
-    imageResultType?: 'meme-coin' | 'image-gen' | null | string;
+    imageResultType?: 'create-agent' | 'image-gen' | null | string;
     language?: string;
     onMintNFT?: (content: string) => void;
     onDownloadProof: () => void;
@@ -160,7 +160,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                                 />
                             </button>
                         </div>
-                        {imageResultType === 'meme-coin' ? (
+                        {imageResultType === 'create-agent' ? (
                             <div>
                                 <button
                                     onClick={onLaunchMemeCoin}
