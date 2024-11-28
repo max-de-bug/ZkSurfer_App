@@ -138,10 +138,12 @@ import { Input } from '@/components/ui/input';
 import { CoinCard } from '@/component/ui/CoinCard';
 import { CoinDetail } from '@/component/ui/CoinDetails';
 import { Coin, ApiCoin, ApiResponse } from '@/types/marketplaceTypes';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const tags: string[] = ['DeFi', 'Gaming', 'NFT', 'Metaverse', 'Web3'];
 
 const MarketplacePage: FC = () => {
+    const wallet = useWallet();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -166,6 +168,11 @@ const MarketplacePage: FC = () => {
 
     useEffect(() => {
         const fetchCoins = async () => {
+            if (!wallet.publicKey) {
+                setError('Please connect your wallet.');
+                setIsLoading(false);
+                return;
+            }
             try {
                 const response = await fetch('https://zynapse.zkagi.ai/api/coins', {
                     method: 'GET',
@@ -188,7 +195,8 @@ const MarketplacePage: FC = () => {
                     // Filter memecoins (coins with valid memecoin_address)
                     const validMemecoins = convertedCoins.filter(coin =>
                         coin.address &&
-                        coin.address !== "0x1234567890abcdef"
+                        coin.address !== "0x1234567890abcdef" &&
+                        wallet.publicKey?.toString() === coin.address
                     );
 
                     setAllCoins(convertedCoins);
