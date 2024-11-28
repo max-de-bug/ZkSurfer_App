@@ -124,7 +124,7 @@ const CharacterJsonEditor: React.FC<CharacterJsonEditorProps> = ({
                         onClick={() => onConfirm(initialJson)}
                         className="bg-gradient-to-r from-[#BDA0FF] to-[#6D47FF]"
                     >
-                        Use as-is
+                        Confirm
                     </Button>
                 )}
             </CardFooter>

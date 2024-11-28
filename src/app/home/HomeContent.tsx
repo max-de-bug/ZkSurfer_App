@@ -2871,7 +2871,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         ref={inputRef}
                                         value={inputMessage}
                                         onChange={handleInputChange}
-                                        onKeyDown={handleKeyDown}
+                                        // onKeyDown={handleKeyDown}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault(); // Prevent default new line
+                                                handleSubmit(e); // Pass the event to handleSubmit
+                                            }
+                                        }}
                                         placeholder="Message ZkTerminal"
                                         className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
                                         style={{
