@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'content' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch';
 
 interface CommandOption {
     command: Command;
@@ -172,10 +172,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             command: 'image-gen',
             description: 'Image generation with or without ticker',
         },
-        {
-            command: 'content',
-            description: 'Ticker-based content generation',
-        },
+        // {
+        //     command: 'content',
+        //     description: 'Ticker-based content generation',
+        // },
         {
             command: 'select',
             description: 'Select tickers',
@@ -203,14 +203,14 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             description: 'Generates those many tweets',
             additionalInfo: '(Number of tweets)',
         },
-        {
-            command: 'generate-tweet-image',
-            description: 'Generates an image based on ticker for tweet',
-        },
-        {
-            command: 'generate-tweet-images',
-            description: 'Generates images based on ticker for tweets',
-        },
+        // {
+        //     command: 'generate-tweet-image',
+        //     description: 'Generates an image based on ticker for tweet',
+        // },
+        // {
+        //     command: 'generate-tweet-images',
+        //     description: 'Generates images based on ticker for tweets',
+        // },
         {
             command: 'save',
             description: 'Saves one generated tweet',
