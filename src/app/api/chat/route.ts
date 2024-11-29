@@ -28,7 +28,6 @@ async function generateKeys() {
 
 async function generateProof(text: string) {
     const limitedText = text.substring(0, 500);
-    console.log('Generating proof for text:', text);
     const response = await fetch('https://zynapse.zkagi.ai/api/generate-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
@@ -147,6 +146,7 @@ export async function POST(request: Request) {
             // Generate image directly
             const generatedImage = await generate_image(directCommand.prompt, directCommand.seed); // directCommand.id_image
 
+            console.log('directCommand', directCommand)
             // Generate and verify proof
             const proof = await generateProof(directCommand.prompt);
             await verifyProof(proof);

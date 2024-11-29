@@ -1370,6 +1370,7 @@ const MemeLaunchPage = () => {
                     ))} */}
                     {formData.trainingUrls.map((url, index) => (
                         <div key={index} className="flex items-center mt-2">
+                            <label className="block mb-2 text-sm">Upload Twitter URL {index + 1} for training data:</label>
                             <input
                                 type="text"
                                 name="twitter"

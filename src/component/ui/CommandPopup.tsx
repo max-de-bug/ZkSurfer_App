@@ -166,7 +166,7 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
     const commands: CommandOption[] = [
         {
             command: 'create-agent',
-            description: 'Generate setient meme/agent coin ',
+            description: 'Generate sentient meme/agent coin ',
         },
         {
             command: 'image-gen',
