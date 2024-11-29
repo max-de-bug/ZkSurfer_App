@@ -29,6 +29,7 @@ import TweetTable from '@/component/ui/TweetTable';
 import CharacterGenForm from '@/component/ui/CharecterGen';
 import { TokenCreator } from '../memelaunch/tokenCreator';
 import { CustomWalletButton } from '@/component/ui/CustomWalletButton';
+import { toast } from 'sonner';
 
 
 interface GeneratedTweet {
@@ -714,11 +715,20 @@ const HomeContent: FC = () => {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const selectedFiles = Array.from(e.target.files);
+
             if (files.length + selectedFiles.length <= 4) {
                 const newFiles = await Promise.all(
                     selectedFiles.map(async (file) => {
                         if (file.type === 'application/pdf') {
                             const pdfText = await extractTextFromPdf(file);
+                            console.log('pdfText length:', pdfText.toString().length);
+
+                            // Check if the PDF text exceeds the character limit
+                            if (pdfText.toString().length > 125000) {
+                                toast.error('File too big to process'); // Sonner toast notification
+                                return null; // Skip this file
+                            }
+
                             setPdfContent(pdfText);
                             setCurrentPdfName(file.name);
                             return {
@@ -735,13 +745,15 @@ const HomeContent: FC = () => {
                         }
                     })
                 );
-                setFiles([...files, ...newFiles]);
+
+                // Filter out null values from skipped files
+                const validFiles = newFiles.filter(file => file !== null);
+                setFiles([...files, ...validFiles]);
             } else {
-                alert('You can only upload up to 4 files');
+                toast.error('You can only upload up to 4 files'); // Sonner toast notification
             }
         }
     };
-
     const removeFile = (index: number) => {
         const newFiles = [...files];
         URL.revokeObjectURL(newFiles[index].preview);
@@ -1120,7 +1132,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     role: 'user',
                                     content: [{
                                         type: 'text',
-                                        text: tweetPrompt,
+                                        text: `Number of tweets: ${numberOfTweets}. Prompt: ${tweetPrompt}`,
                                     }, {
                                         type: 'image_url',
                                         image_url: {
