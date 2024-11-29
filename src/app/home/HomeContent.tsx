@@ -2848,6 +2848,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     {isLoading && (
                         <div className="text-center">
                             <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
+                            <p>Processing your query. This may take upto 5 minutes...</p>
                         </div>
                     )}
                     <div ref={messagesEndRef} />
