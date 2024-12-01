@@ -168,6 +168,7 @@ const HomeContent: FC = () => {
     const [launchMode, setLaunchMode] = useState<boolean>(false);
     const [launchCoins, setLaunchCoins] = useState<any[]>([]);
 
+    const [isInitialView, setIsInitialView] = useState(true);
 
 
     // const [showTickerTable, setShowTickerTable] = useState(false);
@@ -203,9 +204,24 @@ const HomeContent: FC = () => {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const sampleCommands = [
+        { label: 'Create Agent', command: '/create-agent about ' },
+        { label: 'Generate Image', command: '/image-gen of ' },
+    ];
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
+
+    useEffect(() => {
+        // Ensure initial view is shown on every page load
+        setIsInitialView(true);
+    }, []);
+
+    const handleCommandBoxClick = (command: string) => {
+        setInputMessage(command); // Populate the input field with the selected command
+        inputRef.current?.focus();
+    };
 
     const commandPopupRef = useRef<HTMLDivElement | null>(null);
 
@@ -891,7 +907,13 @@ const HomeContent: FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (isInitialView) {
+            setIsInitialView(false); // Remove the initial boxes on first submit
+        }
+
         const fullMessage = inputMessage.trim();
+
 
         // Command handling for /select
         // if (fullMessage.startsWith('/select')) {
@@ -2317,7 +2339,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             }
 
             // Perform the POST request to the `pmpCoinLaunch` API
-            const launchResponse = await fetch('http:/zynapse.zkagi.ai/api/pmpCoinLaunch', {
+            const launchResponse = await fetch('https://zynapse.zkagi.ai/api/pmpCoinLaunch', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2774,7 +2796,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 />
 
                 {/* Chat messages */}
-                <div className="flex-grow overflow-x-auto px-4 py-8">
+                {/* <div className="flex-grow overflow-x-auto px-4 py-8">
                     {displayMessages.map((message, index) => (
                         <div key={index} className="mb-4 flex justify-start w-full">
                             <div className="flex-shrink-0 mr-3">
@@ -2852,10 +2874,113 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         </div>
                     )}
                     <div ref={messagesEndRef} />
+                </div> */}
+
+                <div className="flex-grow overflow-x-auto px-4 py-8">
+                    {isInitialView ? (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+                                {sampleCommands.map((cmd, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
+                                        onClick={() => handleCommandBoxClick(cmd.command)}
+                                    >
+                                        <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
+                                        <p className="text-sm text-gray-300">
+                                            Click to use the <span className="font-semibold">{cmd.command}</span> command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            {/* Render chat messages */}
+                            {displayMessages.map((message, index) => (
+                                <div key={index} className="mb-4 flex justify-start w-full">
+                                    <div key={index} className="mb-4 flex justify-start w-full">
+                                        <div className="flex-shrink-0 mr-3">
+                                            <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                                {message.role === 'user' ? (
+                                                    userEmail.charAt(0).toUpperCase()
+                                                ) : (
+                                                    <Image
+                                                        src="images/tiger.svg"
+                                                        alt="logo"
+                                                        width={40}
+                                                        height={40}
+                                                        className='p-2'
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-start">
+                                            <div className="flex items-center justify-between w-full mt-2">
+
+                                                <span
+                                                    className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                                        'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                                        } ${!isMobile ? `mt-0.5` : ``}`}
+                                                >
+                                                    {message.role === 'user' ? userEmail : 'ZkTerminal'}
+
+                                                </span>
+                                                {message.role !== 'user' && (
+                                                    <div className="flex space-x-2">
+                                                        <button className="text-white rounded-lg">
+                                                            <Image
+                                                                src="images/Download.svg"
+                                                                alt="logo"
+                                                                width={20}
+                                                                height={20}
+                                                            />
+                                                        </button>
+                                                        <button className="text-white rounded-lg">
+                                                            <Image
+                                                                src="images/share.svg"
+                                                                alt="logo"
+                                                                width={20}
+                                                                height={20}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {message.role === 'assistant' &&
+
+                                                (typeof message.content === 'string' && message.content.startsWith('/')) ? (
+                                                <ResultBlock
+                                                    content={message.content}
+                                                    type="image"
+                                                    onMintNFT={handleMintNFT}
+                                                    onDownloadProof={handleDownload}
+                                                    imageResultType={message.command}
+                                                    // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                                    onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                />
+                                            ) : (
+                                                <div className="inline-block p-1 rounded-lg text-white">
+                                                    {renderMessageContent(message)}
+                                                </div>
+                                            )}
+
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="text-center">
+                                    <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
+                                    <p>Processing your query. This may take up to 5 minutes...</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                <footer className="w-full py-4 flex justify-center px-4">
-                    <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'}`}>
+                <footer className="w-full py-6 flex justify-center px-2">
+                    <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
                         <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
                             {files.length > 0 && (
                                 <div className="flex flex-wrap gap-2 p-2">

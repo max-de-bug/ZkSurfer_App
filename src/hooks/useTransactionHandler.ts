@@ -20,7 +20,7 @@ export const useTransactionHandler = () => {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
-    const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=c2c41dbf-5595-41fe-8a91-0aa78afba298";
+    const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=90cde47d-2ea8-4405-b917-6b4a9c8e80e2";
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
     const handleTransaction = async ({

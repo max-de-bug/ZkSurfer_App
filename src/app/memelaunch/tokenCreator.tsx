@@ -218,7 +218,7 @@ export const TokenCreator = async ({
     wallet: any;
 }) => {
     try {
-        const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=c2c41dbf-5595-41fe-8a91-0aa78afba298".trim();
+        const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=144968c1-56dd-4d50-a47b-f9fe9e9aafc6".trim();
 
         try {
             const web3Connection = new Connection(RPC_ENDPOINT, { commitment: 'confirmed' });
@@ -280,8 +280,8 @@ export const TokenCreator = async ({
                     uri: metadataUri
                 },
                 mint: mintKeypair.publicKey.toBase58(),
-                denominatedInSol: "true",
-                amount: 0.01,
+                denominatedInSol: "false",
+                amount: 10000,
                 slippage: 10,
                 priorityFee: 0.0005,
                 pool: "pump"
