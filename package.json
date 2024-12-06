@@ -15,6 +15,7 @@
     "@dynamic-labs/solana": "^2.3.7",
     "@ethersproject/providers": "^5.7.2",
     "@metaplex-foundation/mpl-core": "^1.1.1",
+    "@metaplex-foundation/mpl-token-metadata": "^3.3.0",
     "@metaplex-foundation/umi": "^0.9.2",
     "@metaplex-foundation/umi-bundle-defaults": "^0.9.2",
     "@metaplex-foundation/umi-signer-wallet-adapters": "^0.9.2",

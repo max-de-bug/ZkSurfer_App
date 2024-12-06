@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 
 interface TickerInfo {
+    description: string;
+    memecoin_address: null;
+    coin_name: string;
     image_base64: string;
     training_data: any[];
     urls: string[];

@@ -30,6 +30,12 @@ import CharacterGenForm from '@/component/ui/CharecterGen';
 import { TokenCreator } from '../memelaunch/tokenCreator';
 import { CustomWalletButton } from '@/component/ui/CustomWalletButton';
 import { toast } from 'sonner';
+import { useCharacterEditStore } from '@/stores/edit-store';
+import { useConversationStore } from '@/stores/conversation-store';
+import { useCharacterStore } from '@/stores/charecter-store';
+import CharecterJsonEditor from '@/component/ui/CharecterJsonEditor';
+import { useFormStore } from '@/stores/form-store';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 
 interface GeneratedTweet {
@@ -38,7 +44,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -157,6 +163,11 @@ const HomeContent: FC = () => {
     const [commandPart, setCommandPart] = useState('');
     const [normalPart, setNormalPart] = useState('');
     // const inputRef = useRef<HTMLInputElement>(null);
+
+    const { editMode, setEditMode } = useCharacterEditStore();
+    const { messages, addMessage, setMessages } = useConversationStore.getState();
+    const { setCharacterJson } = useCharacterStore();
+
     const router = useRouter();
     const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'create-agent' | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -776,6 +787,10 @@ const HomeContent: FC = () => {
         newFiles.splice(index, 1);
         setFiles(newFiles);
     };
+
+    function getByteSize(str: any) {
+        return new TextEncoder().encode(str).length;
+    }
 
     const handleTweetCommand = async (message: string) => {
         const { selectedTicker } = useTickerStore.getState();
@@ -1428,6 +1443,135 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             return;
         }
 
+        if (fullMessage.startsWith('/train')) {
+            // Check if an agent (ticker) is selected
+            const { selectedTicker } = useTickerStore.getState();
+
+            if (!selectedTicker) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No agent selected. Please use /select command first to choose an agent.',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+                setInputMessage('');
+                return;
+            }
+
+            if (files.length === 0) {
+                // No files uploaded, show an error message
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No files uploaded. Please upload PDF or image files to train with.',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+                setInputMessage('');
+                return;
+            }
+
+            // Prepare the training data
+            const trainingPdfs: string[] = [];
+            const trainingImages: string[] = [];
+
+            for (const fileObj of files) {
+                if (fileObj.isPdf) {
+                    if (pdfContent && fileObj.file.name === currentPdfName) {
+                        trainingPdfs.push(pdfContent);
+                    }
+                } else {
+                    // Images: Include the base64 data
+                    trainingImages.push(fileObj.preview);
+                }
+            }
+
+            // Create display message content
+            const displayMessageContent: any[] = [];
+
+            if (inputMessage.trim()) {
+                displayMessageContent.push({
+                    type: 'text',
+                    text: inputMessage.trim(),
+                });
+            }
+
+            // Add file information to the display message
+            for (const fileObj of files) {
+                if (fileObj.isPdf) {
+                    displayMessageContent.push({
+                        type: 'text',
+                        text: `[PDF: ${fileObj.file.name}]`,
+                    });
+                } else {
+                    const imageContent = {
+                        type: 'image_url',
+                        image_url: {
+                            url: fileObj.preview,
+                        },
+                    };
+                    displayMessageContent.push(imageContent);
+                }
+            }
+
+            // Create the display message
+            const displayMessage: Message = {
+                role: 'user',
+                content: displayMessageContent,
+            };
+
+            setDisplayMessages((prev) => [...prev, displayMessage]);
+            setInputMessage('');
+            setFiles([]);
+            setPdfContent(null);
+            setCurrentPdfName(null);
+            setIsLoading(true);
+
+            try {
+                // Prepare the API payload with only necessary fields
+                const apiPayload = {
+                    ticker: selectedTicker,
+                    training_data: {
+                        pdfs: trainingPdfs,
+                        images: trainingImages,
+                        training_urls: [],
+                    },
+                };
+
+                // Send the API request to update the training data
+                const response = await fetch('https://zynapse.zkagi.ai/api/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+                    body: JSON.stringify(apiPayload),
+                });
+
+                if (!response.ok) throw new Error('Failed to update training data');
+
+                const data = await response.json();
+
+                // Handle the response
+                const assistantMessage: Message = {
+                    role: 'assistant',
+                    content: 'Training data has been successfully updated.',
+                    type: 'text',
+                };
+
+                setDisplayMessages((prev) => [...prev, assistantMessage]);
+
+            } catch (error) {
+                console.error('Error in /train command:', error);
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'Error during training. Please try again.',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+            } finally {
+                setIsLoading(false);
+            }
+
+            return;
+        }
+
 
         // if (fullMessage.startsWith('/launch')) {
         //     const { selectedTicker } = useTickerStore.getState();
@@ -1643,7 +1787,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         const isMemeGen = fullMessage.startsWith('/create-agent');
         const isContent = fullMessage.startsWith('/content');
 
-        if (isImageGen || isMemeGen || isContent || activeNavbarTicker) {
+        if (isImageGen || isMemeGen || isContent) {
 
             // if (fullMessage.startsWith('/content')) {
             //     // const ticker = fullMessage.split('content')[1]?.split('tweet')[0]?.trim() || '';
@@ -2141,64 +2285,178 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 }
             } else {
                 // Existing text-only handling
-                const userMessage: Message = { role: 'user', content: inputMessage };
 
-                setDisplayMessages((prev) => [...prev, userMessage]);
+                // if (editMode) {
+                //     // Add the user message to conversation store
+                //     addMessage({ role: 'user', content: inputMessage });
 
-                const apiMessage: Message = { role: 'user', content: inputMessage };
-                setApiMessages((prev) => [...prev, apiMessage]);
+                //     // Send the entire conversation (including character gen request + all edits)
+                //     const response = await fetch('/api/chat', {
+                //         method: 'POST',
+                //         headers: { 'Content-Type': 'application/json' },
+                //         body: JSON.stringify({ messages }), // send entire history
+                //     });
 
-                setInputMessage('');
-                setIsLoading(true);
+                //     // Parse and add the assistant response
+                //     const data = await response.json();
+                //     addMessage({ role: 'assistant', content: data.content });
 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000);
+                //     const payload = JSON.stringify({ messages });
 
-                try {
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            messages: [...apiMessages, apiMessage],
-                        }),
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
 
-                    if (!response.ok) throw new Error('Failed to get response');
+                //     const size = getByteSize(payload);
+                //     console.log('size', size)
+                //     console.log('messages.length', messages.length)
 
-                    const data = await response.json();
+                //     let assistantMessageForDisplay: Message;
+                //     let assistantMessageForAPI: Message;
 
-                    let assistantMessageForDisplay: Message;
-                    let assistantMessageForAPI: Message;
+                //     setProofData(data.proof);
 
-                    setProofData(data.proof);
+                //     if (data.type === 'img') {
+                //         setResultType(data.type)
+                //         assistantMessageForDisplay = {
+                //             role: 'assistant',
+                //             content: data.content,
+                //         };
+                //         assistantMessageForAPI = {
+                //             role: 'assistant',
+                //             content: data.prompt,
+                //         };
+                //     } else {
+                //         assistantMessageForDisplay = {
+                //             role: 'assistant',
+                //             content: data.content,
+                //         };
+                //         assistantMessageForAPI = assistantMessageForDisplay;
+                //     }
 
-                    if (data.type === 'img') {
-                        setResultType(data.type)
-                        assistantMessageForDisplay = {
-                            role: 'assistant',
-                            content: data.content,
-                        };
-                        assistantMessageForAPI = {
-                            role: 'assistant',
-                            content: data.prompt,
-                        };
-                    } else {
-                        assistantMessageForDisplay = {
-                            role: 'assistant',
-                            content: data.content,
-                        };
-                        assistantMessageForAPI = assistantMessageForDisplay;
+                //     setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
+                //     setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+                // }
+                if (editMode) {
+                    // Add the user message to conversation store
+                    addMessage({ role: 'user', content: inputMessage });
+
+                    // Also update displayMessages so the user message appears immediately
+                    const userMessage: Message = { role: 'user', content: inputMessage };
+                    setDisplayMessages((prev) => [...prev, userMessage]);
+
+                    // If you're also tracking API messages separately, add it there too
+                    // (optional depending on your logic)
+                    setApiMessages((prev) => [...prev, userMessage]);
+
+                    setInputMessage('');
+                    setIsLoading(true);
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                    try {
+                        // Send the entire conversation
+                        const { messages } = useConversationStore.getState();
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ messages }), // send entire history
+                            signal: controller.signal,
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) throw new Error('Failed to get response');
+
+                        const data = await response.json();
+                        setProofData(data.proof);
+
+                        // Add assistant response to conversation store
+                        addMessage({ role: 'assistant', content: data.content });
+
+                        let assistantMessageForDisplay: Message;
+                        let assistantMessageForAPI: Message;
+
+                        if (data.type === 'img') {
+                            setResultType(data.type);
+                            assistantMessageForDisplay = { role: 'assistant', content: data.content };
+                            assistantMessageForAPI = { role: 'assistant', content: data.prompt };
+                        } else {
+                            assistantMessageForDisplay = { role: 'assistant', content: data.content };
+                            assistantMessageForAPI = assistantMessageForDisplay;
+                        }
+
+                        // Update display and API messages with the assistant's response
+                        setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
+                        setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+
+                    } catch (error) {
+                        console.error('Error:', error);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                }
+                else {
+
+                    const userMessage: Message = { role: 'user', content: inputMessage };
+
+                    setDisplayMessages((prev) => [...prev, userMessage]);
+
+                    const apiMessage: Message = { role: 'user', content: inputMessage };
+                    setApiMessages((prev) => [...prev, apiMessage]);
+
+                    setInputMessage('');
+                    setIsLoading(true);
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                    try {
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                messages: [...apiMessages, apiMessage],
+                            }),
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) throw new Error('Failed to get response');
+
+                        const data = await response.json();
+
+
+
+                        let assistantMessageForDisplay: Message;
+                        let assistantMessageForAPI: Message;
+
+                        setProofData(data.proof);
+
+                        if (data.type === 'img') {
+                            setResultType(data.type)
+                            assistantMessageForDisplay = {
+                                role: 'assistant',
+                                content: data.content,
+                            };
+                            assistantMessageForAPI = {
+                                role: 'assistant',
+                                content: data.prompt,
+                            };
+                        } else {
+                            assistantMessageForDisplay = {
+                                role: 'assistant',
+                                content: data.content,
+                            };
+                            assistantMessageForAPI = assistantMessageForDisplay;
+                        }
+
+                        setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
+                        setApiMessages((prev) => [...prev, assistantMessageForAPI]);
+
+                    } catch (error) {
+                        console.error('Error:', error);
+                    } finally {
+                        setIsLoading(false);
                     }
 
-                    setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
-                    setApiMessages((prev) => [...prev, assistantMessageForAPI]);
-
-                } catch (error) {
-                    console.error('Error:', error);
-                } finally {
-                    setIsLoading(false);
                 }
             }
         }
@@ -2416,6 +2674,44 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
 
     const setMemeData = useMemeStore((state) => state.setMemeData);
+    const { publicKey } = useWallet();
+    const { selectedTicker } = useTickerStore.getState();
+    const { formData, setFormData, error, setError, success, setSuccess } = useFormStore();
+
+    const handleConfirmCharacter = async (finalJson: any) => {
+        try {
+            const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'zk-123321'
+                },
+                body: JSON.stringify({
+                    wallet_address: publicKey,
+                    ticker: selectedTicker,
+                    characteristics: finalJson
+                })
+            });
+
+            if (!saveResponse.ok) {
+                throw new Error('Failed to save character data');
+            }
+
+            // Reset form data, show success, etc.
+            setFormData({
+                email: '',
+                password: '',
+                username: ''
+            });
+            setSuccess(true);
+            console.log('success', useFormStore.getState().success);
+
+            setCharacterJson(null);
+        } catch (err) {
+            setError('Failed to save character. Please try again.');
+            console.error('Character save error:', err);
+        }
+    }
 
     const handleLaunchMemeCoin = () => {
         if (memeGenerationData && currentSeed && wallet) {
@@ -2439,9 +2735,16 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
     const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
         try {
-            const { signature, assetPublicKey } = await createNft(wallet, base64Image, wallet.publicKey?.toString() || '');
-            const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
-            window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
+            // const { txSignature, result } = await createNft(base64Image, 'NFT', wallet);
+
+            // console.log('signature', txSignature)
+            // console.log('result', result)
+            const response = await createNft(base64Image, 'NFT', wallet);
+            toast.success('NFT minyed successfully!')
+
+            console.log(response);
+            // const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
+            // window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
         } catch (error) {
             console.error("Failed to mint NFT:", error);
         } finally {
@@ -2741,6 +3044,93 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         </div>
                         <div className='font-ttfirs text-xl'>ZkTerminal</div>
                     </div>
+                    {/* {editMode && (
+                        <div className="flex items-center space-x-2">
+                            <span>Edit Mode</span>
+                            <button
+                                onClick={() => setEditMode(false)}
+                                className="bg-gray-500 px-2 py-1 rounded text-white"
+                            >
+                                Edit Mode Off
+                            </button>
+                        </div>
+                    )} */}
+                    {editMode && (
+                        <button
+                            onClick={async () => {
+                                // Turn off edit mode
+                                setEditMode(false);
+
+                                try {
+                                    addMessage({ role: 'user', content: 'generate a character.json using the above data' });
+                                    const { messages } = useConversationStore.getState();
+
+                                    // Make a final call to /api/chat with the full conversation history
+                                    const response = await fetch('/api/chat', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ messages }),
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error('Failed to finalize character data.');
+                                    }
+
+                                    const finalData = await response.json();
+                                    console.log('finalData', finalData)
+                                    const fullContent = finalData.content;
+                                    let updatedCharacterJson: any;
+
+                                    const jsonMatch = fullContent.match(/```json\s*([\s\S]*?)\s*```/);
+
+                                    if (jsonMatch && jsonMatch[1]) {
+                                        // jsonMatch[1] contains the JSON inside the code block
+                                        updatedCharacterJson = JSON.parse(jsonMatch[1]);
+                                        setCharacterJson(updatedCharacterJson);
+
+                                        const editorMessage = {
+                                            role: 'assistant',
+                                            content: (
+                                                <div className="bg-[#24284E] p-4 rounded-lg">
+                                                    {useFormStore.getState().success ? (
+                                                        <div className="text-green-500">Character saved successfully!</div>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-white mb-2">Please review and confirm your character.json:</p>
+                                                            <CharecterJsonEditor
+                                                                initialJson={updatedCharacterJson}
+                                                                onConfirm={(finalJson: any) => {
+                                                                    setCharacterJson(finalJson);
+                                                                    handleConfirmCharacter(finalJson);
+                                                                }}
+                                                                onCancel={() => setCharacterJson(null)}
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )
+                                        };
+
+
+                                        // Append this editorMessage to the chat display
+                                        setDisplayMessages((prev) => [...prev, editorMessage as Message]);
+
+                                    } else {
+                                        console.error("Failed to extract JSON from the response.");
+                                    }
+                                    // Now the CharacterGenForm or CharecterJsonEditor which relies on that store
+                                    // should reflect the updated character JSON as it did initially.
+
+                                } catch (error) {
+                                    console.error('Error finalizing character:', error);
+                                    // Optionally display an error message to the user
+                                }
+                            }}
+                            className="bg-gray-500 px-2 py-1 rounded text-white"
+                        >
+                            Edit Mode Off
+                        </button>
+                    )}
                     <div className="flex items-center space-x-4">
                         {/* Add ticker display here */}
                         {activeNavbarTicker && (

@@ -275,21 +275,27 @@ import { useTickerStore } from '@/stores/ticker-store';
 import { ApifyClient } from 'apify-client';
 import { useWallet } from '@solana/wallet-adapter-react';
 import CharecterJsonEditor from './CharecterJsonEditor';
+import { useCharacterEditStore } from '@/stores/edit-store';
+import { useConversationStore } from '@/stores/conversation-store';
+import { useCharacterStore } from '@/stores/charecter-store';
+import { useFormStore } from '@/stores/form-store';
 
 const CharacterGenForm = () => {
   const { selectedTicker, tickerInfo } = useTickerStore();
   const currentTickerInfo = selectedTicker ? tickerInfo[selectedTicker] : null;
+  const { setEditMode } = useCharacterEditStore();
   const { publicKey } = useWallet();
-  const [characterJson, setCharacterJson] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false); // New state for loader
+  const { characterJson, setCharacterJson } = useCharacterStore();
+  const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    username: ''
-  });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  // const [formData, setFormData] = useState({
+  //   email: '',
+  //   password: '',
+  //   username: ''
+  // });
+  // const [error, setError] = useState('');
+  // const [success, setSuccess] = useState(false);
+  const { formData, setFormData, error, setError, success, setSuccess } = useFormStore();
 
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
@@ -390,6 +396,40 @@ const CharacterGenForm = () => {
 
 
         console.log('trainingData', trainingData)
+
+        useConversationStore.getState().addMessage({
+          role: "system",
+          content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
+        
+          Name: The character's name.
+          Clients: A list of clients (if any).
+          ModelProvider: The model provider (e.g., "zkagi").
+          Settings:
+          Secrets: Any secrets related to the character.
+          Voice: Voice settings, including the model (e.g., "en_US-male-medium").
+          Bio: Key points about the character's background, achievements, and beliefs.
+          Lore: Additional backstory about the character.
+          Knowledge: Specific knowledge or insights the character has.
+          MessageExamples: Examples of messages the character might send, including user interactions.
+          PostExamples: Examples of posts the character might make.
+          Topics: Key topics the character is associated with.
+          Style:
+          All: General stylistic elements.
+          Chat: Stylistic elements specific to chat interactions.
+          Post: Stylistic elements specific to posts.
+          Adjectives: A list of adjectives commonly used by the character.
+        
+          Instructions: Extract information, organize data, and format JSON as specified.`,
+        });
+
+        // Step 2: Add to useConversationStore - User Role
+        useConversationStore.getState().addMessage({
+          role: 'user',
+          content: `Generate a character.json using given data.
+          - The character name should be set to ${selectedTicker}.
+          - Use the given tweets to understand the voice tone and style of character ${twitterData}.
+          - Use the training data to generate the rest of the data for the character ${JSON.stringify(trainingData)}.`,
+        });
 
         // Make the AI character generation request
         const characterGenResponse = await fetch('/api/chat', {
@@ -597,8 +637,12 @@ Generate a character.json file based on the user-provided data following the str
 
         const characterData = await characterGenResponse.json();
 
-        console.log('characterData', characterData)
+        useConversationStore.getState().addMessage({
+          role: 'assistant',
+          content: characterData.content,
+        });
 
+        console.log('characterData', characterData)
 
 
         // Now send the character data to the backend
@@ -830,6 +874,9 @@ Generate a character.json file based on the user-provided data following the str
     //   </CardContent>
     // </Card>
     <Card className="w-full max-w-md bg-[#171D3D] text-white">
+      <Button onClick={() => setEditMode(true)}>
+        Edit Mode On
+      </Button>
       <CardHeader>
         <CardTitle className="text-xl font-bold">
           Character Generation Setup
