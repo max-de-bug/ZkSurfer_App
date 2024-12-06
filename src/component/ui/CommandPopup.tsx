@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train';
 
 interface CommandOption {
     command: Command;
@@ -228,6 +228,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
         {
             command: 'character-gen',
             description: 'To generate characters',
+        },
+        {
+            command: 'train',
+            description: 'To continuously train and improve your agent',
         },
     ];
 
