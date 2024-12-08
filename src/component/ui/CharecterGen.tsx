@@ -279,6 +279,8 @@ import { useCharacterEditStore } from '@/stores/edit-store';
 import { useConversationStore } from '@/stores/conversation-store';
 import { useCharacterStore } from '@/stores/charecter-store';
 import { useFormStore } from '@/stores/form-store';
+import Tooltip from './Tooltip';
+import InfoIcon from './Infoicon';
 
 const CharacterGenForm = () => {
   const { selectedTicker, tickerInfo } = useTickerStore();
@@ -873,10 +875,20 @@ Generate a character.json file based on the user-provided data following the str
     //     )}
     //   </CardContent>
     // </Card>
-    <Card className="w-full max-w-md bg-[#171D3D] text-white">
-      <Button onClick={() => setEditMode(true)}>
-        Edit Mode On
-      </Button>
+    <Card className="w-full max-w-md bg-[#171D3D] text-white border">
+      <div className="flex justify-end">
+        <Tooltip content={
+          <>
+            <p>Ensure in your Twitter account that Twitter 2-Factor Auth checkboxes are unchecked.</p>
+            <br />
+            <p>If you have a Google/Social sign-in, disable it. Use email and password to login.</p>
+          </>
+        }>
+          <Button variant="ghost" className="p-2">
+            <InfoIcon className="size-5 text-gray-400" />
+          </Button>
+        </Tooltip>
+      </div>
       <CardHeader>
         <CardTitle className="text-xl font-bold">
           Character Generation Setup
@@ -903,11 +915,16 @@ Generate a character.json file based on the user-provided data following the str
             </AlertDescription>
           </Alert>
         ) : characterJson ? (
-          <CharecterJsonEditor
-            initialJson={characterJson}
-            onConfirm={handleConfirmCharacter}
-            onCancel={() => setCharacterJson(null)}
-          />
+          <>
+            <Button onClick={() => setEditMode(true)}>
+              Edit Mode On
+            </Button>
+            <CharecterJsonEditor
+              initialJson={characterJson}
+              onConfirm={handleConfirmCharacter}
+              onCancel={() => setCharacterJson(null)}
+            />
+          </>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
