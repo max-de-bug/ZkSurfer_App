@@ -865,31 +865,149 @@ const HomeContent: FC = () => {
     };
 
 
-    const uploadFilesToMergeMedia = async (video: File, audio: File): Promise<string | null> => {
-        const formData = new FormData();
-        formData.append('videoFile', video);
-        formData.append('audioFile', audio);
+    // const uploadFilesToMergeMedia = async (video: File, audio: File): Promise<string | null> => {
+    //     const formData = new FormData();
+    //     formData.append('videoFile', video);
+    //     formData.append('audioFile', audio);
 
+    //     try {
+    //         const response = await fetch('/api/merge-media', {
+    //             method: 'POST',
+    //             body: formData,
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error(`Failed to process files: ${response.statusText}`);
+    //         }
+
+    //         const blob = await response.blob();
+    //         const videoUrl = URL.createObjectURL(blob); // Create a URL for the returned blob
+    //         return videoUrl;
+    //     } catch (error) {
+    //         console.error('Error uploading files:', error);
+    //         return null;
+    //     }
+    // };
+
+    // const uploadFilesToMergeMedia = async (
+    //     video: File,
+    //     audio: File
+    // ): Promise<string | null> => {
+    //     try {
+    //         const videoBinary = await fileToBinaryString(video);
+    //         const audioBinary = await fileToBinaryString(audio);
+    //         console.log('videoBinary', videoBinary)
+    //         console.log('audioBinary', audioBinary)
+
+    //         // const response = await fetch("http://27.222.23.19:8000/generate/", {
+    //         //     method: "POST",
+    //         //     headers: {
+    //         //         "Content-Type": "application/json",
+    //         //     },
+    //         //     body: JSON.stringify({
+    //         //         videoBinary,
+    //         //         audioBinary,
+    //         //         bbox_shift: 0
+    //         //     }),
+    //         // });
+    //         const response = await fetch("https://zynapse.zkagi.ai/generate-lipsync", {
+    //             method: "POST",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //             },
+    //             body: JSON.stringify({
+    //                 videoBinary,
+    //                 audioBinary,
+    //             }),
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error(`Failed to process files: ${response.statusText}`);
+    //         }
+
+    //         const result = await response.json();
+    //         return result.videoUrl; // Return the generated video URL
+    //     } catch (error) {
+    //         console.error("Error uploading files:", error);
+    //         return null;
+    //     }
+    // };
+
+    const uploadFilesToMergeMedia = async (
+        video: File,
+        audio: File
+    ): Promise<string | null> => {
         try {
-            const response = await fetch('/api/merge-media', {
-                method: 'POST',
+            const formData = new FormData();
+
+            // Append video and audio files directly to FormData
+            formData.append('video', video, video.name);
+            formData.append('audio', audio, audio.name);
+
+            const endpoint = process.env.NEXT_PUBLIC_LIP_SYNC || " "
+
+            // const response = await fetch(endpoint, {
+            //     method: "POST",
+            //     body: formData,
+            // });
+
+            const response = await fetch("/api/lipsync", {
+                method: "POST",
                 body: formData,
             });
+
+            console.log('response', response)
 
             if (!response.ok) {
                 throw new Error(`Failed to process files: ${response.statusText}`);
             }
 
             const blob = await response.blob();
-            const videoUrl = URL.createObjectURL(blob); // Create a URL for the returned blob
-            return videoUrl;
+            const url = URL.createObjectURL(blob);
+
+            return url
         } catch (error) {
-            console.error('Error uploading files:', error);
+            console.error("Error uploading files:", error);
             return null;
         }
     };
 
 
+    const validateMediaDuration = async (file: File): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const mediaElement = document.createElement(
+                file.type.startsWith("video/") ? "video" : "audio"
+            );
+            mediaElement.preload = "metadata";
+
+            mediaElement.onloadedmetadata = () => {
+                URL.revokeObjectURL(mediaElement.src);
+                resolve(mediaElement.duration <= 15);
+            };
+
+            mediaElement.onerror = () => {
+                resolve(false); // If metadata can't be loaded, consider invalid.
+            };
+
+            mediaElement.src = URL.createObjectURL(file);
+        });
+    };
+
+
+    const fileToBinaryString = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === "string") {
+                    resolve(reader.result);
+                } else {
+                    reject(new Error("Failed to convert file to binary string."));
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsBinaryString(file);
+        });
+    };
 
 
     const removeFile = (index: number) => {
@@ -1153,9 +1271,23 @@ const HomeContent: FC = () => {
             const videoFile = files.find((file) => file.file.type.startsWith('video/'));
             const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
 
+            if (!videoFile || !audioFile) {
+                toast.error("Please upload one video file and one audio file.");
+                return;
+            }
+
+            const isVideoValid = await validateMediaDuration(videoFile.file);
+            const isAudioValid = await validateMediaDuration(audioFile.file);
+
+            if (!isVideoValid || !isAudioValid) {
+                toast.error("Video and audio files must be 15 seconds or shorter.");
+                return;
+            }
+
             if (videoFile && audioFile) {
                 // Call the API to process video and audio files
                 const videoUrl = await uploadFilesToMergeMedia(videoFile.file, audioFile.file);
+                console.log('videoUrl', videoUrl)
 
                 if (videoUrl) {
                     const successMessage: Message = {
