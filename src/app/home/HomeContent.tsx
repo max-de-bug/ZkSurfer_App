@@ -44,7 +44,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lypsing';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -794,30 +794,6 @@ const HomeContent: FC = () => {
     //     }
     // };
 
-    const processFilesForVideoLypsing = async (video: File, audio: File) => {
-        const formData = new FormData();
-        formData.append('videoFile', video);
-        formData.append('audioFile', audio);
-
-        try {
-            const response = await fetch('/api/merge-media', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('File processing failed');
-            }
-
-            const blob = await response.blob();
-            const videoUrl = URL.createObjectURL(blob);
-
-            setMergedVideoUrl(videoUrl); // Set the merged video URL to display or download
-        } catch (error) {
-            console.error('Error processing video and audio files:', error);
-        }
-    };
-
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -1267,7 +1243,7 @@ const HomeContent: FC = () => {
         //     return;
         // }
 
-        if (fullMessage.startsWith('/video-lypsing')) {
+        if (fullMessage.startsWith('/video-lipsync')) {
             const videoFile = files.find((file) => file.file.type.startsWith('video/'));
             const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-    // Access the environment variable on the server side
-    const endpoint = process.env.LIP_SYN;
+    const endpoint = process.env.NEXT_PUBLIC_LIP_SYNC;
 
     if (!endpoint) {
         return NextResponse.json(
@@ -12,13 +11,13 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        // Retrieve the FormData from the request
+        // Extract FormData from the incoming request
         const body = await req.formData();
 
-        // Forward the request to the actual API
+        // Forward the request to the actual API with the same FormData
         const response = await fetch(endpoint, {
             method: "POST",
-            body: body,
+            body: body, // FormData is passed directly
         });
 
         if (!response.ok) {
@@ -28,10 +27,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Return the API's response back to the client
-        const result = await response.json();
-        return NextResponse.json(result);
+        // Fetch the response as a Blob and return it
+        const blob = await response.blob();
+        return new Response(blob, {
+            headers: {
+                "Content-Type": "video/mp4", // Adjust content type based on API response
+            },
+        });
     } catch (error) {
+        console.error("Error processing lipsync request:", error);
         return NextResponse.json(
             { error: "Something went wrong while processing the request" },
             { status: 500 }
