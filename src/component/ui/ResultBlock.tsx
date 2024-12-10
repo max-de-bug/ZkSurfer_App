@@ -178,7 +178,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                             </div>
                         ) : imageResultType === 'image-gen' && onMintNFT && (
                             <div>
-                                {/* <button
+                                <button
                                     onClick={() => onMintNFT(`data:image/jpeg;base64,${content}`)}
                                     className="flex items-center space-x-2 text-white rounded"
                                 >
@@ -190,7 +190,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                                         height={30}
                                         className='hover:text-[#00FF89]'
                                     />
-                                </button> */}
+                                </button>
                             </div>
                         )}
                     </div>
