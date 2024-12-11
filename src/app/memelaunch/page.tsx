@@ -911,7 +911,7 @@ const MemeLaunchPage = () => {
         name: '',
         ticker: '',
         description: '',
-        model: 'Llama3.1',
+        model: 'pixtral-12b-2409',
         trainingData: null,
         webpageUrl: '',
         twitter: '',
@@ -930,7 +930,8 @@ const MemeLaunchPage = () => {
     const [showImageUpload, setShowImageUpload] = useState(false);
 
     const models = [
-        { name: 'Llama3.1', enabled: true },
+        { name: 'Pixtral-12b-2409', enabled: false },
+        { name: 'Llama3.1', enabled: false },
         { name: 'Qwen2.5', enabled: false },
         { name: 'Gemma 2', enabled: false },
         { name: 'Nemotron-4', enabled: false }
@@ -1386,7 +1387,7 @@ const MemeLaunchPage = () => {
                             </button>
                         </div>
                     ))}
-                    <div>
+                    {/* <div>
                         <label className="block mb-2 text-sm">Webpage URL</label>
                         <input
                             type="url"
@@ -1396,7 +1397,7 @@ const MemeLaunchPage = () => {
                             className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
                             placeholder="(upload Link)"
                         />
-                    </div>
+                    </div> */}
 
                     <div>
                         <label className="block mb-2 text-sm">Twitter</label>

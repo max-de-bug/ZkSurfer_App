@@ -44,7 +44,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -182,7 +182,7 @@ const HomeContent: FC = () => {
 
     const router = useRouter();
     const [currentCommand, setCurrentCommand] = useState<'image-gen' | 'create-agent' | null>(null);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(true);
     const [activeNavbarTicker, setActiveNavbarTicker] = useState<string | null>(null);
     const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
 
@@ -486,10 +486,10 @@ const HomeContent: FC = () => {
                     throw new Error('No JSON object found in response');
                 }
             } catch (e) {
-                console.error('Failed to parse meme data:', e);
+                console.error('Failed to parse agent data:', e);
             }
         } catch (error) {
-            console.error('Error in meme image generation:', error);
+            console.error('Error in agent image generation:', error);
         }
     };
 
@@ -2782,7 +2782,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 role: 'assistant',
                 content: (
                     <div className="w-full max-w-2xl bg-[#171D3D] rounded-lg p-4 shadow-lg">
-                        <div className="mb-4 text-white font-semibold">Available Coins:</div>
+                        <div className="mb-4 text-white font-semibold">Available Agents:</div>
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="text-left text-gray-400">
@@ -3148,7 +3148,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 } else if (displayedContent.startsWith('/create-agent')) {
                     // Remove '/create-agent' and show "Generate a meme for"
                     const prompt = displayedContent.replace('/create-agent', '').trim();
-                    displayedContent = `Generate a meme for: ${prompt}`;
+                    displayedContent = `Generate an agent for: ${prompt}`;
                 }
 
                 // Render the modified content
@@ -3260,7 +3260,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     onClick={toggleDropdown}
                                 >
                                     Agents
-                                    {isDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
+                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
                                 </h3>
                                 {isDropdownOpen && (
                                     <div

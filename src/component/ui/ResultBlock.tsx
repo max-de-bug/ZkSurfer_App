@@ -166,7 +166,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                                     onClick={onLaunchMemeCoin}
                                     className="flex items-center space-x-2 text-white rounded"
                                 >
-                                    <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Launch MemeCoin</span>
+                                    <span className='text-[#A0AEC0] hover:text-[#00FF89]'>Launch Agent</span>
                                     <Image
                                         src="images/meme.svg"
                                         alt="launch"

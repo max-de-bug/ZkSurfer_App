@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC';
 
 interface CommandOption {
     command: Command;
@@ -236,6 +236,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
         {
             command: 'video-lipsync',
             description: 'To merge video and audio and provide a downloadable merged video',
+        },
+        {
+            command: 'UGC',
+            description: 'generate UGC',
         },
     ];
 
