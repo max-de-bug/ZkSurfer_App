@@ -434,6 +434,13 @@ const HomeContent: FC = () => {
         return base64String;
     };
 
+    const availableUGCOptions = [
+        { name: 'LandWolf', apiUrl: 'http://27.222.23.20:3000/generate' },
+        { name: 'Ponke', apiUrl: 'http://example.com/ponke-api' },
+        { name: 'Option3', apiUrl: 'http://example.com/option3-api' }, // Add more options as needed
+    ];
+
+
     const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
         try {
             // Format and compress the image here instead of in the message handling
@@ -616,21 +623,141 @@ const HomeContent: FC = () => {
     //     inputRef.current?.focus();
     // };
 
+    // const handleUGCSelection = async (option: { name: string; apiUrl: string }) => {
+    //     const userPrompt = inputMessage.replace('/ugc', '').trim();
+
+    //     if (!userPrompt) {
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: 'Please provide a prompt after the command. Format: /ugc [Option] [Prompt]',
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //         return;
+    //     }
+
+    //     try {
+    //         const payload = {
+    //             prompt: userPrompt,
+    //             width: 512,
+    //             height: 512,
+    //             num_steps: 24,
+    //             guidance: 3.5,
+    //             seed: 1,
+    //             strength: 1,
+    //         };
+
+    //         const response = await fetch(option.apiUrl, {
+    //             method: 'POST',
+    //             headers: {
+    //                 Accept: 'application/json',
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify(payload),
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error(`Failed to generate content for ${option.name}`);
+    //         }
+
+    //         const result = await response.json();
+    //         const successMessage: Message = {
+    //             role: 'assistant',
+    //             content: (
+    //                 <div>
+    //                     <p>Generated {option.name} Content:</p>
+    //                     <img
+    //                         src={`data:image/png;base64,${result.image}`}
+    //                         alt={`${option.name} generated content`}
+    //                         className="w-full rounded-lg"
+    //                     />
+    //                 </div>
+    //             ),
+    //         };
+    //         setInputMessage((prev) => `${prev.trim()} ${option.name} `);
+    //         const selectionMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Selected: ${option.name}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, selectionMessage]);
+    //         inputRef.current?.focus();
+    //     } catch (error) {
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Error generating ${option.name} content: ${error}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //     }
+    // };
+
+    const handleUGCSelection = (option: { name: string; apiUrl: string }) => {
+        // Update the input with the selected option
+        setInputMessage((prev) => {
+            const trimmedPrev = prev.trim();
+            return trimmedPrev.endsWith('/ugc') ? `${trimmedPrev} ${option.name} ` : `${trimmedPrev} ${option.name}`;
+        });
+
+        inputRef.current?.focus(); // Refocus on the input field
+    };
+
+
+
+
     const handleCommandSelect = (command: Command) => {
-        if (command === 'select') {
-            setInputMessage(`/${command} `)
+        if (command === 'UGC') {
+            setInputMessage(`/ugc `); // Add `/ugc` to the input field
+            const displayMessage: Message = {
+                role: 'assistant',
+                content: (
+                    <div className="flex flex-col">
+                        {availableUGCOptions.map((option) => (
+                            <button
+                                key={option.name}
+                                className="p-2 bg-blue-500 text-white rounded-lg mb-2"
+                                onClick={() => handleUGCSelection(option)} // Call handleUGCSelection for the option
+                            >
+                                {option.name}
+                            </button>
+                        ))}
+                    </div>
+                ),
+            };
+            setDisplayMessages((prev) => [...prev, displayMessage]);
+            setShowCommandPopup(false);
+        } else if (command === 'select') {
+            setInputMessage(`/${command} `);
             const displayMessage: Message = {
                 role: 'assistant',
                 content: <TickerSelector /> as ReactNode,
             };
-            setDisplayMessages(prev => [...prev, displayMessage]);
+            setDisplayMessages((prev) => [...prev, displayMessage]);
             setShowCommandPopup(false);
         } else {
             setInputMessage(`/${command} `);
             setShowCommandPopup(false);
         }
-        inputRef.current?.focus();
+        inputRef.current?.focus(); // Focus back on the input field
     };
+
+
+    //prev
+    // const handleCommandSelect = (command: Command) => {
+    //     if (command === 'select') {
+    //         setInputMessage(`/${command} `)
+    //         const displayMessage: Message = {
+    //             role: 'assistant',
+    //             content: <TickerSelector /> as ReactNode,
+    //         };
+    //         setDisplayMessages(prev => [...prev, displayMessage]);
+    //         setShowCommandPopup(false);
+    //     } else {
+    //         setInputMessage(`/${command} `);
+    //         setShowCommandPopup(false);
+    //     }
+    //     inputRef.current?.focus();
+    // };
 
     const handleTickerClick = (ticker: string) => {
         setActiveNavbarTicker(prevTicker => prevTicker === ticker ? null : ticker);
@@ -1133,6 +1260,126 @@ const HomeContent: FC = () => {
         }
 
         const fullMessage = inputMessage.trim();
+
+        if (fullMessage.startsWith('/ugc')) {
+            const parts = fullMessage.replace('/ugc', '').trim().split(' ');
+            const selectedOption = parts[0]; // First word after `/ugc`
+            const userPrompt = parts.slice(1).join(' ').trim(); // Rest of the message
+
+            if (!selectedOption || !userPrompt) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'Please select an option and provide a prompt. Format: /ugc [Option] [Prompt]',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+                return;
+            }
+
+            // Add user's message to chat
+            const userMessage: Message = {
+                role: 'user',
+                content: fullMessage,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, userMessage]);
+            setInputMessage(''); // Clear input field
+            setIsLoading(true); // Show loader
+
+            // Find the selected UGC option
+            const option = availableUGCOptions.find((opt) => opt.name === selectedOption);
+            if (!option) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: `Unknown option: ${selectedOption}. Available options: ${availableUGCOptions.map((opt) => opt.name).join(', ')}`,
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+                setIsLoading(false); // Disable loader
+                return;
+            }
+
+            // Make the API call with the user prompt
+            try {
+                const payload = {
+                    prompt: userPrompt,
+                    width: 512,
+                    height: 512,
+                    num_steps: 20,
+                    guidance: 4,
+                };
+
+                const response = await fetch(option.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                console.log('response', response)
+
+                if (!response.ok) {
+                    throw new Error(`Failed to generate content for ${option.name}`);
+                }
+
+                // Handle response content type
+                const contentType = response.headers.get('Content-Type');
+
+                if (contentType?.includes('image/')) {
+                    // If the response is an image (e.g., JPEG or PNG)
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+
+                    const successMessage: Message = {
+                        role: 'assistant',
+                        content: (
+                            <div>
+                                <p>Generated {option.name} Content:</p>
+                                <img
+                                    src={imageUrl}
+                                    alt={`${option.name} generated content`}
+                                    className="w-full rounded-lg"
+                                />
+                            </div>
+                        ),
+                    };
+                    setDisplayMessages((prev) => [...prev, successMessage]);
+                } else if (contentType?.includes('application/json')) {
+                    // If the response is JSON
+                    const result = await response.json();
+                    const successMessage: Message = {
+                        role: 'assistant',
+                        content: (
+                            <div>
+                                <p>Generated {option.name} Content:</p>
+                                <img
+                                    src={`data:image/png;base64,${result.image}`}
+                                    alt={`${option.name} generated content`}
+                                    className="w-full rounded-lg"
+                                />
+                            </div>
+                        ),
+                    };
+                    setDisplayMessages((prev) => [...prev, successMessage]);
+                } else {
+                    throw new Error('Unsupported response type');
+                }
+            } catch (error) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: `Error generating ${option.name} content: ${error}`,
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, errorMessage]);
+            } finally {
+                setIsLoading(false); // Disable loader
+            }
+            return;
+        }
+
+
 
 
         // Command handling for /select
