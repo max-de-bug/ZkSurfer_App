@@ -1098,7 +1098,8 @@ const MemeLaunchPage = () => {
                 wallet_address: formData.walletAddress,
                 image_base64: formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
                 seed: formData.seed,
-                user_prompt: formData.prompt
+                user_prompt: formData.prompt,
+                status: null
             };
 
             const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {

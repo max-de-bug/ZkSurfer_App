@@ -435,9 +435,8 @@ const HomeContent: FC = () => {
     };
 
     const availableUGCOptions = [
-        { name: 'LandWolf', apiUrl: 'http://27.222.23.20:3000/generate' },
-        { name: 'Ponke', apiUrl: 'http://example.com/ponke-api' },
-        { name: 'Option3', apiUrl: 'http://example.com/option3-api' }, // Add more options as needed
+        { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
+        { name: 'Ponke', apiUrl: '' },
     ];
 
 
@@ -716,7 +715,7 @@ const HomeContent: FC = () => {
                             <button
                                 key={option.name}
                                 className="p-2 bg-blue-500 text-white rounded-lg mb-2"
-                                onClick={() => handleUGCSelection(option)} // Call handleUGCSelection for the option
+                                onClick={() => handleUGCSelection(option)}
                             >
                                 {option.name}
                             </button>
@@ -1286,7 +1285,7 @@ const HomeContent: FC = () => {
             setInputMessage(''); // Clear input field
             setIsLoading(true); // Show loader
 
-            // Find the selected UGC option
+            // Find the selected UGC option (optional: if you still want to validate client-side)
             const option = availableUGCOptions.find((opt) => opt.name === selectedOption);
             if (!option) {
                 const errorMessage: Message = {
@@ -1299,29 +1298,29 @@ const HomeContent: FC = () => {
                 return;
             }
 
-            // Make the API call with the user prompt
-            try {
-                const payload = {
-                    prompt: userPrompt,
-                    width: 512,
-                    height: 512,
-                    num_steps: 20,
-                    guidance: 4,
-                };
+            // Prepare the payload for the /generate endpoint
+            const payload = {
+                selectedOption,
+                userPrompt,
+                width: 512,
+                height: 512,
+                num_steps: 20,
+                guidance: 4,
+            };
 
-                const response = await fetch(option.apiUrl, {
+            try {
+                const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {
-                        Accept: 'application/json',
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(payload),
                 });
 
-                console.log('response', response)
+                console.log('response', response);
 
                 if (!response.ok) {
-                    throw new Error(`Failed to generate content for ${option.name}`);
+                    throw new Error(`Failed to generate content for ${selectedOption}`);
                 }
 
                 // Handle response content type
@@ -1336,10 +1335,10 @@ const HomeContent: FC = () => {
                         role: 'assistant',
                         content: (
                             <div>
-                                <p>Generated {option.name} Content:</p>
+                                <p>Generated {selectedOption} Content:</p>
                                 <img
                                     src={imageUrl}
-                                    alt={`${option.name} generated content`}
+                                    alt={`${selectedOption} generated content`}
                                     className="w-full rounded-lg"
                                 />
                             </div>
@@ -1353,10 +1352,10 @@ const HomeContent: FC = () => {
                         role: 'assistant',
                         content: (
                             <div>
-                                <p>Generated {option.name} Content:</p>
+                                <p>Generated {selectedOption} Content:</p>
                                 <img
                                     src={`data:image/png;base64,${result.image}`}
-                                    alt={`${option.name} generated content`}
+                                    alt={`${selectedOption} generated content`}
                                     className="w-full rounded-lg"
                                 />
                             </div>
@@ -1369,17 +1368,16 @@ const HomeContent: FC = () => {
             } catch (error) {
                 const errorMessage: Message = {
                     role: 'assistant',
-                    content: `Error generating ${option.name} content: ${error}`,
+                    content: `Error generating ${selectedOption} content: ${error}`,
                     type: 'text',
                 };
                 setDisplayMessages((prev) => [...prev, errorMessage]);
             } finally {
                 setIsLoading(false); // Disable loader
             }
+
             return;
         }
-
-
 
 
         // Command handling for /select
