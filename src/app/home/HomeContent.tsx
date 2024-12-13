@@ -161,6 +161,10 @@ async function fetcher(url: any, apiKey: any, walletAddress: any) {
             'api-key': apiKey
         }
     });
+
+    if (res.status === 404) {
+        return [];
+    }
     if (!res.ok) {
         throw new Error('Failed to fetch data');
     }
