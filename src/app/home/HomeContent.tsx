@@ -161,6 +161,11 @@ async function fetcher(url: any, apiKey: any, walletAddress: any) {
             'api-key': apiKey
         }
     });
+
+    if (res.status === 404) {
+        return [];
+    }
+
     if (!res.ok) {
         throw new Error('Failed to fetch data');
     }
@@ -192,7 +197,6 @@ const HomeContent: FC = () => {
     const [normalPart, setNormalPart] = useState('');
     // const inputRef = useRef<HTMLInputElement>(null);
     const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
-
 
     const { editMode, setEditMode } = useCharacterEditStore();
     const { messages, addMessage, setMessages } = useConversationStore.getState();
@@ -262,6 +266,7 @@ const HomeContent: FC = () => {
     //     return <div>Loading...</div>;
     // }
 
+
     const { data: tickersData } = useSWR(
         walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
         ([url, key, addr]) => fetcher(url, key, addr),
@@ -295,6 +300,19 @@ const HomeContent: FC = () => {
             </div>
         );
     }
+
+    let mergedTickers: any[] = [];
+
+    if (walletAddress) {
+        mergedTickers = tickers.map((ticker) => {
+            const tickerData = (tickersData || []).find((item: any) => item.ticker === ticker);
+            return {
+                ticker,
+                status: tickerData ? tickerData.status === 'true' : null, // `null` if no character
+            };
+        });
+    }
+
 
     async function toggleTickerStatus(ticker: string | number | bigint | boolean | React.ReactPortal | Promise<React.AwaitedReactNode> | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined, currentStatus: any) {
         if (!apiKey) {
@@ -3672,7 +3690,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                             );
                                         })} */}
 
-                                        {tickers.map((t, index) => {
+                                        {/* {tickers.map((t, index) => {
                                             // Find the ticker in tickersData
                                             const correspondingData = tickersData.find((item: { ticker: string; }) => item.ticker === t);
 
@@ -3709,7 +3727,26 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                     <span>{t}</span>
                                                 </div>
                                             );
-                                        })}
+                                        })} */}
+
+                                        {mergedTickers.map(({ ticker, status }) => (
+                                            <div
+                                                key={ticker}
+                                                className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
+                                                    }`}
+                                                onClick={() => toggleTickerStatus(ticker, status)}
+                                            >
+                                                <span
+                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
+                                                        ? 'bg-gray-500'
+                                                        : status
+                                                            ? 'bg-green-500'
+                                                            : 'bg-red-500'
+                                                        }`}
+                                                ></span>
+                                                <span>{ticker}</span>
+                                            </div>
+                                        ))}
 
                                     </div>
                                 )}
