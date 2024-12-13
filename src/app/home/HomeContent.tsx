@@ -35,7 +35,7 @@ import { useConversationStore } from '@/stores/conversation-store';
 import { useCharacterStore } from '@/stores/charecter-store';
 import CharecterJsonEditor from '@/component/ui/CharecterJsonEditor';
 import { useFormStore } from '@/stores/form-store';
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import useSWR, { mutate } from 'swr';
 
 
 interface GeneratedTweet {
@@ -154,6 +154,24 @@ const TickerPopup: React.FC<TickerPopupProps> = ({ tickers, onSelect }) => (
 );
 
 
+async function fetcher(url: any, apiKey: any, walletAddress: any) {
+    const res = await fetch(`${url}?wallet_address=${walletAddress}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'api-key': apiKey
+        }
+    });
+    if (!res.ok) {
+        throw new Error('Failed to fetch data');
+    }
+    return res.json();
+}
+
+const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+const AGENTS_API_URL = 'https://zynapse.zkagi.ai/characters/status';
+const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
+
+
 
 const HomeContent: FC = () => {
     const wallet = useWallet();
@@ -192,6 +210,7 @@ const HomeContent: FC = () => {
     const [launchCoins, setLaunchCoins] = useState<any[]>([]);
 
     const [isInitialView, setIsInitialView] = useState(true);
+    const [isToggleAllowed, setIsToggleAllowed] = useState(true);
 
 
     // const [showTickerTable, setShowTickerTable] = useState(false);
@@ -226,6 +245,118 @@ const HomeContent: FC = () => {
     const [filteredCoins, setFilteredCoins] = useState([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Use SWR within the component
+    // const { data: tickersData } = useSWR(
+    //     walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
+    //     ([url, key, addr]) => fetcher(url, key, addr),
+    //     {
+    //         refreshInterval: 15000,
+    //     }
+    // );
+
+    // if (!tickersData) {
+    //     return <div>Loading...</div>;
+    // }
+
+    const { data: tickersData } = useSWR(
+        walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
+        ([url, key, addr]) => fetcher(url, key, addr),
+        {
+            refreshInterval: 15000,
+        }
+    );
+
+    let content;
+
+    if (!tickersData) {
+        content = <div>Loading...</div>;
+    } else {
+        console.log('tickersData', tickersData)
+        // Now you have tickersData
+        content = (
+            <div>
+                {tickersData.map((item: any, index: number) => (
+                    <div
+                        key={index}
+                        className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                        onClick={() => toggleTickerStatus(item.ticker, item.status)}
+                    >
+                        <span
+                            className={`inline-block w-3 h-3 rounded-full ${item.status ? 'bg-green-500' : 'bg-red-500'
+                                }`}
+                        ></span>
+                        <span>{item.ticker}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    async function toggleTickerStatus(ticker: string | number | bigint | boolean | React.ReactPortal | Promise<React.AwaitedReactNode> | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined, currentStatus: any) {
+        if (!apiKey) {
+            toast.error('API key is missing')
+            return;
+        }
+        try {
+            const newStatus = !currentStatus;
+
+            const response = await fetch(TOGGLE_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': apiKey
+                },
+                body: JSON.stringify({
+                    ticker: ticker,
+                    status: newStatus.toString(),
+                    wallet_address: walletAddress
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to toggle ticker status');
+            }
+
+            if (newStatus) {
+                toast.success(`${ticker} Agent turned on`);
+            } else {
+                toast.error(`${ticker} Agent turned off`);
+            }
+
+            if (newStatus) {
+                toast.success(`${ticker} Agent turned on`);
+            } else {
+                toast.error(`${ticker} Agent turned off`);
+            }
+
+            setIsToggleAllowed(false);
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            toast('You can toggle again after 60 seconds.');
+
+            // Clear previous timer if it exists to avoid multiple messages
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+
+            // Set a new 60-second timer to re-enable toggling
+            timeoutRef.current = setTimeout(() => {
+                setIsToggleAllowed(true);
+                toast('You can now toggle agents again.');
+            }, 60000);
+
+            // After toggling the status, re-fetch data to update UI
+            mutate([AGENTS_API_URL, apiKey, walletAddress]);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
 
     const sampleCommands = [
         { label: 'Create Agent', command: '/create-agent about ' },
@@ -3224,7 +3355,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 body: JSON.stringify({
                     wallet_address: publicKey,
                     ticker: selectedTicker,
-                    characteristics: finalJson
+                    characteristics: finalJson,
+                    status: null
                 })
             });
 
@@ -3512,7 +3644,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         className="space-y-2 overflow-y-auto"
                                         style={{ maxHeight: '20rem' }}
                                     >
-                                        {tickers.map((ticker, index) => (
+                                        {/* {tickers.map((ticker, index) => (
                                             <div
                                                 key={index}
                                                 className="cursor-pointer hover:bg-gray-700 p-2 rounded"
@@ -3520,10 +3652,98 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                             >
                                                 {ticker}
                                             </div>
-                                        ))}
+                                        ))} */}
+                                        {/* {tickersData.map((item: { status: string; ticker: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<React.AwaitedReactNode> | null | undefined; }, index: React.Key | null | undefined) => {
+                                            // Convert status string to a boolean
+                                            const isStatusTrue = item.status === "true";
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                    onClick={() => toggleTickerStatus(item.ticker, isStatusTrue)}
+                                                >
+                                                    <span
+                                                        className={`inline-block w-3 h-3 rounded-full ${isStatusTrue ? 'bg-green-500' : 'bg-red-500'
+                                                            }`}
+                                                    ></span>
+                                                    <span>{item.ticker}</span>
+                                                </div>
+                                            );
+                                        })} */}
+
+                                        {tickers.map((t, index) => {
+                                            // Find the ticker in tickersData
+                                            const correspondingData = tickersData.find((item: { ticker: string; }) => item.ticker === t);
+
+                                            // Determine color
+                                            let colorClass;
+                                            let currentStatus = false; // default if no data
+
+                                            if (correspondingData) {
+                                                // Status is a string "true" or "false", convert to boolean
+                                                currentStatus = correspondingData.status === "true";
+                                                colorClass = currentStatus ? 'bg-green-500' : 'bg-red-500';
+                                            } else {
+                                                // If no corresponding data, show grey circle
+                                                colorClass = 'bg-gray-500';
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                    onClick={() => {
+                                                        if (correspondingData) {
+                                                            // Only allow toggle if we have corresponding data
+                                                            toggleTickerStatus(t, currentStatus);
+                                                        } else {
+                                                            // No status info, can't toggle
+                                                            toast.error(`No status info available for ${t}`);
+                                                        }
+                                                    }}
+                                                >
+                                                    <span
+                                                        className={`inline-block w-3 h-3 rounded-full ${colorClass}`}
+                                                    ></span>
+                                                    <span>{t}</span>
+                                                </div>
+                                            );
+                                        })}
+
                                     </div>
                                 )}
                             </div>
+                            {/* <div className="mb-4">
+                                <h3
+                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
+                                    onClick={toggleDropdown}
+                                >
+                                    Agents
+                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
+                                </h3>
+                                {isDropdownOpen && (
+                                    <div
+                                        className="space-y-2 overflow-y-auto"
+                                        style={{ maxHeight: '20rem' }}
+                                    >
+                                        {tickersData.map((item: { ticker: string; status: boolean }, index: number) => (
+                                            <div
+                                                key={index}
+                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                onClick={() => toggleTickerStatus(item.ticker, item.status)}
+                                            >
+                                                <span
+                                                    className={`inline-block w-3 h-3 rounded-full ${item.status ? 'bg-green-500' : 'bg-red-500'
+                                                        }`}
+                                                ></span>
+                                                <span>{item.ticker}</span>
+                                            </div>
+                                        ))}
+
+                                    </div>
+                                )}
+                            </div> */}
                         </div>
                     </div>
 
