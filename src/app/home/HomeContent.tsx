@@ -569,7 +569,7 @@ const HomeContent: FC = () => {
 
     const availableUGCOptions = [
         { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
-        { name: 'Ponke', apiUrl: '' },
+        { name: 'Ponke', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
     ];
 
 
