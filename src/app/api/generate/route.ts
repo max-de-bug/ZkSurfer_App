@@ -7,7 +7,7 @@ interface UGCOption {
 
 const availableUGCOptions: UGCOption[] = [
     { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF },
-    { name: 'Ponke', apiUrl: '' }, // Ensure you have this env variable
+    { name: 'Ponke', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF }, // Ensure you have this env variable
 ];
 
 export async function POST(req: NextRequest) {
