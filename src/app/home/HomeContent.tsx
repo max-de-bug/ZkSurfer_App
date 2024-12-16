@@ -253,20 +253,6 @@ const HomeContent: FC = () => {
     const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Use SWR within the component
-    // const { data: tickersData } = useSWR(
-    //     walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
-    //     ([url, key, addr]) => fetcher(url, key, addr),
-    //     {
-    //         refreshInterval: 15000,
-    //     }
-    // );
-
-    // if (!tickersData) {
-    //     return <div>Loading...</div>;
-    // }
-
-
     const { data: tickersData } = useSWR(
         walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
         ([url, key, addr]) => fetcher(url, key, addr),
@@ -280,8 +266,6 @@ const HomeContent: FC = () => {
     if (!tickersData) {
         content = <div>Loading...</div>;
     } else {
-        console.log('tickersData', tickersData)
-        // Now you have tickersData
         content = (
             <div>
                 {tickersData.map((item: any, index: number) => (
@@ -1424,6 +1408,8 @@ const HomeContent: FC = () => {
                 return;
             }
 
+            const formattedPrompt = `${selectedOption.toUpperCase()} ${userPrompt}`;
+
             // Add user's message to chat
             const userMessage: Message = {
                 role: 'user',
@@ -1450,11 +1436,11 @@ const HomeContent: FC = () => {
             // Prepare the payload for the /generate endpoint
             const payload = {
                 selectedOption,
-                userPrompt,
-                width: 512,
-                height: 512,
-                num_steps: 20,
-                guidance: 4,
+                "width": 512,
+                "height": 512,
+                "num_steps": 20,
+                "guidance": 4,
+                userPrompt: formattedPrompt
             };
 
             try {
@@ -1462,6 +1448,7 @@ const HomeContent: FC = () => {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': 'Bearer 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'
                     },
                     body: JSON.stringify(payload),
                 });
