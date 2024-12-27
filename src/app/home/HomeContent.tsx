@@ -44,7 +44,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -1058,6 +1058,11 @@ const HomeContent: FC = () => {
         if (e.target.files) {
             const selectedFiles = Array.from(e.target.files);
 
+            if (files.length > 0 || selectedFiles.length > 1) {
+                toast.error('Only one image can be uploaded at a time.');
+                return;
+            }
+
             const newFilesOrNull: (FileObject | null)[] = await Promise.all(
                 selectedFiles.map(async (file) => {
                     if (file.type === 'application/pdf') {
@@ -1392,6 +1397,68 @@ const HomeContent: FC = () => {
         }
 
         const fullMessage = inputMessage.trim();
+
+        if (fullMessage.startsWith('/img-to-video')) {
+            const userInput = fullMessage.replace('/img-to-video', '').trim();
+            if (files.length !== 1) {
+                toast.error('Please upload exactly one image before using /img-to-video.');
+                return;
+            }
+
+            if (!userInput) {
+                toast.error('Please provide a prompt after the /img-to-video command.');
+                return;
+            }
+
+            const file = files[0].file;
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('prompt', userInput);
+
+            // Default values for other parameters
+            formData.append('seed', '-1');
+            formData.append('fps', '24');
+            formData.append('w', '1280');
+            formData.append('h', '720');
+            formData.append('video_length', '120');
+            formData.append('img_edge_ratio', '1');
+
+            try {
+                const response = await fetch('http://27.222.23.20:7860/text2video/', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const videoUrl = window.URL.createObjectURL(blob);
+
+                    const successMessage: Message = {
+                        role: 'assistant',
+                        content: (
+                            <div>
+                                <video src={videoUrl} controls className="w-full rounded-lg" />
+                                <a href={videoUrl} download="output_video.mp4" className="text-blue-500 underline">
+                                    Download Video
+                                </a>
+                            </div>
+                        ),
+                        type: 'text',
+                    };
+                    setDisplayMessages((prev) => [...prev, successMessage]);
+                } else {
+                    toast.error('Failed to generate video. Please check your input.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                toast.error('An error occurred while generating the video.');
+            }
+
+            setInputMessage('');
+            setFiles([]); // Clear the uploaded files
+            return;
+        }
+
 
         if (fullMessage.startsWith('/ugc')) {
             const parts = fullMessage.replace('/ugc', '').trim().split(' ');
@@ -3412,7 +3479,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             // console.log('signature', txSignature)
             // console.log('result', result)
             const response = await createNft(base64Image, 'NFT', wallet);
-            toast.success('NFT minyed successfully!')
+            toast.success('NFT minted successfully!')
 
             console.log(response);
             // const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;

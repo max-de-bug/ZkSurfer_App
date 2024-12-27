@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video';
 
 interface CommandOption {
     command: Command;
@@ -241,6 +241,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             command: 'UGC',
             description: 'generate UGC',
         },
+        {
+            command: 'img-to-video',
+            description: 'To convert image to video',
+        }
     ];
 
     return (
