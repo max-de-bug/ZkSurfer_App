@@ -99,7 +99,7 @@ const CreateNft = async (base64Image: any, name: string, wallet: any) => {
     const handleMint = async () => {
 
         if (wallet.publicKey && wallet.connected) {
-            const umi = createUmi("https://mainnet.helius-rpc.com/?api-key=144968c1-56dd-4d50-a47b-f9fe9e9aafc6");
+            const umi = createUmi("https://mainnet.helius-rpc.com/?api-key=ed5e8bee-19c0-4b10-bf9c-f4693aafe339");
             umi.use(walletAdapterIdentity(wallet)).use(mplTokenMetadata());
             const address = wallet.publicKey?.toBase58();
             console.log("address", address);
