@@ -1058,10 +1058,10 @@ const HomeContent: FC = () => {
         if (e.target.files) {
             const selectedFiles = Array.from(e.target.files);
 
-            if (files.length > 0 || selectedFiles.length > 1) {
-                toast.error('Only one image can be uploaded at a time.');
-                return;
-            }
+            // if (files.length > 0 || selectedFiles.length > 1) {
+            //     toast.error('Only one image can be uploaded at a time.');
+            //     return;
+            // }
 
             const newFilesOrNull: (FileObject | null)[] = await Promise.all(
                 selectedFiles.map(async (file) => {
@@ -1404,32 +1404,29 @@ const HomeContent: FC = () => {
                 toast.error('Please upload exactly one image before using /img-to-video.');
                 return;
             }
-
             if (!userInput) {
                 toast.error('Please provide a prompt after the /img-to-video command.');
                 return;
             }
-
             const file = files[0].file;
             const formData = new FormData();
             formData.append('image', file);
             formData.append('prompt', userInput);
-
-            // Default values for other parameters
             formData.append('seed', '-1');
             formData.append('fps', '24');
-            formData.append('w', '1280');
+            formData.append('w', '720');
             formData.append('h', '720');
             formData.append('video_length', '120');
             formData.append('img_edge_ratio', '1');
 
             try {
-                const response = await fetch('http://27.222.23.20:7860/text2video/', {
+                const response = await fetch('/api/imgToVideo', {
                     method: 'POST',
                     body: formData,
                 });
 
                 if (response.ok) {
+                    // 4. Get the video blob
                     const blob = await response.blob();
                     const videoUrl = window.URL.createObjectURL(blob);
 
@@ -1438,16 +1435,24 @@ const HomeContent: FC = () => {
                         content: (
                             <div>
                                 <video src={videoUrl} controls className="w-full rounded-lg" />
-                                <a href={videoUrl} download="output_video.mp4" className="text-blue-500 underline">
+                                <a
+                                    href={videoUrl}
+                                    download="output_video.mp4"
+                                    className="text-blue-500 underline"
+                                >
                                     Download Video
                                 </a>
                             </div>
                         ),
                         type: 'text',
                     };
+
                     setDisplayMessages((prev) => [...prev, successMessage]);
                 } else {
-                    toast.error('Failed to generate video. Please check your input.');
+                    const errorResponse = await response.json();
+                    toast.error(
+                        errorResponse.error || 'Failed to generate video. Please check your input.'
+                    );
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -1455,10 +1460,9 @@ const HomeContent: FC = () => {
             }
 
             setInputMessage('');
-            setFiles([]); // Clear the uploaded files
+            setFiles([]);
             return;
         }
-
 
         if (fullMessage.startsWith('/ugc')) {
             const parts = fullMessage.replace('/ugc', '').trim().split(' ');
