@@ -132,7 +132,7 @@ const Description: FC<{ text: string }> = ({ text }) => {
 
 export const CoinCard: FC<CoinCardProps> = ({ coin }) => (
     <Card
-        className={`w-full cursor-pointer transition-colors relative overflow-hidden rounded-xl border-[#7E83A9] ${!coin.address ? 'cursor-not-allowed' : ''
+        className={`text-left w-full cursor-pointer transition-colors relative overflow-hidden rounded-xl border-[#7E83A9] ${!coin.address ? 'cursor-not-allowed' : ''
             }`}
         onClick={() => {
             if (coin.address) {
