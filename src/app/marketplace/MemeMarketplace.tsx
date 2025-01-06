@@ -258,22 +258,28 @@ const MarketplacePage: FC = () => {
             <div className="flex items-center h-full gap-4 bg-[#000A19]">
                 <button
                     onClick={() => window.history.back()}
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-white hover:text-blue-800"
                     type="button"
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <Input
-                        type="text"
-                        placeholder="Search memecoin"
-                        className="pl-10"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                <div className="bg-gradient-to-tr from-[#000D33] via-[#582CFF] to-[#9a9a9a] flex flex-col w-full rounded-xl">
+                    <div className="h-full bg-[#0F132C] m-0.5 rounded-xl py-1 flex flex-col justify-between">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                            <Input
+                                type="text"
+                                placeholder="Search for AI Coins Created on ZkTerminal"
+                                className="pl-10 !text-white placeholder-gray-400 focus:outline-none bg-transparent"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
+
+
 
             {isLoading ? (
                 <div className="text-center text-white">Loading coins...</div>
@@ -297,7 +303,7 @@ const MarketplacePage: FC = () => {
                     <Separator /> */}
 
                     <div className="px-5">
-                        <h2 className="text-xl font-semibold mb-4 font-ttfirs text-[#fff]">Meme Coins</h2>
+                        <h2 className="text-xl font-semibold mb-4 font-ttfirs text-[#fff]">AI Coins</h2>
                         {/* <div className="flex flex-wrap gap-2 mb-4">
                             {tags.map(tag => (
                                 <Badge
@@ -313,15 +319,16 @@ const MarketplacePage: FC = () => {
                             ))}
                         </div> */}
 
-                        <div className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {filteredOtherCoins.map(coin => (
                                 <CoinCard
                                     key={coin.id}
                                     coin={coin}
-                                    onClick={() => setSelectedCoin(coin)}
+                                // onClick={() => setSelectedCoin(coin)}
                                 />
                             ))}
                         </div>
+
                     </div>
                 </>
             )}

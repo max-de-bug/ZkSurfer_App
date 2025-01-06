@@ -257,7 +257,8 @@ const config = {
 			},
 			fontFamily: {
 				ttfirs: ["TT Firs Neue", "sans-serif"],
-				sourceCode: ["Source Code Pro", "sans-serif"]
+				sourceCode: ["Source Code Pro", "sans-serif"],
+				abeezee: ['ABeeZee', 'sans-serif'],
 			},
 			backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

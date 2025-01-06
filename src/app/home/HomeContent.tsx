@@ -361,7 +361,7 @@ const HomeContent: FC = () => {
 
 
     const sampleCommands = [
-        { label: 'Create Agent', command: '/create-agent about ' },
+        { label: 'Create Agent', command: '/create-agent: ' },
         { label: 'Generate Image', command: '/image-gen of ' },
     ];
 
@@ -3601,7 +3601,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 } else if (displayedContent.startsWith('/create-agent')) {
                     // Remove '/create-agent' and show "Generate a meme for"
                     const prompt = displayedContent.replace('/create-agent', '').trim();
-                    displayedContent = `Generate an agent for: ${prompt}`;
+                    displayedContent = `Generate an agent for ${prompt}`;
                 }
 
                 // Render the modified content
@@ -3698,7 +3698,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     height={15}
                                     className="my-2"
                                 />
-                                Meme Coin Playground
+                                AI Coin Playground
                             </div>
                             <Image
                                 src="images/Line.svg"

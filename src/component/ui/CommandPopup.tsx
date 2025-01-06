@@ -223,7 +223,7 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
         },
         {
             command: 'launch',
-            description: 'Launching your saved meme coin',
+            description: 'Launching your saved ai coin on pump.fun',
         },
         {
             command: 'character-gen',
