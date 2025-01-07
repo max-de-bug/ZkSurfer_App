@@ -4057,7 +4057,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
                     {/* Chat messages */}
                     <div className=' flex flex-col justify-between w-full'>
-                        <div className="flex-grow overflow-x-auto px-4 py-8 ">
+                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[650px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
