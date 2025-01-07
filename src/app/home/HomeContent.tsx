@@ -4,6 +4,8 @@ import { BiMenuAltLeft, BiMenuAltRight } from 'react-icons/bi';
 import { BsArrowReturnLeft } from 'react-icons/bs';
 import { FaPen } from 'react-icons/fa';
 import { HiDotsVertical } from 'react-icons/hi';
+import { TbLayoutSidebarLeftCollapseFilled } from "react-icons/tb";
+import { HiOutlinePencilSquare } from "react-icons/hi2";
 import Image from 'next/image';
 import createNft from '../../component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -36,6 +38,7 @@ import { useCharacterStore } from '@/stores/charecter-store';
 import CharecterJsonEditor from '@/component/ui/CharecterJsonEditor';
 import { useFormStore } from '@/stores/form-store';
 import useSWR, { mutate } from 'swr';
+import Link from 'next/link';
 
 
 interface GeneratedTweet {
@@ -362,7 +365,7 @@ const HomeContent: FC = () => {
 
     const sampleCommands = [
         { label: 'Create Agent', command: '/create-agent: ' },
-        { label: 'Generate Image', command: '/image-gen of ' },
+        { label: 'Mint NFT', command: '/image-gen of ' },
     ];
 
     useEffect(() => {
@@ -3653,206 +3656,10 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 text-white">
-            <div
-                className={`
-                    ${isMobile ? (isMenuOpen ? 'block' : 'hidden') : 'block'} 
-                    ${isMobile ? 'w-3/4' : 'w-64'} 
-                    bg-[#08121f] fixed left-0 h-full border rounded-lg
-                `}
-            >
-                <div className="flex flex-col h-full">
-                    {/* Search Input and Header */}
-                    <div className="p-4 flex-shrink-0">
-                        <div className="flex items-center justify-between">
-                            <div className="relative bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full mr-4">
-                                <input
-                                    type="text"
-                                    placeholder="Search"
-                                    className="w-full bg-[#08121f] text-white p-2 rounded-lg"
-                                />
-                            </div>
-                            {isMobile && (
-                                <button onClick={toggleMenu} className="text-white flex justify-center items-center font-sourceCode">
-                                    <BiMenuAltRight size={32} />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="flex-grow overflow-y-auto p-4">
-                        <div className="flex flex-col">
-                            <div className="mb-4">ZkTerminal</div>
-                            <div className="mb-4">Explore</div>
-                            <div
-                                className="mb-4 flex flex-row items-center justify-start gap-2 cursor-pointer"
-                                data-marketplace-button
-                                role="button"
-                                tabIndex={0}
-                            >
-                                <Image
-                                    src="images/marketplace.svg"
-                                    alt="explore marketplace"
-                                    width={15}
-                                    height={15}
-                                    className="my-2"
-                                />
-                                AI Coin Playground
-                            </div>
-                            <Image
-                                src="images/Line.svg"
-                                alt="Welcome Line"
-                                width={550}
-                                height={50}
-                                className="my-2"
-                            />
-                            <div className="mb-4">
-                                <h3
-                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-                                    onClick={toggleDropdown}
-                                >
-                                    Agents
-                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
-                                </h3>
-                                {isDropdownOpen && (
-                                    <div
-                                        className="space-y-2 overflow-y-auto"
-                                        style={{ maxHeight: '20rem' }}
-                                    >
-                                        {/* {tickers.map((ticker, index) => (
-                                            <div
-                                                key={index}
-                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded"
-                                                onClick={() => handleTickerSelect(ticker)}
-                                            >
-                                                {ticker}
-                                            </div>
-                                        ))} */}
-                                        {/* {tickersData.map((item: { status: string; ticker: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<React.AwaitedReactNode> | null | undefined; }, index: React.Key | null | undefined) => {
-                                            // Convert status string to a boolean
-                                            const isStatusTrue = item.status === "true";
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                    onClick={() => toggleTickerStatus(item.ticker, isStatusTrue)}
-                                                >
-                                                    <span
-                                                        className={`inline-block w-3 h-3 rounded-full ${isStatusTrue ? 'bg-green-500' : 'bg-red-500'
-                                                            }`}
-                                                    ></span>
-                                                    <span>{item.ticker}</span>
-                                                </div>
-                                            );
-                                        })} */}
-
-                                        {/* {tickers.map((t, index) => {
-                                            // Find the ticker in tickersData
-                                            const correspondingData = tickersData.find((item: { ticker: string; }) => item.ticker === t);
-
-                                            // Determine color
-                                            let colorClass;
-                                            let currentStatus = false; // default if no data
-
-                                            if (correspondingData) {
-                                                // Status is a string "true" or "false", convert to boolean
-                                                currentStatus = correspondingData.status === "true";
-                                                colorClass = currentStatus ? 'bg-green-500' : 'bg-red-500';
-                                            } else {
-                                                // If no corresponding data, show grey circle
-                                                colorClass = 'bg-gray-500';
-                                            }
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                    onClick={() => {
-                                                        if (correspondingData) {
-                                                            // Only allow toggle if we have corresponding data
-                                                            toggleTickerStatus(t, currentStatus);
-                                                        } else {
-                                                            // No status info, can't toggle
-                                                            toast.error(`No status info available for ${t}`);
-                                                        }
-                                                    }}
-                                                >
-                                                    <span
-                                                        className={`inline-block w-3 h-3 rounded-full ${colorClass}`}
-                                                    ></span>
-                                                    <span>{t}</span>
-                                                </div>
-                                            );
-                                        })} */}
-
-                                        {mergedTickers.map(({ ticker, status }) => (
-                                            <div
-                                                key={ticker}
-                                                className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
-                                                    }`}
-                                                onClick={() => toggleTickerStatus(ticker, status)}
-                                            >
-                                                <span
-                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
-                                                        ? 'bg-gray-500'
-                                                        : status
-                                                            ? 'bg-green-500'
-                                                            : 'bg-red-500'
-                                                        }`}
-                                                ></span>
-                                                <span>{ticker}</span>
-                                            </div>
-                                        ))}
-
-                                    </div>
-                                )}
-                            </div>
-                            {/* <div className="mb-4">
-                                <h3
-                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-                                    onClick={toggleDropdown}
-                                >
-                                    Agents
-                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
-                                </h3>
-                                {isDropdownOpen && (
-                                    <div
-                                        className="space-y-2 overflow-y-auto"
-                                        style={{ maxHeight: '20rem' }}
-                                    >
-                                        {tickersData.map((item: { ticker: string; status: boolean }, index: number) => (
-                                            <div
-                                                key={index}
-                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                onClick={() => toggleTickerStatus(item.ticker, item.status)}
-                                            >
-                                                <span
-                                                    className={`inline-block w-3 h-3 rounded-full ${item.status ? 'bg-green-500' : 'bg-red-500'
-                                                        }`}
-                                                ></span>
-                                                <span>{item.ticker}</span>
-                                            </div>
-                                        ))}
-
-                                    </div>
-                                )}
-                            </div> */}
-                        </div>
-                    </div>
-
-                    <div className="p-4 flex-shrink-0">
-                        <div>
-                            <CustomWalletButton />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
             {/* Main content */}
-            <div className={`flex-1 flex flex-col bg-[#08121f] ${!isMobile ? 'ml-64' : ''}`}>
+            <div className={`flex-1 flex flex-col bg-[#08121f] `}>
                 {/* Header code remains the same */}
 
                 {/* <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
@@ -3877,13 +3684,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     </div>
                 </header> */}
 
-                <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
+                <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4 px-2">
                     {isMobile && (
                         <button onClick={toggleMenu} className="text-white">
                             <BiMenuAltLeft size={28} />
                         </button>
                     )}
-                    <div className="text-lg font-semibold flex-1 flex justify-center items-center gap-2">
+                    <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
                         <div>
                             <Image
                                 src="images/tiger.svg"
@@ -4017,369 +3824,506 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         <div>
                             <CustomWalletButton />
                         </div>
-                        <button className="text-black bg-white p-1 rounded-lg">
+                        {/* <button className="text-black bg-white p-1 rounded-lg">
                             <FaPen />
-                        </button>
-                        <button className="text-white">
+                        </button> */}
+                        {/* <button className="text-white">
                             <HiDotsVertical />
-                        </button>
+                        </button> */}
                     </div>
                 </header>
 
-
-                <Image
-                    src="images/Line.svg"
-                    alt="Welcome Line"
-                    width={550}
-                    height={50}
-                    className={`my-2 ${!isMobile ? 'hidden' : 'visible'}`}
-                />
-
-                {/* Chat messages */}
-                {/* <div className="flex-grow overflow-x-auto px-4 py-8">
-                    {displayMessages.map((message, index) => (
-                        <div key={index} className="mb-4 flex justify-start w-full">
-                            <div className="flex-shrink-0 mr-3">
-                                <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
-                                    {message.role === 'user' ? (
-                                        userEmail.charAt(0).toUpperCase()
-                                    ) : (
-                                        <Image
-                                            src="images/tiger.svg"
-                                            alt="logo"
-                                            width={40}
-                                            height={40}
-                                            className='p-2'
-                                        />
-                                    )}
-                                </div>
+                {/* content post header */}
+                <div className="flex h-full gap-5 ">
+                    <div
+                        className={`
+                    ${isMobile ? (isMenuOpen ? 'block' : 'hidden') : 'block'} 
+                    ${isMobile ? 'w-3/4' : 'w-64'} 
+                    bg-[#08121f] border left-0 h-full rounded-lg ml-3
+                   `}
+                    >
+                        <div className="flex flex-col h-full">
+                            {/* Search Input and Header */}
+                            {/* <div className="p-4 flex-shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div className="relative bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full mr-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search"
+                                    className="w-full bg-[#08121f] text-white p-2 rounded-lg"
+                                />
                             </div>
-                            <div className="flex flex-col items-start">
-                                <div className="flex items-center justify-between w-full mt-2">
+                            {isMobile && (
+                                <button onClick={toggleMenu} className="text-white flex justify-center items-center font-sourceCode">
+                                    <BiMenuAltRight size={32} />
+                                </button>
+                            )}
+                        </div>
+                       </div> */}
 
-                                    <span
-                                        className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
-                                            'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
-                                            } ${!isMobile ? `mt-0.5` : ``}`}
-                                    >
-                                        {message.role === 'user' ? userEmail : 'ZkTerminal'}
+                            {/* Main Content */}
+                            <div className="flex-grow overflow-y-auto p-4">
+                                <div className="flex flex-col">
+                                    <div className="flex justify-between">
+                                        <button className="text-white w-full">
+                                            <TbLayoutSidebarLeftCollapseFilled />
+                                        </button>
+                                        <button className="text-white">
+                                            <HiOutlinePencilSquare />
+                                        </button>
+                                    </div>
 
-                                    </span>
-                                    {message.role !== 'user' && (
-                                        <div className="flex space-x-2">
-                                            <button className="text-white rounded-lg">
-                                                <Image
-                                                    src="images/Download.svg"
-                                                    alt="logo"
-                                                    width={20}
-                                                    height={20}
-                                                />
-                                            </button>
-                                            <button className="text-white rounded-lg">
-                                                <Image
-                                                    src="images/share.svg"
-                                                    alt="logo"
-                                                    width={20}
-                                                    height={20}
-                                                />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                {message.role === 'assistant' &&
-
-                                    (typeof message.content === 'string' && message.content.startsWith('/')) ? (
-                                    <ResultBlock
-                                        content={message.content}
-                                        type="image"
-                                        onMintNFT={handleMintNFT}
-                                        onDownloadProof={handleDownload}
-                                        imageResultType={message.command}
-                                        // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                        onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                    <Image
+                                        src="images/Line.svg"
+                                        alt="Welcome Line"
+                                        width={550}
+                                        height={50}
+                                        className="mt-2 mb-4 w-full"
                                     />
-                                ) : (
-                                    <div className="inline-block p-1 rounded-lg text-white">
-                                        {renderMessageContent(message)}
+
+                                    <div
+                                        className="mb-4 flex flex-col"
+                                        data-marketplace-button
+                                        role="button"
+                                        tabIndex={0}
+                                    >
+                                        <Link href="/" passHref >
+                                            <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
+                                                <Image
+                                                    src="images/tiger.svg"
+                                                    alt="logo"
+                                                    width={15}
+                                                    height={15}
+                                                />
+                                                ZkTerminal
+                                            </div>
+                                        </Link>
+                                        <Link href="/marketplace" passHref >
+                                            <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
+                                                <Image
+                                                    src="images/marketplace.svg"
+                                                    alt="explore marketplace"
+                                                    width={15}
+                                                    height={15}
+                                                    className="my-2"
+                                                />
+                                                AI Coin Marketplace
+                                            </div>
+                                        </Link>
+
+                                    </div>
+                                    <div className="mb-4">
+                                        <h3
+                                            className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
+                                            onClick={toggleDropdown}
+                                        >
+                                            Agents
+                                            {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
+                                        </h3>
+                                        {isDropdownOpen && (
+                                            <div
+                                                className="space-y-2 overflow-y-auto"
+                                                style={{ maxHeight: '20rem' }}
+                                            >
+                                                {/* {tickers.map((ticker, index) => (
+                                            <div
+                                                key={index}
+                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded"
+                                                onClick={() => handleTickerSelect(ticker)}
+                                            >
+                                                {ticker}
+                                            </div>
+                                        ))} */}
+                                                {/* {tickersData.map((item: { status: string; ticker: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<React.AwaitedReactNode> | null | undefined; }, index: React.Key | null | undefined) => {
+                                            // Convert status string to a boolean
+                                            const isStatusTrue = item.status === "true";
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                    onClick={() => toggleTickerStatus(item.ticker, isStatusTrue)}
+                                                >
+                                                    <span
+                                                        className={`inline-block w-3 h-3 rounded-full ${isStatusTrue ? 'bg-green-500' : 'bg-red-500'
+                                                            }`}
+                                                    ></span>
+                                                    <span>{item.ticker}</span>
+                                                </div>
+                                            );
+                                        })} */}
+
+                                                {/* {tickers.map((t, index) => {
+                                            // Find the ticker in tickersData
+                                            const correspondingData = tickersData.find((item: { ticker: string; }) => item.ticker === t);
+
+                                            // Determine color
+                                            let colorClass;
+                                            let currentStatus = false; // default if no data
+
+                                            if (correspondingData) {
+                                                // Status is a string "true" or "false", convert to boolean
+                                                currentStatus = correspondingData.status === "true";
+                                                colorClass = currentStatus ? 'bg-green-500' : 'bg-red-500';
+                                            } else {
+                                                // If no corresponding data, show grey circle
+                                                colorClass = 'bg-gray-500';
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                    onClick={() => {
+                                                        if (correspondingData) {
+                                                            // Only allow toggle if we have corresponding data
+                                                            toggleTickerStatus(t, currentStatus);
+                                                        } else {
+                                                            // No status info, can't toggle
+                                                            toast.error(No status info available for ${t});
+                                                        }
+                                                    }}
+                                                >
+                                                    <span
+                                                        className={inline-block w-3 h-3 rounded-full ${colorClass}}
+                                                    ></span>
+                                                    <span>{t}</span>
+                                                </div>
+                                            );
+                                        })} */}
+
+                                                {mergedTickers.map(({ ticker, status }) => (
+                                                    <div
+                                                        key={ticker}
+                                                        className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
+                                                            }`}
+                                                        onClick={() => toggleTickerStatus(ticker, status)}
+                                                    >
+                                                        <span
+                                                            className={`inline-block w-3 h-3 rounded-full ${status === null
+                                                                ? 'bg-gray-500'
+                                                                : status
+                                                                    ? 'bg-green-500'
+                                                                    : 'bg-red-500'
+                                                                }`}
+                                                        ></span>
+                                                        <span>{ticker}</span>
+                                                    </div>
+                                                ))}
+
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* <div className="mb-4">
+                                <h3
+                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
+                                    onClick={toggleDropdown}
+                                >
+                                    Agents
+                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
+                                </h3>
+                                {isDropdownOpen && (
+                                    <div
+                                        className="space-y-2 overflow-y-auto"
+                                        style={{ maxHeight: '20rem' }}
+                                    >
+                                        {tickersData.map((item: { ticker: string; status: boolean }, index: number) => (
+                                            <div
+                                                key={index}
+                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
+                                                onClick={() => toggleTickerStatus(item.ticker, item.status)}
+                                            >
+                                                <span
+                                                    className={`inline-block w-3 h-3 rounded-full ${item.status ? 'bg-green-500' : 'bg-red-500'
+                                                        }`}
+                                                ></span>
+                                                <span>{item.ticker}</span>
+                                            </div>
+                                        ))}
+
                                     </div>
                                 )}
+                            </div> */}
+                                </div>
+                            </div>
 
+                            <div className="p-4 flex-shrink-0">
+                                <div>
+                                    <CustomWalletButton />
+                                </div>
                             </div>
                         </div>
-                    ))}
-                    {isLoading && (
-                        <div className="text-center">
-                            <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
-                            <p>Processing your query. This may take upto 5 minutes...</p>
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div> */}
+                    </div>
 
-                <div className="flex-grow overflow-x-auto px-4 py-8">
-                    {isInitialView ? (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-                                {sampleCommands.map((cmd, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
-                                        onClick={() => handleCommandBoxClick(cmd.command)}
-                                    >
-                                        <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
-                                        <p className="text-sm text-gray-300">
-                                            Click to use the <span className="font-semibold">{cmd.command}</span> command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div>
-                            {/* Render chat messages */}
-                            {displayMessages.map((message, index) => (
-                                <div key={index} className="mb-4 flex justify-start w-full">
-                                    <div key={index} className="mb-4 flex justify-start w-full">
-                                        <div className="flex-shrink-0 mr-3">
-                                            <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
-                                                {message.role === 'user' ? (
-                                                    userEmail.charAt(0).toUpperCase()
-                                                ) : (
-                                                    <Image
-                                                        src="images/tiger.svg"
-                                                        alt="logo"
-                                                        width={40}
-                                                        height={40}
-                                                        className='p-2'
-                                                    />
-                                                )}
+                    {/* Chat messages */}
+                    <div className=' flex flex-col justify-between w-full'>
+                        <div className="flex-grow overflow-x-auto px-4 py-8 ">
+                            {isInitialView ? (
+                                <div className="flex flex-col items-center justify-center h-full">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+                                        {sampleCommands.map((cmd, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
+                                                onClick={() => handleCommandBoxClick(cmd.command)}
+                                            >
+                                                <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
+                                                <p className="text-sm text-gray-300">
+                                                    Click to use the <span className="font-semibold">{cmd.command}</span> command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.
+                                                </p>
                                             </div>
-                                        </div>
-                                        <div className="flex flex-col items-start">
-                                            <div className="flex items-center justify-between w-full mt-2">
-
-                                                <span
-                                                    className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
-                                                        'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
-                                                        } ${!isMobile ? `mt-0.5` : ``}`}
-                                                >
-                                                    {message.role === 'user' ? userEmail : 'ZkTerminal'}
-
-                                                </span>
-                                                {message.role !== 'user' && (
-                                                    <div className="flex space-x-2">
-                                                        <button className="text-white rounded-lg">
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    {/* Render chat messages */}
+                                    {displayMessages.map((message, index) => (
+                                        <div key={index} className="mb-4 flex justify-start w-full">
+                                            <div key={index} className="mb-4 flex justify-start w-full">
+                                                <div className="flex-shrink-0 mr-3">
+                                                    <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                                        {message.role === 'user' ? (
+                                                            userEmail.charAt(0).toUpperCase()
+                                                        ) : (
                                                             <Image
-                                                                src="images/Download.svg"
+                                                                src="images/tiger.svg"
                                                                 alt="logo"
-                                                                width={20}
-                                                                height={20}
+                                                                width={40}
+                                                                height={40}
+                                                                className='p-2'
                                                             />
-                                                        </button>
-                                                        <button className="text-white rounded-lg">
-                                                            <Image
-                                                                src="images/share.svg"
-                                                                alt="logo"
-                                                                width={20}
-                                                                height={20}
-                                                            />
-                                                        </button>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                            {message.role === 'assistant' &&
-
-                                                (typeof message.content === 'string' && message.content.startsWith('/')) ? (
-                                                <ResultBlock
-                                                    content={message.content}
-                                                    type="image"
-                                                    onMintNFT={handleMintNFT}
-                                                    onDownloadProof={handleDownload}
-                                                    imageResultType={message.command}
-                                                    // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                                    onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
-                                                />
-                                            ) : (
-                                                <div className="inline-block p-1 rounded-lg text-white">
-                                                    {renderMessageContent(message)}
                                                 </div>
-                                            )}
+                                                <div className="flex flex-col items-start">
+                                                    <div className="flex items-center justify-between w-full mt-2">
 
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {isLoading && (
-                                <div className="text-center">
-                                    <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
-                                    <p>Processing your query. This may take up to 5 minutes...</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                                                        <span
+                                                            className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                                                'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                                                } ${!isMobile ? `mt-0.5` : ``}`}
+                                                        >
+                                                            {message.role === 'user' ? userEmail : 'ZkTerminal'}
 
-                <footer className="w-full py-6 flex justify-center px-2">
-                    <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
-                        <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
-                            {files.length > 0 && (
-                                // <div className="flex flex-wrap gap-2 p-2">
-                                //     {files.map((file, index) => (
-                                //         <div key={index} className="relative w-20 h-20">
-                                //             {file.isPdf ? (
-                                //                 <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
-                                //                     {file.file.name}
-                                //                 </div>
-                                //             ) : (
-                                //                 <Image
-                                //                     src={file.preview}
-                                //                     alt={`Preview ${index}`}
-                                //                     width={500}
-                                //                     height={500}
-                                //                     className="w-full h-full object-cover rounded-lg"
-                                //                     layout="responsive"
-                                //                 />
-                                //             )}
-                                //             <button
-                                //                 onClick={() => removeFile(index)}
-                                //                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                                //                 type="button"
-                                //             >
-                                //                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                //                     <line x1="18" y1="6" x2="6" y2="18"></line>
-                                //                     <line x1="6" y1="6" x2="18" y2="18"></line>
-                                //                 </svg>
-                                //             </button>
-                                //         </div>
-                                //     ))}
-                                // </div>
-                                <div className="flex flex-wrap gap-2 p-2">
-                                    {files.map((file, index) => (
-                                        <div key={index} className="relative w-20 h-20">
-                                            {file.isPdf ? (
-                                                <div className="w-full h-full flex items-center justify-center bg-gray-800 text-xs text-white rounded-lg">
-                                                    {file.file.name}
-                                                </div>
-                                            ) : file.isVideoOrAudio ? (
-                                                <div className="w-full h-full">
-                                                    {file.file.type.startsWith('video/') ? (
-                                                        <video
-                                                            src={file.preview}
-                                                            controls
-                                                            className="w-full h-full object-cover rounded-lg"
+                                                        </span>
+                                                        {message.role !== 'user' && (
+                                                            <div className="flex space-x-2">
+                                                                <button className="text-white rounded-lg">
+                                                                    <Image
+                                                                        src="images/Download.svg"
+                                                                        alt="logo"
+                                                                        width={20}
+                                                                        height={20}
+                                                                    />
+                                                                </button>
+                                                                <button className="text-white rounded-lg">
+                                                                    <Image
+                                                                        src="images/share.svg"
+                                                                        alt="logo"
+                                                                        width={20}
+                                                                        height={20}
+                                                                    />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {message.role === 'assistant' &&
+
+                                                        (typeof message.content === 'string' && message.content.startsWith('/')) ? (
+                                                        <ResultBlock
+                                                            content={message.content}
+                                                            type="image"
+                                                            onMintNFT={handleMintNFT}
+                                                            onDownloadProof={handleDownload}
+                                                            imageResultType={message.command}
+                                                            // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                                            onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
                                                         />
                                                     ) : (
-                                                        <audio
-                                                            src={file.preview}
-                                                            controls
-                                                            className="w-full object-cover rounded-lg"
-                                                        />
+                                                        <div className="inline-block p-1 rounded-lg text-white">
+                                                            {renderMessageContent(message)}
+                                                        </div>
                                                     )}
+
                                                 </div>
-                                            ) : (
-                                                <img
-                                                    src={file.preview}
-                                                    alt={`Preview ${index}`}
-                                                    className="w-full h-full object-cover rounded-lg"
-                                                />
-                                            )}
-                                            <button
-                                                onClick={() => removeFile(index)}
-                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                                                type="button"
-                                            >
-                                                ✖
-                                            </button>
+                                            </div>
                                         </div>
                                     ))}
-                                </div>
-
-                            )}
-
-
-                            <div className="flex items-center">
-                                <input
-                                    type="file"
-                                    onChange={handleFileChange}
-                                    //accept="image/*,.pdf"
-                                    accept="image/*,.pdf,video/*,audio/*"
-                                    className="hidden"
-                                    id="fileInput"
-                                    multiple
-                                    disabled={!wallet.connected}
-                                />
-                                <label
-                                    htmlFor="fileInput"
-                                    className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                                        }`}
-                                    style={{
-                                        height: '2.5rem', // Match the initial height of the textarea
-                                    }}
-                                >
-                                    <Image
-                                        src="/images/Attach.svg"
-                                        alt="Attach file"
-                                        width={20}
-                                        height={20}
-                                    />
-                                </label>
-
-                                {/* Textarea for input */}
-                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
-                                    <textarea
-                                        ref={inputRef}
-                                        value={inputMessage}
-                                        onChange={handleInputChange}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault(); // Prevent default new line
-                                                handleSubmit(e); // Pass the event to handleSubmit
-                                            }
-                                        }}
-                                        placeholder="Message ZkTerminal"
-                                        className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
-                                        style={{
-                                            lineHeight: '1.5',
-                                            height: '2.5rem', // Same initial height as the label
-                                            maxHeight: '10rem', // Limit height to 10rem
-                                            boxSizing: 'border-box',
-                                        }}
-                                        onInput={(e) => {
-                                            const target = e.target as HTMLTextAreaElement;
-                                            target.style.height = '2.5rem'; // Reset to the default height
-                                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
-                                        }}
-                                        disabled={!wallet.connected}
-                                    />
-
-                                    {showCommandPopup && (
-                                        <div ref={commandPopupRef}>
-                                            <CommandPopup onSelect={handleCommandSelect} />
+                                    {isLoading && (
+                                        <div className="text-center">
+                                            <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
+                                            <p>Processing your query. This may take up to 5 minutes...</p>
                                         </div>
                                     )}
-                                    {showTickerPopup && (
-                                        <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
-                                    )}
                                 </div>
+                            )}
+                        </div>
 
-                                {/* Submit button */}
-                                <button
-                                    type="submit"
-                                    className="bg-white text-black p-1 m-1 rounded-md font-bold"
-                                    style={{
-                                        height: '1.5rem', // Same height as the textarea
-                                    }}
-                                    disabled={isLoading || !wallet.connected}
-                                >
-                                    <BsArrowReturnLeft />
-                                </button>
+                        <footer className="w-full py-6 flex justify-center px-2">
+                            <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
+                                <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+                                    {files.length > 0 && (
+                                        // <div className="flex flex-wrap gap-2 p-2">
+                                        //     {files.map((file, index) => (
+                                        //         <div key={index} className="relative w-20 h-20">
+                                        //             {file.isPdf ? (
+                                        //                 <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
+                                        //                     {file.file.name}
+                                        //                 </div>
+                                        //             ) : (
+                                        //                 <Image
+                                        //                     src={file.preview}
+                                        //                     alt={`Preview ${index}`}
+                                        //                     width={500}
+                                        //                     height={500}
+                                        //                     className="w-full h-full object-cover rounded-lg"
+                                        //                     layout="responsive"
+                                        //                 />
+                                        //             )}
+                                        //             <button
+                                        //                 onClick={() => removeFile(index)}
+                                        //                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                        //                 type="button"
+                                        //             >
+                                        //                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        //                     <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        //                     <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        //                 </svg>
+                                        //             </button>
+                                        //         </div>
+                                        //     ))}
+                                        // </div>
+                                        <div className="flex flex-wrap gap-2 p-2">
+                                            {files.map((file, index) => (
+                                                <div key={index} className="relative w-20 h-20">
+                                                    {file.isPdf ? (
+                                                        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-xs text-white rounded-lg">
+                                                            {file.file.name}
+                                                        </div>
+                                                    ) : file.isVideoOrAudio ? (
+                                                        <div className="w-full h-full">
+                                                            {file.file.type.startsWith('video/') ? (
+                                                                <video
+                                                                    src={file.preview}
+                                                                    controls
+                                                                    className="w-full h-full object-cover rounded-lg"
+                                                                />
+                                                            ) : (
+                                                                <audio
+                                                                    src={file.preview}
+                                                                    controls
+                                                                    className="w-full object-cover rounded-lg"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <img
+                                                            src={file.preview}
+                                                            alt={`Preview ${index}`}
+                                                            className="w-full h-full object-cover rounded-lg"
+                                                        />
+                                                    )}
+                                                    <button
+                                                        onClick={() => removeFile(index)}
+                                                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                        type="button"
+                                                    >
+                                                        ✖
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                    )}
+
+
+                                    <div className="flex items-center">
+                                        <input
+                                            type="file"
+                                            onChange={handleFileChange}
+                                            //accept="image/*,.pdf"
+                                            accept="image/*,.pdf,video/*,audio/*"
+                                            className="hidden"
+                                            id="fileInput"
+                                            multiple
+                                            disabled={!wallet.connected}
+                                        />
+                                        <label
+                                            htmlFor="fileInput"
+                                            className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                                }`}
+                                            style={{
+                                                height: '2.5rem', // Match the initial height of the textarea
+                                            }}
+                                        >
+                                            <Image
+                                                src="/images/Attach.svg"
+                                                alt="Attach file"
+                                                width={20}
+                                                height={20}
+                                            />
+                                        </label>
+
+                                        {/* Textarea for input */}
+                                        <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
+                                            <textarea
+                                                ref={inputRef}
+                                                value={inputMessage}
+                                                onChange={handleInputChange}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault(); // Prevent default new line
+                                                        handleSubmit(e); // Pass the event to handleSubmit
+                                                    }
+                                                }}
+                                                placeholder="Message ZkTerminal"
+                                                className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
+                                                style={{
+                                                    lineHeight: '1.5',
+                                                    height: '2.5rem', // Same initial height as the label
+                                                    maxHeight: '10rem', // Limit height to 10rem
+                                                    boxSizing: 'border-box',
+                                                }}
+                                                onInput={(e) => {
+                                                    const target = e.target as HTMLTextAreaElement;
+                                                    target.style.height = '2.5rem'; // Reset to the default height
+                                                    target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
+                                                }}
+                                                disabled={!wallet.connected}
+                                            />
+
+                                            {showCommandPopup && (
+                                                <div ref={commandPopupRef}>
+                                                    <CommandPopup onSelect={handleCommandSelect} />
+                                                </div>
+                                            )}
+                                            {showTickerPopup && (
+                                                <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
+                                            )}
+                                        </div>
+
+                                        {/* Submit button */}
+                                        <button
+                                            type="submit"
+                                            className="bg-white text-black p-1 m-1 rounded-md font-bold"
+                                            style={{
+                                                height: '1.5rem', // Same height as the textarea
+                                            }}
+                                            disabled={isLoading || !wallet.connected}
+                                        >
+                                            <BsArrowReturnLeft />
+                                        </button>
+                                    </div>
+
+
+                                </form>
                             </div>
-
-
-                        </form>
+                        </footer>
                     </div>
-                </footer>
+                </div>
             </div>
+
 
             {/* <div className="h-screen right-0 top-0">
                 <TweetPanel

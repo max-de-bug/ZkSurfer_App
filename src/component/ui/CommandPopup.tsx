@@ -166,11 +166,11 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
     const commands: CommandOption[] = [
         {
             command: 'create-agent',
-            description: 'Generate sentient meme/agent coin ',
+            description: 'Generate sentient AI agent coin ',
         },
         {
             command: 'image-gen',
-            description: 'Image generation with or without ticker',
+            description: 'Image generation with or without ticker. Generated image can be used for minting NFT',
         },
         // {
         //     command: 'content',
@@ -184,25 +184,25 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             command: 'post',
             description: 'To post or schedule the tweet',
         },
-        {
-            command: 'tokens',
-            description: 'To provide Twitter access token and its secret',
-        },
-        {
-            command: 'tweet',
-            description: 'To post and schedule the Twitter post',
-            additionalInfo: '(id)',
-        },
-        {
-            command: 'tweets',
-            description: 'To post and schedule multiple Twitter posts',
-            additionalInfo: '(id1, id2,...)',
-        },
-        {
-            command: 'generate-tweet',
-            description: 'Generates those many tweets',
-            additionalInfo: '(Number of tweets)',
-        },
+        // {
+        //     command: 'tokens',
+        //     description: 'To provide Twitter access token and its secret',
+        // },
+        // {
+        //     command: 'tweet',
+        //     description: 'To post and schedule the Twitter post',
+        //     additionalInfo: '(id)',
+        // },
+        // {
+        //     command: 'tweets',
+        //     description: 'To post and schedule multiple Twitter posts',
+        //     additionalInfo: '(id1, id2,...)',
+        // },
+        // {
+        //     command: 'generate-tweet',
+        //     description: 'Generates those many tweets',
+        //     additionalInfo: '(Number of tweets)',
+        // },
         // {
         //     command: 'generate-tweet-image',
         //     description: 'Generates an image based on ticker for tweet',
@@ -211,16 +211,16 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
         //     command: 'generate-tweet-images',
         //     description: 'Generates images based on ticker for tweets',
         // },
-        {
-            command: 'save',
-            description: 'Saves one generated tweet',
-            additionalInfo: '(id)',
-        },
-        {
-            command: 'saves',
-            description: 'Saves multiple generated tweets',
-            additionalInfo: '(id1, id2,...)',
-        },
+        // {
+        //     command: 'save',
+        //     description: 'Saves one generated tweet',
+        //     additionalInfo: '(id)',
+        // },
+        // {
+        //     command: 'saves',
+        //     description: 'Saves multiple generated tweets',
+        //     additionalInfo: '(id1, id2,...)',
+        // },
         {
             command: 'launch',
             description: 'Launching your saved ai coin on pump.fun',

@@ -117,7 +117,7 @@ const Description: FC<{ text: string }> = ({ text }) => {
             </p>
             {isOverflowing && (
                 <button
-                    className="text-[#7E83A9] font-bold mt-1"
+                    className="text-[#7E83A9] font-bold mt-1 italic"
                     onClick={(e) => {
                         e.stopPropagation(); // Prevent click event propagation to the card
                         setIsExpanded(!isExpanded);
