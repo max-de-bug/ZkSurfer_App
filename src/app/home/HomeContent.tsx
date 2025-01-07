@@ -2849,8 +2849,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             const apiMessage: Message = {
                 role: 'user',
                 content: fullMessage,
-                type: 'command',
-                command: isMemeGen ? 'create-agent' : 'image-gen'
+                // type: 'command',
+                // command: isMemeGen ? 'create-agent' : 'image-gen'
             };
 
             setDisplayMessages(prev => [...prev, displayMessage]);
@@ -2902,8 +2902,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 setApiMessages(prev => [...prev, {
                     role: 'assistant',
                     content: data.prompt || data.content,
-                    type: 'image',
-                    command: isMemeGen ? 'create-agent' : 'image-gen'
+                    // type: 'image',
+                    // command: isMemeGen ? 'create-agent' : 'image-gen'
                 }]);
 
             } catch (error) {
