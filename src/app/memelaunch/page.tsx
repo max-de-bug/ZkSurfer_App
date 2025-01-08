@@ -880,6 +880,7 @@ import * as pdfjs from 'pdfjs-dist';
 import { TokenCreator } from './tokenCreator';
 import { useAnchorWallet } from "@solana/wallet-adapter-react";
 import { toast } from 'sonner';
+import { useTwitterAuthStore } from '@/stores/twitter-auth-store';
 
 interface FormDataType {
     name: string;
@@ -928,6 +929,7 @@ const MemeLaunchPage = () => {
     const [showTrainingOptions, setShowTrainingOptions] = useState(false);
     const [showPdfUpload, setShowPdfUpload] = useState(false);
     const [showImageUpload, setShowImageUpload] = useState(false);
+    const { setTwitterCredentials } = useTwitterAuthStore();
 
     const models = [
         { name: 'Pixtral-12b-2409', enabled: false },
@@ -963,6 +965,12 @@ const MemeLaunchPage = () => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
+
+    const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setTwitterCredentials({ [name]: value });
+    };
+
 
     const handleAddTrainingData = (type: 'pdf' | 'image' | 'twitter') => {
         if (type === 'twitter') {
@@ -1438,6 +1446,43 @@ const MemeLaunchPage = () => {
                     <div className="text-xs text-center text-gray-400 mt-4">
                         TIP : Coin data cannot be changed after creation.
                     </div>
+
+                    <div>
+                        <label className="block mb-2 text-sm">Twitter Username</label>
+                        <input
+                            type="text"
+                            name="username"
+                            onChange={handleTwitterCredentialsChange}
+                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            placeholder="Enter Twitter Username"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block mb-2 text-sm">Twitter Email</label>
+                        <input
+                            type="email"
+                            name="email"
+                            onChange={handleTwitterCredentialsChange}
+                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            placeholder="Enter Twitter Email"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block mb-2 text-sm">Twitter Password</label>
+                        <input
+                            type="password"
+                            name="password"
+                            onChange={handleTwitterCredentialsChange}
+                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            placeholder="Enter Twitter Password"
+                            required
+                        />
+                    </div>
+
                     <button
                         type="submit"
                         disabled={isSubmitting}
