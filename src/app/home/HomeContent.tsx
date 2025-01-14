@@ -3346,6 +3346,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'api-key': 'zk-123321',
                 },
                 body: JSON.stringify({
                     ticker: selectedTicker,

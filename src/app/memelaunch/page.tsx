@@ -700,200 +700,152 @@ const MemeLaunchPage = () => {
     // };
 
     //here
-    // const handleLaunch = async (wallet: Wallet) => {
-    //     const MAX_RETRIES = 5; // Maximum number of retries
-    //     const RETRY_DELAY = 3000; // Delay between retries (in ms)
+    const handleLaunch = async () => {
+        const MAX_RETRIES = 5; // Maximum number of retries
+        const RETRY_DELAY = 3000; // Delay between retries (in ms)
 
-    //     try {
-    //         const { selectedTicker } = useTickerStore.getState();
+        try {
+            const { selectedTicker } = useTickerStore.getState();
 
-    //         if (!selectedTicker) {
-    //             throw new Error('No agent selected. Please use /select command first to choose an agent.');
-    //         }
+            if (!selectedTicker) {
+                throw new Error('No agent selected. Please use /select command first to choose an agent.');
+            }
 
-    //         const coinsResponse = await fetch('https://zynapse.zkagi.ai/api/coins', {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //                 'api-key': 'zk-123321',
-    //             },
-    //         });
+            const coinsResponse = await fetch('https://zynapse.zkagi.ai/api/coins', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'zk-123321',
+                },
+            });
 
-    //         if (!coinsResponse.ok) {
-    //             throw new Error('Failed to fetch coins list.');
-    //         }
+            if (!coinsResponse.ok) {
+                throw new Error('Failed to fetch coins list.');
+            }
 
-    //         const coinsData: { data: Coin[] } = await coinsResponse.json();
-    //         const coins = coinsData.data;
+            const coinsData: { data: Coin[] } = await coinsResponse.json();
+            const coins = coinsData.data;
 
-    //         const coinMap = new Map<string, Coin>(coins.map((coin) => [coin.ticker, coin]));
-    //         const selectedCoin = coinMap.get(selectedTicker);
+            const coinMap = new Map<string, Coin>(coins.map((coin) => [coin.ticker, coin]));
+            const selectedCoin = coinMap.get(selectedTicker);
 
-    //         if (!selectedCoin) {
-    //             throw new Error(`No coin found for the ticker: ${selectedTicker}`);
-    //         }
+            if (!selectedCoin) {
+                throw new Error(`No coin found for the ticker: ${selectedTicker}`);
+            }
 
-    //         let memecoinAddress = selectedCoin.memecoin_address;
+            let memecoinAddress = selectedCoin.memecoin_address;
 
-    //         if (!memecoinAddress) {
-    //             if (!wallet) {
-    //                 throw new Error('Wallet not connected. Please connect your wallet and try again.');
-    //             }
+            if (!memecoinAddress) {
+                if (!wallet) {
+                    throw new Error('Wallet not connected. Please connect your wallet and try again.');
+                }
 
-    //             const tokenResult = await TokenCreator({
-    //                 name: selectedCoin.coin_name,
-    //                 symbol: selectedCoin.ticker,
-    //                 description: selectedCoin.description,
-    //                 imageBase64: 'data:image/png;base64,' + selectedCoin.image_base64,
-    //                 wallet,
-    //             });
+                const tokenResult = await TokenCreator({
+                    name: selectedCoin.coin_name,
+                    symbol: selectedCoin.ticker,
+                    description: selectedCoin.description,
+                    imageBase64: 'data:image/png;base64,' + selectedCoin.image_base64,
+                    wallet,
+                });
 
-    //             console.log('Token created successfully:', tokenResult.signature);
-    //             memecoinAddress = tokenResult.mintAddress;
-    //         }
+                console.log('Token created successfully:', tokenResult.signature);
+                memecoinAddress = tokenResult.mintAddress;
+            }
 
-    //         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    //             try {
-    //                 const launchResponse = await fetch('https://zynapse.zkagi.ai/api/pmpCoinLaunch', {
-    //                     method: 'POST',
-    //                     headers: {
-    //                         'Content-Type': 'application/json',
-    //                     },
-    //                     body: JSON.stringify({
-    //                         ticker: selectedTicker,
-    //                         memecoin_address: memecoinAddress,
-    //                     }),
-    //                 });
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const launchResponse = await fetch('https://zynapse.zkagi.ai/api/pmpCoinLaunch', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            ticker: selectedTicker,
+                            memecoin_address: memecoinAddress,
+                        }),
+                    });
 
-    //                 if (launchResponse.ok) {
-    //                     toast.success(`Successfully launched memecoin for ticker: ${selectedTicker}`);
-    //                     return true;
-    //                 }
+                    if (launchResponse.ok) {
+                        toast.success(`Successfully launched memecoin for ticker: ${selectedTicker}`);
+                        return true;
+                    }
 
-    //                 const errorMsg = `Attempt ${attempt} failed: ${launchResponse.statusText}`;
-    //                 console.warn(errorMsg);
+                    const errorMsg = `Attempt ${attempt} failed: ${launchResponse.statusText}`;
+                    console.warn(errorMsg);
 
-    //                 if (attempt === MAX_RETRIES) {
-    //                     throw new Error('Maximum retry attempts reached.');
-    //                 }
+                    if (attempt === MAX_RETRIES) {
+                        throw new Error('Maximum retry attempts reached.');
+                    }
 
-    //                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-    //             } catch (innerError) {
-    //                 if (attempt === MAX_RETRIES) {
-    //                     throw new Error('Failed to launch coin after multiple attempts.');
-    //                 }
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+                } catch (innerError) {
+                    if (attempt === MAX_RETRIES) {
+                        throw new Error('Failed to launch coin after multiple attempts.');
+                    }
 
-    //                 console.warn(`Retrying... Attempt ${attempt} of ${MAX_RETRIES}`);
-    //                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error in handleLaunch:', error);
-    //         toast.error(`Failed to launch coin: ${error}`);
-    //         return false;
-    //     }
-    // };
+                    console.warn(`Retrying... Attempt ${attempt} of ${MAX_RETRIES}`);
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+                }
+            }
+        } catch (error) {
+            console.error('Error in handleLaunch:', error);
+            toast.error(`Failed to launch coin: ${error}`);
+            return false;
+        }
+    };
 
-    // const handleLaunchButtonClick = async (coinId: string) => {
-    //     try {
-    //         console.log("Starting character confirmation...");
+    const handleLaunchButtonClick = async () => {
+        try {
+            setIsSubmitting(true);
+            console.log('Starting character confirmation process...');
 
-    //         // Call the confirm character logic first
-    //         const isConfirmed = await new Promise<boolean>((resolve) => {
-    //             const originalCharacterJson = characterJson; // Capture the current state
+            // Call handleConfirmCharacter but handle its success based on the response
+            const confirmationResponse = await new Promise((resolve) => {
+                const interval = setInterval(() => {
+                    if (characterJson === null) {
+                        clearInterval(interval);
+                        resolve({ success: true });
+                    }
+                }, 200);
 
-    //             // Poll to check for character confirmation
-    //             const interval = setInterval(() => {
-    //                 console.log("Checking characterJson state...", characterJson);
+                // Timeout logic
+                setTimeout(() => {
+                    clearInterval(interval);
+                    resolve({ success: false });
+                }, 60000);
 
-    //                 if (characterJson === null && originalCharacterJson !== null) {
-    //                     clearInterval(interval);
-    //                     resolve(true); // Confirmation successful
-    //                 }
-    //             }, 100);
+                // Trigger the character confirmation logic
+                handleConfirmCharacter(editableJson)
+                    .then(() => {
+                        console.log('handleConfirmCharacter successfully executed');
+                        clearInterval(interval); // Ensure the interval is cleared when successful
+                        resolve({ success: true });
+                    })
+                    .catch((error) => {
+                        console.error('Error during character confirmation:', error);
+                        clearInterval(interval); // Ensure the interval is cleared on failure
+                        resolve({ success: false });
+                    });
+            });
 
-    //             // Timeout to prevent indefinite hanging
-    //             setTimeout(() => {
-    //                 console.log("Character confirmation timed out.");
-    //                 clearInterval(interval);
-    //                 resolve(false); // Confirmation failed
-    //             }, 10000); // Timeout in 10 seconds
+            console.log('Character confirmation successful! Proceeding to launch...');
 
-    //             // Trigger the character confirmation
-    //             handleConfirmCharacter(editableJson);
-    //         });
+            // Proceed to coin launch only if character confirmation succeeds
+            const launchSuccessful = await handleLaunch();
 
-    //         if (!isConfirmed) {
-    //             console.error("Character confirmation failed. Aborting launch.");
-    //             toast.error("Character confirmation failed. Launch operation aborted.");
-    //             return; // Do not proceed with launching
-    //         }
-
-    //         console.log("Character confirmed. Proceeding to launch...");
-
-    //         // Proceed to launch the coin
-    //         await handleLaunch(coinId);
-
-    //         // Redirect to the home page after successful launch
-    //         router.push('/');
-    //     } catch (error) {
-    //         console.error("Error during launch process:", error);
-    //         toast.error("An error occurred. Please try again.");
-    //     }
-    // };
-
-    // const handleLaunchButtonClick = async () => {
-    //     try {
-    //         setIsSubmitting(true);
-    //         console.log('Starting character confirmation process...');
-
-    //         // Call handleConfirmCharacter but handle its success based on the response
-    //         const confirmationResponse = await new Promise((resolve) => {
-    //             const interval = setInterval(() => {
-    //                 if (characterJson === null) {
-    //                     clearInterval(interval);
-    //                     resolve({ success: true });
-    //                 }
-    //             }, 200);
-
-    //             // Timeout logic
-    //             setTimeout(() => {
-    //                 clearInterval(interval);
-    //                 resolve({ success: false });
-    //             }, 60000);
-
-    //             // Trigger the character confirmation logic
-    //             handleConfirmCharacter(editableJson)
-    //                 .then(() => {
-    //                     console.log('handleConfirmCharacter successfully executed');
-    //                     clearInterval(interval); // Ensure the interval is cleared when successful
-    //                     resolve({ success: true });
-    //                 })
-    //                 .catch((error) => {
-    //                     console.error('Error during character confirmation:', error);
-    //                     clearInterval(interval); // Ensure the interval is cleared on failure
-    //                     resolve({ success: false });
-    //                 });
-    //         });
-
-    //         console.log('Character confirmation successful! Proceeding to launch...');
-
-    //         // Proceed to coin launch only if character confirmation succeeds
-    //         const launchSuccessful = await handleLaunch();
-
-    //         if (launchSuccessful) {
-    //             // Redirect to home page only if launch is successful
-    //             router.push('/');
-    //         } else {
-    //             toast.error('Launch failed. Please try again.');
-    //         }
-    //     } catch (error) {
-    //         console.error('Error during launch:', error);
-    //         toast.error('An error occurred. Please try again.');
-    //     } finally {
-    //         setIsSubmitting(false);
-    //     }
-    // };
+            if (launchSuccessful) {
+                // Redirect to home page only if launch is successful
+                router.push('/');
+            } else {
+                toast.error('Launch failed. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error during launch:', error);
+            toast.error('An error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
 
     // const handleLaunchButtonClick = async () => {
