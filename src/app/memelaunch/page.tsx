@@ -1231,6 +1231,7 @@ Example Output Structure:
 
                 {!characterJson ? (
                     <div className="max-w-xl mx-auto items-center">
+
                         <Form onSubmit={handleSubmit}>
                             {({ submit }) => (
                                 <div className="space-y-6">
@@ -1469,6 +1470,7 @@ Example Output Structure:
                         />
                     </div> */}
 
+
                                     <div>
                                         <label className="block mb-2 text-sm">Twitter</label>
                                         <input
@@ -1508,6 +1510,17 @@ Example Output Structure:
                                     <div className="text-xs text-center text-gray-400 mt-4">
                                         TIP : Coin data cannot be changed after creation.
                                     </div>
+
+                                    <div className="bg-yellow-200 text-yellow-900 p-4 rounded mb-6">
+                                        <p className="mb-2">
+                                            ⚠️ <strong>Ensure the following before proceeding:</strong>
+                                        </p>
+                                        <ul className="list-disc list-inside">
+                                            <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
+                                            <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
+                                        </ul>
+                                    </div>
+
                                     <div>
                                         <label className="block mb-2 text-sm">Twitter Username</label>
                                         <input
@@ -1624,7 +1637,7 @@ Example Output Structure:
                                 onClick={() => handleConfirmCharacter(editableJson)}
                                 className="bg-green-500 px-4 py-2 rounded text-white font-semibold"
                             >
-                                Confirm Character
+                                Create Agent
                             </button>
                             {/* <button
                                 onClick={handleLaunchButtonClick}
