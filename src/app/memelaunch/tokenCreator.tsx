@@ -95,7 +95,7 @@ export const TokenCreator = async ({
     wallet: any;
 }) => {
     try {
-        const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=144968c1-56dd-4d50-a47b-f9fe9e9aafc6".trim();
+        const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=daee1b98-f564-4352-b8aa-d41654bc0e02".trim();
 
         try {
             const web3Connection = new Connection(RPC_ENDPOINT, { commitment: 'confirmed' });

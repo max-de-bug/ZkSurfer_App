@@ -12,6 +12,7 @@ import { Form } from 'houseform';
 import { useTickerStore } from '@/stores/ticker-store';
 import { JsonViewer } from '@textea/json-viewer'
 import { ApifyClient } from 'apify-client';
+import { Wallet } from '@solana/wallet-adapter-react';
 
 interface FormDataType {
     name: string;
@@ -42,6 +43,15 @@ interface TickerInfo {
     seed: number;
     user_prompt: string;
 }
+
+interface Coin {
+    image_base64: string;
+    description: string;
+    coin_name: string;
+    ticker: string;
+    memecoin_address: string | null;
+}
+
 
 function parseValue(value: string) {
     // If the input looks like a pure integer, parse it
@@ -81,151 +91,6 @@ function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> }
  * @param onChange A callback to update the parent state when this node changes.
  * @param path An array of keys to track the nested path (for debugging or labeling).
  */
-// export function renderJsonForm(
-//     data: any,
-//     onChange: (updatedData: any) => void,
-//     path: string[] = []
-// ): JSX.Element {
-//     // 1) If data is null or not an object, treat it as a primitive
-//     if (typeof data !== 'object' || data === null) {
-//         return (
-//             <input
-//                 type="text"
-//                 className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-//                 value={String(data)}
-//                 onChange={(e) => {
-//                     const newValue = parseValue(e.target.value);
-//                     onChange(newValue);
-//                 }}
-//             />
-//         );
-//     }
-
-//     if (typeof data === 'object' && data !== null) {
-//         if (path.includes('settings') && path.includes('secrets')) {
-//             // Render secrets as non-editable
-//             return (
-//                 <div className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500">
-//                     *** (Secrets are non-editable)
-//                 </div>
-//             );
-//         }
-//     }
-
-
-//     // 2) If data is an array, loop through each item.
-//     //    We place the "Add" (+) button at the top, do not display "Item 1" or "Item 2" labels,
-//     //    and show only an "x" button to remove items.
-//     if (Array.isArray(data)) {
-//         return (
-//             <div className="space-y-4">
-//                 {/* Add-new-item button at the TOP */}
-//                 {/* <button
-//                     type="button"
-//                     className="block w-full mb-2 py-2 text-center text-green-300 hover:text-green-400 "
-//                     onClick={() => {
-//                         // You can push an empty string, empty object, etc.:
-//                         const newArray = [...data, ''];
-//                         onChange(newArray);
-//                     }}
-//                 >
-//                     +
-//                 </button> */}
-
-//                 {data.map((item, index) => (
-//                     <div
-//                         key={index}
-//                         className="flex items-center gap-2 p-3 rounded border border-gray-700 bg-gray-800"
-//                     >
-//                         {/* Render the array item as usual (recursively) */}
-//                         <div className="flex-1">
-//                             {renderJsonForm(
-//                                 item,
-//                                 (updatedItem) => {
-//                                     const newArray = [...data];
-//                                     newArray[index] = updatedItem;
-//                                     onChange(newArray);
-//                                 },
-//                                 [...path, String(index)]
-//                             )}
-//                         </div>
-
-//                         {/* Remove array item */}
-//                         <button
-//                             type="button"
-//                             className="text-red-400 hover:text-red-500"
-//                             onClick={() => {
-//                                 const newArray = data.filter((_: any, i: number) => i !== index);
-//                                 onChange(newArray);
-//                             }}
-//                         >
-//                             ✕
-//                         </button>
-//                     </div>
-//                 ))}
-//             </div>
-//         );
-//     }
-
-//     // 3) If data is an object, loop through each key
-//     return (
-//         <div className="space-y-4">
-//             {Object.keys(data).map((key) => (
-//                 <div
-//                     key={key}
-//                     className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-//                 >
-//                     <div className="flex items-center justify-between">
-//                         <div className="block text-sm font-semibold text-gray-200">
-//                             {key}
-//                         </div>
-
-
-//                         {/* Add-new-item button at the TOP
-//                         <button
-//                             type="button"
-//                             className="block w-full mb-2 py-2 text-center text-green-300 hover:text-green-400 
-//                                border border-green-700 hover:border-green-500 rounded"
-//                             onClick={() => {
-//                                 // You can push an empty string, empty object, etc.:
-//                                 const newArray = [...data, ''];
-//                                 onChange(newArray);
-//                             }}
-//                         >
-//                             +
-//                         </button> */}
-
-//                         <button
-//                             type="button"
-//                             className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
-//                             onClick={() => {
-//                                 // Add new item logic
-//                                 const newArray = Array.isArray(data[key])
-//                                     ? [...data[key], '']
-//                                     : { ...data[key], newKey: '' };
-//                                 const updatedData = { ...data, [key]: newArray };
-//                                 onChange(updatedData);
-//                             }}
-//                         >
-//                             +
-//                         </button>
-
-//                     </div>
-
-//                     {/* Recursively render the value for this key */}
-//                     {renderJsonForm(
-//                         data[key],
-//                         (updatedValue) => {
-//                             const newObj = { ...data, [key]: updatedValue };
-//                             onChange(newObj);
-//                         },
-//                         [...path, key]
-//                     )}
-//                 </div>
-//             ))}
-//         </div>
-//     );
-// }
 
 export function renderJsonForm(
     data: any,
@@ -771,12 +636,312 @@ const MemeLaunchPage = () => {
         }
     };
 
-    // --- NEW: handleLaunch (empty for now) ---
-    const handleLaunch = () => {
-        // You can define your custom logic for "Launch" here
-        console.log('Launch button clicked!');
-        toast.success('Launch button clicked! (Implement your own logic here.)');
-    };
+    // const handleLaunch = async () => {
+    //     try {
+    //         const { selectedTicker } = useTickerStore.getState();
+
+    //         if (!selectedTicker) {
+    //             throw new Error('No agent selected. Please use /select command first to choose an agent.');
+    //         }
+
+    //         // Fetch the list of all coins
+    //         const coinsResponse = await fetch('https://zynapse.zkagi.ai/api/coins', {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'api-key': 'zk-123321',
+    //             },
+    //         });
+
+    //         if (!coinsResponse.ok) {
+    //             throw new Error('Failed to fetch coins list.');
+    //         }
+
+    //         const coinsData = await coinsResponse.json();
+    //         const coins = coinsData.data;
+
+    //         // Find the coin matching the selected ticker
+    //         const selectedCoin = coins.find((coin: { ticker: string }) => coin.ticker === selectedTicker);
+
+    //         if (!selectedCoin) {
+    //             throw new Error(`No coin found for the ticker: ${selectedTicker}`);
+    //         }
+
+    //         // Use the `memecoin_address` from the selected coin
+    //         const memecoinAddress = selectedCoin.memecoin_address;
+
+    //         if (!memecoinAddress) {
+    //             throw new Error(`No memecoin address found for the selected coin: ${selectedTicker}`);
+    //         }
+
+    //         // Perform the POST request to the `pmpCoinLaunch` API
+    //         const launchResponse = await fetch('https://zynapse.zkagi.ai/api/pmpCoinLaunch', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify({
+    //                 ticker: selectedTicker,
+    //                 memecoin_address: memecoinAddress,
+    //             }),
+    //         });
+
+    //         if (!launchResponse.ok) {
+    //             throw new Error('Failed to launch coin.');
+    //         }
+
+    //         // Notify the user about the success
+    //         toast.success(`Successfully launched memecoin for ticker: ${selectedTicker}`);
+    //         router.push('/'); // Redirect to homepage
+    //     } catch (error) {
+    //         console.error('Error in handleLaunch:', error);
+    //         toast.error(`Failed to launch coin. ${error}`);
+    //     }
+    // };
+
+    //here
+    // const handleLaunch = async (wallet: Wallet) => {
+    //     const MAX_RETRIES = 5; // Maximum number of retries
+    //     const RETRY_DELAY = 3000; // Delay between retries (in ms)
+
+    //     try {
+    //         const { selectedTicker } = useTickerStore.getState();
+
+    //         if (!selectedTicker) {
+    //             throw new Error('No agent selected. Please use /select command first to choose an agent.');
+    //         }
+
+    //         const coinsResponse = await fetch('https://zynapse.zkagi.ai/api/coins', {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'api-key': 'zk-123321',
+    //             },
+    //         });
+
+    //         if (!coinsResponse.ok) {
+    //             throw new Error('Failed to fetch coins list.');
+    //         }
+
+    //         const coinsData: { data: Coin[] } = await coinsResponse.json();
+    //         const coins = coinsData.data;
+
+    //         const coinMap = new Map<string, Coin>(coins.map((coin) => [coin.ticker, coin]));
+    //         const selectedCoin = coinMap.get(selectedTicker);
+
+    //         if (!selectedCoin) {
+    //             throw new Error(`No coin found for the ticker: ${selectedTicker}`);
+    //         }
+
+    //         let memecoinAddress = selectedCoin.memecoin_address;
+
+    //         if (!memecoinAddress) {
+    //             if (!wallet) {
+    //                 throw new Error('Wallet not connected. Please connect your wallet and try again.');
+    //             }
+
+    //             const tokenResult = await TokenCreator({
+    //                 name: selectedCoin.coin_name,
+    //                 symbol: selectedCoin.ticker,
+    //                 description: selectedCoin.description,
+    //                 imageBase64: 'data:image/png;base64,' + selectedCoin.image_base64,
+    //                 wallet,
+    //             });
+
+    //             console.log('Token created successfully:', tokenResult.signature);
+    //             memecoinAddress = tokenResult.mintAddress;
+    //         }
+
+    //         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    //             try {
+    //                 const launchResponse = await fetch('https://zynapse.zkagi.ai/api/pmpCoinLaunch', {
+    //                     method: 'POST',
+    //                     headers: {
+    //                         'Content-Type': 'application/json',
+    //                     },
+    //                     body: JSON.stringify({
+    //                         ticker: selectedTicker,
+    //                         memecoin_address: memecoinAddress,
+    //                     }),
+    //                 });
+
+    //                 if (launchResponse.ok) {
+    //                     toast.success(`Successfully launched memecoin for ticker: ${selectedTicker}`);
+    //                     return true;
+    //                 }
+
+    //                 const errorMsg = `Attempt ${attempt} failed: ${launchResponse.statusText}`;
+    //                 console.warn(errorMsg);
+
+    //                 if (attempt === MAX_RETRIES) {
+    //                     throw new Error('Maximum retry attempts reached.');
+    //                 }
+
+    //                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+    //             } catch (innerError) {
+    //                 if (attempt === MAX_RETRIES) {
+    //                     throw new Error('Failed to launch coin after multiple attempts.');
+    //                 }
+
+    //                 console.warn(`Retrying... Attempt ${attempt} of ${MAX_RETRIES}`);
+    //                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error in handleLaunch:', error);
+    //         toast.error(`Failed to launch coin: ${error}`);
+    //         return false;
+    //     }
+    // };
+
+    // const handleLaunchButtonClick = async (coinId: string) => {
+    //     try {
+    //         console.log("Starting character confirmation...");
+
+    //         // Call the confirm character logic first
+    //         const isConfirmed = await new Promise<boolean>((resolve) => {
+    //             const originalCharacterJson = characterJson; // Capture the current state
+
+    //             // Poll to check for character confirmation
+    //             const interval = setInterval(() => {
+    //                 console.log("Checking characterJson state...", characterJson);
+
+    //                 if (characterJson === null && originalCharacterJson !== null) {
+    //                     clearInterval(interval);
+    //                     resolve(true); // Confirmation successful
+    //                 }
+    //             }, 100);
+
+    //             // Timeout to prevent indefinite hanging
+    //             setTimeout(() => {
+    //                 console.log("Character confirmation timed out.");
+    //                 clearInterval(interval);
+    //                 resolve(false); // Confirmation failed
+    //             }, 10000); // Timeout in 10 seconds
+
+    //             // Trigger the character confirmation
+    //             handleConfirmCharacter(editableJson);
+    //         });
+
+    //         if (!isConfirmed) {
+    //             console.error("Character confirmation failed. Aborting launch.");
+    //             toast.error("Character confirmation failed. Launch operation aborted.");
+    //             return; // Do not proceed with launching
+    //         }
+
+    //         console.log("Character confirmed. Proceeding to launch...");
+
+    //         // Proceed to launch the coin
+    //         await handleLaunch(coinId);
+
+    //         // Redirect to the home page after successful launch
+    //         router.push('/');
+    //     } catch (error) {
+    //         console.error("Error during launch process:", error);
+    //         toast.error("An error occurred. Please try again.");
+    //     }
+    // };
+
+    // const handleLaunchButtonClick = async () => {
+    //     try {
+    //         setIsSubmitting(true);
+    //         console.log('Starting character confirmation process...');
+
+    //         // Call handleConfirmCharacter but handle its success based on the response
+    //         const confirmationResponse = await new Promise((resolve) => {
+    //             const interval = setInterval(() => {
+    //                 if (characterJson === null) {
+    //                     clearInterval(interval);
+    //                     resolve({ success: true });
+    //                 }
+    //             }, 200);
+
+    //             // Timeout logic
+    //             setTimeout(() => {
+    //                 clearInterval(interval);
+    //                 resolve({ success: false });
+    //             }, 60000);
+
+    //             // Trigger the character confirmation logic
+    //             handleConfirmCharacter(editableJson)
+    //                 .then(() => {
+    //                     console.log('handleConfirmCharacter successfully executed');
+    //                     clearInterval(interval); // Ensure the interval is cleared when successful
+    //                     resolve({ success: true });
+    //                 })
+    //                 .catch((error) => {
+    //                     console.error('Error during character confirmation:', error);
+    //                     clearInterval(interval); // Ensure the interval is cleared on failure
+    //                     resolve({ success: false });
+    //                 });
+    //         });
+
+    //         console.log('Character confirmation successful! Proceeding to launch...');
+
+    //         // Proceed to coin launch only if character confirmation succeeds
+    //         const launchSuccessful = await handleLaunch();
+
+    //         if (launchSuccessful) {
+    //             // Redirect to home page only if launch is successful
+    //             router.push('/');
+    //         } else {
+    //             toast.error('Launch failed. Please try again.');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error during launch:', error);
+    //         toast.error('An error occurred. Please try again.');
+    //     } finally {
+    //         setIsSubmitting(false);
+    //     }
+    // };
+
+
+    // const handleLaunchButtonClick = async () => {
+    //     try {
+    //         setIsSubmitting(true);
+
+    //         console.log('Starting character confirmation process...');
+
+    //         // Track confirmation success
+    //         const isConfirmed = await new Promise<boolean>((resolve) => {
+    //             const originalCharacterJson = characterJson; // Capture the current state
+    //             const interval = setInterval(() => {
+    //                 console.log('Checking characterJson state...', characterJson);
+
+    //                 if (characterJson === null && originalCharacterJson !== null) {
+    //                     console.log('Character confirmation successful!');
+    //                     clearInterval(interval);
+    //                     resolve(true);
+    //                 }
+    //             }, 100);
+
+    //             // Timeout to prevent indefinite hanging
+    //             setTimeout(() => {
+    //                 console.log('Character confirmation timed out.');
+    //                 clearInterval(interval);
+    //                 resolve(false);
+    //             }, 30000); // Increased timeout to 30 seconds
+
+    //             // Call the confirm character logic
+    //             handleConfirmCharacter(editableJson);
+    //         });
+
+    //         if (isConfirmed) {
+    //             console.log('Launching...');
+    //             await handleLaunch();
+    //             router.push('/'); // Redirect to the home page
+    //         } else {
+    //             toast.error('Character confirmation failed. Launch operation aborted.');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error during launch:', error);
+    //         toast.error('An error occurred. Please try again.');
+    //     } finally {
+    //         setIsSubmitting(false);
+    //     }
+    // };
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         setIsSubmitting(true);
@@ -1461,12 +1626,12 @@ Example Output Structure:
                             >
                                 Confirm Character
                             </button>
-                            <button
-                                onClick={handleLaunch}
+                            {/* <button
+                                onClick={handleLaunchButtonClick}
                                 className="bg-blue-500 px-4 py-2 rounded text-white font-semibold"
                             >
                                 Launch
-                            </button>
+                            </button> */}
                         </div>
                     </div>
 
