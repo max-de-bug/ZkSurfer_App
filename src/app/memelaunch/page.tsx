@@ -92,7 +92,7 @@ function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> }
  * @param path An array of keys to track the nested path (for debugging or labeling).
  */
 
-export function renderJsonForm(
+function renderJsonForm(
     data: any,
     onChange: (updatedData: any) => void,
     path: string[] = []

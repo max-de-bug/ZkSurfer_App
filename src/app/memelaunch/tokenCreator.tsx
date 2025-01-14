@@ -95,7 +95,11 @@ export const TokenCreator = async ({
     wallet: any;
 }) => {
     try {
-        const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=daee1b98-f564-4352-b8aa-d41654bc0e02".trim();
+        const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT?.trim();
+
+        if (!RPC_ENDPOINT) {
+            throw new Error("NEXT_PUBLIC_RPC_ENDPOINT is not defined in the environment variables.");
+        }
 
         try {
             const web3Connection = new Connection(RPC_ENDPOINT, { commitment: 'confirmed' });
