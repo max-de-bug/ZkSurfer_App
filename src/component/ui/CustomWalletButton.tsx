@@ -5,7 +5,8 @@
 // import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 // import { BaseWalletMultiButton } from "@solana/wallet-adapter-react-ui";
 // import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-//import { WalletReadyState } from '@solana/wallet-adapter-base';
+// import { WalletReadyState } from '@solana/wallet-adapter-base';
+// import { toast } from "sonner";
 
 // const LABELS = {
 //   "change-wallet": "Change wallet",
@@ -20,9 +21,27 @@
 // export const CustomWalletButton = () => {
 //   const router = useRouter();
 //   const { setVisible } = useWalletModal();
-//   const { publicKey, wallet, connecting } = useWallet();
+//   const { publicKey, wallet, connecting, wallets } = useWallet();
 
 //   const handleClick = () => {
+//     // Check if any wallet is installed
+//     const hasInstalledWallet = wallets.some((w) => w.readyState === WalletReadyState.Installed);
+//     if (!hasInstalledWallet) {
+//       // No wallet installed, show a toast prompting the user to install a wallet
+//       toast.error('No installed Solana wallets found. Please install a wallet to continue.', {
+//         action: {
+//           label: 'Install Phantom',
+//           onClick: () => window.open('https://phantom.app/', '_blank'),
+//         },
+//         cancel: {
+//           label: 'Install Solflare',
+//           onClick: () => window.open('https://solflare.com/', '_blank')
+//         }
+//       });
+//       return;
+//     }
+
+//     // If at least one wallet is installed, show the default wallet modal
 //     setVisible(true);
 //   };
 
@@ -46,7 +65,6 @@
 //             animation: "spinGradient 3s linear infinite",
 //           }}
 //         />
-
 //       ) : (
 //         <div
 //           className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
@@ -76,6 +94,8 @@
 //   );
 // };
 
+
+
 "use client";
 
 import { useEffect } from 'react';
@@ -102,24 +122,47 @@ export const CustomWalletButton = () => {
   const { publicKey, wallet, connecting, wallets } = useWallet();
 
   const handleClick = () => {
-    // Check if any wallet is installed
-    const hasInstalledWallet = wallets.some((w) => w.readyState === WalletReadyState.Installed);
-    if (!hasInstalledWallet) {
-      // No wallet installed, show a toast prompting the user to install a wallet
-      toast.error('No installed Solana wallets found. Please install a wallet to continue.', {
+    // Detect if the user is on a mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // Check if any wallet is available
+    const hasAvailableWallet = wallets.some(
+      (w) =>
+        w.readyState === WalletReadyState.Installed ||
+        w.readyState === WalletReadyState.Loadable
+    );
+
+    if (!hasAvailableWallet) {
+      // Show toast for installing a wallet
+      toast.error('No available Solana wallets found. Please install a wallet to continue.', {
         action: {
           label: 'Install Phantom',
           onClick: () => window.open('https://phantom.app/', '_blank'),
         },
         cancel: {
           label: 'Install Solflare',
-          onClick: () => window.open('https://solflare.com/', '_blank')
-        }
+          onClick: () => window.open('https://solflare.com/', '_blank'),
+        },
       });
       return;
     }
 
-    // If at least one wallet is installed, show the default wallet modal
+    if (isMobile && !wallet?.adapter) {
+      // Prompt mobile users to open the dApp in their wallet app
+      toast.error('Open this dApp in your wallet app for seamless connection.', {
+        action: {
+          label: 'Open in Phantom',
+          onClick: () => window.open('https://phantom.app/', '_blank'),
+        },
+        cancel: {
+          label: 'Open in Solflare',
+          onClick: () => window.open('https://solflare.com/', '_blank'),
+        },
+      });
+      return;
+    }
+
+    // If conditions are met, show the wallet modal
     setVisible(true);
   };
 
@@ -171,6 +214,7 @@ export const CustomWalletButton = () => {
     </div>
   );
 };
+
 
 // "use client";
 

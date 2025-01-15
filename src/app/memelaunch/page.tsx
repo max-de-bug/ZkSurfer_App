@@ -1591,12 +1591,12 @@ Example Output Structure:
                             >
                                 Create Agent
                             </button>
-                            {/* <button
+                            <button
                                 onClick={handleLaunchButtonClick}
                                 className="bg-blue-500 px-4 py-2 rounded text-white font-semibold"
                             >
                                 Launch
-                            </button> */}
+                            </button>
                         </div>
                     </div>
 

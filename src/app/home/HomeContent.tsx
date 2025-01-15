@@ -3320,6 +3320,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 return coin._id === coinId;
             });
 
+            console.log('selectedCoin', selectedCoin)
+
             let memecoinAddress = '';
             if (wallet) {
                 const tokenResult = await TokenCreator({
