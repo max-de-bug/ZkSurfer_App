@@ -106,6 +106,20 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletReadyState } from '@solana/wallet-adapter-base';
 import { toast } from "sonner";
 
+// Add TypeScript declarations for wallet browser properties
+declare global {
+  interface Window {
+    phantom?: {
+      solana?: {
+        isPhantom?: boolean;
+      };
+    };
+    solflare?: {
+      isSolflare?: boolean;
+    };
+  }
+}
+
 const LABELS = {
   "change-wallet": "Change wallet",
   connecting: "Connecting ...",
@@ -122,48 +136,50 @@ export const CustomWalletButton = () => {
   const { publicKey, wallet, connecting, wallets } = useWallet();
 
   const handleClick = () => {
-    // Detect if the user is on a mobile device
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    // Check if any wallet is available
-    const hasAvailableWallet = wallets.some(
+    // Improved wallet detection logic
+    const hasPhantom = wallets.some(
       (w) =>
-        w.readyState === WalletReadyState.Installed ||
-        w.readyState === WalletReadyState.Loadable
+        w.adapter.name === 'Phantom' &&
+        (w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable)
     );
 
-    if (!hasAvailableWallet) {
-      // Show toast for installing a wallet
-      toast.error('No available Solana wallets found. Please install a wallet to continue.', {
-        action: {
-          label: 'Install Phantom',
-          onClick: () => window.open('https://phantom.app/', '_blank'),
-        },
-        cancel: {
-          label: 'Install Solflare',
-          onClick: () => window.open('https://solflare.com/', '_blank'),
-        },
-      });
+    const hasSolflare = wallets.some(
+      (w) =>
+        w.adapter.name === 'Solflare' &&
+        (w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable)
+    );
+
+    // If we're on mobile, check if we're inside a wallet browser
+    if (isMobile) {
+      const isInPhantomBrowser = typeof window !== 'undefined' && window.phantom?.solana?.isPhantom;
+      const isInSolflareBrowser = typeof window !== 'undefined' && window.solflare?.isSolflare;
+
+      if (isInPhantomBrowser || isInSolflareBrowser) {
+        // We're inside a wallet's browser, show the connect modal directly
+        setVisible(true);
+        return;
+      }
+    }
+
+    // If at least one wallet is detected, show the connect modal
+    if (hasPhantom || hasSolflare) {
+      setVisible(true);
       return;
     }
 
-    if (isMobile && !wallet?.adapter) {
-      // Prompt mobile users to open the dApp in their wallet app
-      toast.error('Open this dApp in your wallet app for seamless connection.', {
-        action: {
-          label: 'Open in Phantom',
-          onClick: () => window.open('https://phantom.app/', '_blank'),
-        },
-        cancel: {
-          label: 'Open in Solflare',
-          onClick: () => window.open('https://solflare.com/', '_blank'),
-        },
-      });
-      return;
-    }
-
-    // If conditions are met, show the wallet modal
-    setVisible(true);
+    // If no wallets are detected, show the installation prompt
+    toast.error('No available Solana wallets found. Please install a wallet to continue.', {
+      action: {
+        label: 'Install Phantom',
+        onClick: () => window.open('https://phantom.app/', '_blank'),
+      },
+      cancel: {
+        label: 'Install Solflare',
+        onClick: () => window.open('https://solflare.com/', '_blank'),
+      },
+    });
   };
 
   useEffect(() => {
@@ -214,7 +230,6 @@ export const CustomWalletButton = () => {
     </div>
   );
 };
-
 
 // "use client";
 
