@@ -39,6 +39,7 @@ import CharecterJsonEditor from '@/component/ui/CharecterJsonEditor';
 import { useFormStore } from '@/stores/form-store';
 import useSWR, { mutate } from 'swr';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
 
 
 interface GeneratedTweet {
@@ -3632,17 +3633,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         return null;
     };
 
-
     const renderTextContent = (content: string) => {
         const parts = content.split('```');
         return parts.map((part, index) => {
             if (index % 2 === 0) {
-                // This is regular text
-                return (
-                    <div key={index} className="mb-4">
-                        {part.trim()}
-                    </div>
-                );
+                const formattedPart = part.replace(/\n/g, '\n\n');
+                // This is regular text - pass the current part, not the whole content
+                return <ReactMarkdown key={index}>{formattedPart}</ReactMarkdown>;
             } else {
                 // This is a code block
                 return (
@@ -3657,6 +3654,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             }
         });
     };
+
 
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
