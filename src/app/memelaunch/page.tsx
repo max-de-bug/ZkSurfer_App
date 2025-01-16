@@ -443,7 +443,7 @@ const MemeLaunchPage = () => {
         name: '',
         ticker: '',
         description: '',
-        model: 'pixtral-12b-2409',
+        model: 'Pixtral-12b-2409',
         trainingData: null,
         webpageUrl: '',
         twitter: '',
@@ -573,35 +573,137 @@ const MemeLaunchPage = () => {
         }
     };
 
-    const processTwitterData = async (twitterUrl: string) => {
+    // const processTwitterData = async (twitterUrl: string) => {
+    //     const client = new ApifyClient({
+    //         token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+    //     });
+
+    //     try {
+    //         const input = {
+    //             handles: [twitterUrl],
+    //             tweetsDesired: 10,
+    //             proxyConfig: { useApifyProxy: true },
+    //         };
+
+    //         // Start the actor run
+    //         const run = await client.actor("quacker/twitter-scraper").call(input);
+    //         // Wait for the run to finish
+    //         await client.run(run.id).waitForFinish();
+
+    //         // Get the output from the dataset
+    //         const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+    //         // Extract only the full_text from each tweet item
+    //         const tweetTexts = items.map(item => item.full_text);
+
+    //         return tweetTexts;
+    //     } catch (error) {
+    //         console.error('Error fetching tweets:', error);
+    //         return null;
+    //     }
+    // };
+
+    const processTwitterData = async (twitterUrls: string[]) => {
         const client = new ApifyClient({
             token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
         });
 
-        try {
-            const input = {
-                handles: [twitterUrl],
-                tweetsDesired: 10,
-                proxyConfig: { useApifyProxy: true },
-            };
+        const results = [];
 
-            // Start the actor run
-            const run = await client.actor("quacker/twitter-scraper").call(input);
-            // Wait for the run to finish
-            await client.run(run.id).waitForFinish();
+        for (const twitterUrl of twitterUrls) {
+            try {
+                // Ensure the URL has a valid protocol
+                let finalUrl = twitterUrl;
+                if (!twitterUrl.startsWith('http://') && !twitterUrl.startsWith('https://')) {
+                    finalUrl = `https://${twitterUrl}`;
+                }
 
-            // Get the output from the dataset
-            const { items } = await client.dataset(run.defaultDatasetId).listItems();
+                // Extract the username from the URL
+                const urlObj = new URL(finalUrl);
+                const pathname = urlObj.pathname;
+                const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+                const username = pathSegments[0]; // Assume the first segment is the username
 
-            // Extract only the full_text from each tweet item
-            const tweetTexts = items.map(item => item.full_text);
+                if (!username) {
+                    console.warn(`Invalid username extracted from URL: ${twitterUrl}`);
+                    continue;
+                }
 
-            return tweetTexts;
-        } catch (error) {
-            console.error('Error fetching tweets:', error);
-            return null;
+                console.log(`Processing tweets for username: ${username}`);
+
+                const input = {
+                    handles: [username],
+                    tweetsDesired: 10,
+                    proxyConfig: { useApifyProxy: true },
+                };
+
+                // Start the actor run
+                const run = await client.actor("quacker/twitter-scraper").call(input);
+                await client.run(run.id).waitForFinish();
+
+                // Get the output from the dataset
+                const { items } = await client.dataset(run.defaultDatasetId).listItems();
+                const tweetTexts = items.map(item => item.full_text);
+
+                // Store the result for this URL
+                results.push({ username, tweets: tweetTexts });
+            } catch (error) {
+                console.error(`Error fetching tweets for URL: ${twitterUrl}`, error);
+                results.push({ username: null, tweets: [] });
+            }
         }
+
+        return results;
     };
+
+
+    // const processTwitterData = async (twitterUrls: string[]) => {
+    //     const client = new ApifyClient({
+    //         token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+    //     });
+
+    //     const results = [];
+
+    //     for (const twitterUrl of twitterUrls) {
+    //         try {
+    //             // Extract the username from the URL
+    //             const urlObj = new URL(twitterUrl);
+    //             const pathname = urlObj.pathname;
+    //             const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+    //             const username = pathSegments[0]; // Assume the first segment is the username
+
+    //             if (!username) {
+    //                 console.warn(`Invalid username extracted from URL: ${twitterUrl}`);
+    //                 continue;
+    //             }
+
+    //             console.log(`Processing tweets for username: ${username}`);
+
+    //             const input = {
+    //                 handles: [username],
+    //                 tweetsDesired: 10,
+    //                 proxyConfig: { useApifyProxy: true },
+    //             };
+
+    //             // Start the actor run
+    //             const run = await client.actor("quacker/twitter-scraper").call(input);
+    //             await client.run(run.id).waitForFinish();
+
+    //             // Get the output from the dataset
+    //             const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    //             const tweetTexts = items.map(item => item.full_text);
+
+    //             // Store the result for this URL
+    //             results.push({ username, tweets: tweetTexts });
+    //         } catch (error) {
+    //             console.error(`Error fetching tweets for URL: ${twitterUrl}`, error);
+    //             results.push({ username: null, tweets: [] });
+    //         }
+    //     }
+
+    //     return results;
+    // };
+
     const { publicKey } = useWallet();
 
     const handleConfirmCharacter = async (finalJson: any) => {
@@ -989,36 +1091,38 @@ const MemeLaunchPage = () => {
                 url.includes('twitter.com') || url.includes('x.com')
             ) || '';
 
-            let finalUrl = twitterUrl;
+            // let finalUrl = twitterUrl;
 
-            if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                finalUrl = `https://${finalUrl}`;
-            }
+            // if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            //     finalUrl = `https://${finalUrl}`;
+            // }
 
-            if (finalUrl) {
-                try {
-                    // Convert to URL object so we can parse the pathname
-                    const urlObj = new URL(finalUrl);
-                    const pathname = urlObj.pathname;  // e.g., /elonmusk/
+            // if (finalUrl) {
+            //     try {
+            //         // Convert to URL object so we can parse the pathname
+            //         const urlObj = new URL(finalUrl);
+            //         const pathname = urlObj.pathname;  // e.g., /elonmusk/
 
-                    // Split on "/" and remove empty segments
-                    const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+            //         // Split on "/" and remove empty segments
+            //         const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
 
-                    // Assume the first segment is the username
-                    const username = pathSegments[0] || '';
-                    console.log('username', username)
+            //         // Assume the first segment is the username
+            //         const username = pathSegments[0] || '';
+            //         console.log('username', username)
 
-                    if (username) {
-                        // Now pass just the username instead of the whole URL
-                        twitterData = await processTwitterData(username);
-                        console.log('twitterData', twitterData)
+            //         if (username) {
+            //             // Now pass just the username instead of the whole URL
+            //             twitterData = await processTwitterData(username);
+            //             console.log('twitterData', twitterData)
 
-                        // Use twitterData as needed...
-                    }
-                } catch (error) {
-                    console.error('Invalid Twitter/X URL:', error);
-                }
-            }
+            //             // Use twitterData as needed...
+            //         }
+            //     } catch (error) {
+            //         console.error('Invalid Twitter/X URL:', error);
+            //     }
+            // }
+
+            const twitterResults = await processTwitterData(formData.trainingUrls);
 
             //const twitterData = await processTwitterData(twitterUrls);
 
@@ -1082,7 +1186,7 @@ Avoid Example Data: Do not use any example data from the prompt. Only use the us
 
 Character Name: Set the character's name to ${formData.ticker}.
 
-Twitter Data: Use the given tweets ${JSON.stringify(twitterData)} to understand the voice tone, style, and topics associated with the character.
+Twitter Data: Use the given tweets ${JSON.stringify(twitterResults)} to understand the voice tone, style, and topics associated with the character.
 
 Training Data: Use the training data ${JSON.stringify(trainingData)} to generate the rest of the data for the character, including bio, lore, knowledge, message examples, post examples, topics, style, and adjectives.
 
@@ -1225,7 +1329,6 @@ Example Output Structure:
                                         />
                                     </div>
 
-
                                     <div>
                                         <label className="block mb-2 text-sm">Choose Model</label>
                                         <select
@@ -1245,7 +1348,6 @@ Example Output Structure:
                                             ))}
                                         </select>
                                     </div>
-
 
                                     <div>
                                         <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
