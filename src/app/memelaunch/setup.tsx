@@ -188,8 +188,13 @@ interface TokenCreationData {
 }
 
 const uploadToPinata = async (base64Image: string, tokenData: TokenCreationData) => {
-  const pinataApiKey = 'd5e949a5faa656f9b0cb';
-  const pinataSecretApiKey = '68fec412fb311cec60dea2f12e97eadb6b9cc227d40796d6038d66800fd89992';
+  const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
+  const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_API_SECRET;
+
+  if (!pinataApiKey || !pinataSecretApiKey) {
+    throw new Error("Pinata API keys are not defined. Please check your environment variables.");
+  }
+
   const url = `https://api.pinata.cloud/pinning/pinFileToIPFS`;
 
   const base64ToBlob = (base64: string, contentType: string) => {
@@ -326,8 +331,11 @@ const uploadToPinata = async (base64Image: string, tokenData: TokenCreationData)
 //     createToken
 //   };
 const TokenCreator = async ({ wallet, tokenData }: { wallet: AnchorWallet; tokenData: TokenCreationData }) => {
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-  const programId = new PublicKey("ESxkgjA2FoZ3WrAt3aEewaaZ9nzZsaJfWe3DxffbED2Q");
+
+  const rpcEndpoint = process.env.NEXT_PUBLIC_RPC_ENDPOINT?.trim() || "";
+  const pId = process.env.NEXT_PUBLIC_PMP_PROGRAM_ID || "";
+  const connection = new Connection(rpcEndpoint, "confirmed");
+  const programId = new PublicKey(pId);
 
   const getMintAddress = (tokenName: string): PublicKey => {
     return anchor.web3.PublicKey.findProgramAddressSync(

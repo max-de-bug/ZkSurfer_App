@@ -706,7 +706,7 @@ const MemeLaunchPage = () => {
 
     const { publicKey } = useWallet();
 
-    const handleConfirmCharacter = async (finalJson: any) => {
+    const handleConfirmCharacter = async (finalJson: any, shouldRedirect = true) => {
         setError('');
         setSuccess(false);
         try {
@@ -730,7 +730,10 @@ const MemeLaunchPage = () => {
             setSuccess(true);
             // If you want to reset the JSON so user sees "character confirmed"
             setCharacterJson(null);
-            router.push('/');
+
+            if (shouldRedirect) {
+                router.push('/');
+            }
 
         } catch (err) {
             console.error('Character save error:', err);
@@ -917,7 +920,7 @@ const MemeLaunchPage = () => {
                 }, 60000);
 
                 // Trigger the character confirmation logic
-                handleConfirmCharacter(editableJson)
+                handleConfirmCharacter(editableJson, false)
                     .then(() => {
                         console.log('handleConfirmCharacter successfully executed');
                         clearInterval(interval); // Ensure the interval is cleared when successful
@@ -1688,7 +1691,7 @@ Example Output Structure:
 
                         <div className="flex justify-center gap-4 mt-4">
                             <button
-                                onClick={() => handleConfirmCharacter(editableJson)}
+                                onClick={() => handleConfirmCharacter(editableJson, true)}
                                 className="bg-green-500 px-4 py-2 rounded text-white font-semibold"
                             >
                                 Create Agent
