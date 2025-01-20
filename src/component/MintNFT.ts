@@ -7,6 +7,7 @@ import {
 } from "@metaplex-foundation/mpl-token-metadata";
 import { generateSigner, percentAmount } from "@metaplex-foundation/umi";
 import bs58 from 'bs58';
+import { toast } from 'sonner';
 
 const uploadToPinata = async (base64Image: string, address: string) => {
     const pinataApiKey = '687b32db4856209f2275';
@@ -99,7 +100,7 @@ const CreateNft = async (base64Image: any, name: string, wallet: any) => {
     const handleMint = async () => {
 
         if (wallet.publicKey && wallet.connected) {
-            const umi = createUmi("https://mainnet.helius-rpc.com/?api-key=ed5e8bee-19c0-4b10-bf9c-f4693aafe339");
+            const umi = createUmi("https://devnet.helius-rpc.com/?api-key=daee1b98-f564-4352-b8aa-d41654bc0e02");
             umi.use(walletAdapterIdentity(wallet)).use(mplTokenMetadata());
             const address = wallet.publicKey?.toBase58();
             console.log("address", address);
@@ -120,7 +121,7 @@ const CreateNft = async (base64Image: any, name: string, wallet: any) => {
 
                 const txSignature = bs58.encode(signature)
                 console.log("NFT minted with signature:", txSignature, "Result:", result);
-                console.log('hello')
+                toast.success('NFT minted successfully!')
                 return txSignature
             } catch (error) {
                 console.error("Error minting NFT:", error);

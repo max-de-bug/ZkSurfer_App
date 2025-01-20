@@ -3490,7 +3490,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             // console.log('signature', txSignature)
             // console.log('result', result)
             const response = await createNft(base64Image, 'NFT', wallet);
-            toast.success('NFT minted successfully!')
 
             console.log(response);
             // const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
@@ -3623,6 +3622,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         type="image"
                         onMintNFT={handleMintNFT}
                         onDownloadProof={handleDownload}
+                        loading={loading}
                     />
                 );
             } else {
@@ -4140,6 +4140,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                             imageResultType={message.command}
                                                             // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
                                                             onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                            loading={loading}
                                                         />
                                                     ) : (
                                                         <div className="inline-block p-1 rounded-lg text-white">

@@ -326,7 +326,7 @@ const uploadToPinata = async (base64Image: string, tokenData: TokenCreationData)
 //     createToken
 //   };
 const TokenCreator = async ({ wallet, tokenData }: { wallet: AnchorWallet; tokenData: TokenCreationData }) => {
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  const connection = new Connection("https://mainnet.helius-rpc.com/?api-key=daee1b98-f564-4352-b8aa-d41654bc0e02", "confirmed");
   const programId = new PublicKey("ESxkgjA2FoZ3WrAt3aEewaaZ9nzZsaJfWe3DxffbED2Q");
 
   const getMintAddress = (tokenName: string): PublicKey => {

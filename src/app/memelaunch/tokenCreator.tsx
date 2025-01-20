@@ -182,6 +182,9 @@ export const TokenCreator = async ({
             const data = await pumpResponse.arrayBuffer();
             const tx = VersionedTransaction.deserialize(new Uint8Array(data));
 
+            const { blockhash } = await web3Connection.getLatestBlockhash('finalized');
+            tx.message.recentBlockhash = blockhash;
+
             tx.sign([mintKeypair]);
 
             if (wallet.signTransaction) {
