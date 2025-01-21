@@ -3492,11 +3492,35 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 </div>
                             </div>
 
-                            <div className="p-4 flex-shrink-0">
-                                <div>
-                                    <CustomWalletButton />
+                            <a
+                                href="https://app.gitbook.com/o/rmFFGxpNLUTqMbbTMW3k/s/cD3hqS7a0U5cMxQQhMo6/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                            >
+                                <div className="p-3 flex-shrink-0 mb-2">
+                                    <div className="flex flex-row gap-2 p-[1px] rounded-lg bg-gradient-to-r from-[#FFFFFF] via-[#6AD7FF] via-35% to-[#FFFFFF]">
+                                        <div className="flex flex-row gap-5 bg-[#08131f] p-3 rounded-lg w-full">
+                                            <div>
+                                                <Image
+                                                    src="images/Group.svg"
+                                                    alt="Docs"
+                                                    width={30}
+                                                    height={30}
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="font-ttfirs bg-gradient-to-b from-[#2AF698] to-[#5BBFCD] text-transparent bg-clip-text text-sm">
+                                                    Need Help?
+                                                </div>
+                                                <div className="text-xs font-ttfirs">Check our docs</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            </a>
+
+
                         </div>
                     </div>
 
