@@ -50,9 +50,9 @@ const Description: FC<{ text: string }> = ({ text }) => {
 
 export const CoinCard: FC<CoinCardProps> = React.memo(({ coin }) => {
 
-    if (!coin.address) {
-        return null;
-    }
+    // if (!coin.address) {
+    //     return null;
+    // }
     return (
         <Card
             className={`text-left w-full cursor-pointer transition-colors relative overflow-hidden rounded-xl border-[#7E83A9] ${!coin.address ? 'cursor-not-allowed' : ''

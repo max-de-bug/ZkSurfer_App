@@ -3355,6 +3355,18 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 AI Coin Marketplace
                                             </div>
                                         </Link>
+                                        <Link href="/explore" passHref >
+                                            <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
+                                                <Image
+                                                    src="images/marketplace.svg"
+                                                    alt="explore marketplace"
+                                                    width={15}
+                                                    height={15}
+                                                    className="my-2"
+                                                />
+                                                Explore AI Agents
+                                            </div>
+                                        </Link>
 
                                     </div>
                                     <div className="mb-4">
