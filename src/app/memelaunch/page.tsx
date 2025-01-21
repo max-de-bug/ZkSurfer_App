@@ -13,6 +13,8 @@ import { useTickerStore } from '@/stores/ticker-store';
 import { JsonViewer } from '@textea/json-viewer'
 import { ApifyClient } from 'apify-client';
 import { Wallet } from '@solana/wallet-adapter-react';
+import ButtonV1New from '@/component/ui/buttonV1New';
+import ButtonV2New from '@/component/ui/buttonV2New';
 
 interface FormDataType {
     name: string;
@@ -167,7 +169,7 @@ function renderJsonForm(
                             <div className="block text-sm font-semibold text-gray-200">
                                 {key} (Non-editable)
                             </div>
-                            <div className="text-gray-500">{JSON.stringify(data[key])}</div>
+                            <div className="text-gray-500 break-words whitespace-normal overflow-hidden">{JSON.stringify(data[key])}</div>
                         </div>
                     );
                 }
@@ -434,6 +436,8 @@ const MemeLaunchPage = () => {
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showImageUpload, setShowImageUpload] = useState(false);
@@ -1279,14 +1283,175 @@ Example Output Structure:
 
     const maskedJsonData = maskSecrets(editableJson);
 
+    // Function to handle refresh
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+
+        const currentTicker = formData.ticker;
+
+        //secondhalf 
+        if (!currentTicker) {
+            throw new Error('Selected ticker is null. Please set a valid ticker.');
+        }
+
+        const trainingData =
+            useTickerStore.getState().tickerInfo[currentTicker]?.training_data || [];
+
+        const twitterResults = await processTwitterData(formData.trainingUrls);
+
+        try {
+            const characterGenResponse = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: "system",
+                            content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
+
+Name: The character's name.
+
+Clients: A list of clients (if any).
+
+ModelProvider: The model provider (e.g., "zkagi").
+
+Settings:
+
+Secrets: Any secrets related to the character.
+
+Voice: Voice settings, including the model (e.g., "en_US-male-medium").
+
+Bio: Key points about the character's background, achievements, and beliefs.
+
+Lore: Additional backstory about the character.
+
+Knowledge: Specific knowledge or insights the character has.
+
+MessageExamples: Examples of messages the character might send, including user interactions.
+
+PostExamples: Examples of posts the character might make.
+
+Topics: Key topics the character is associated with.
+
+Style:
+
+All: General stylistic elements.
+
+Chat: Stylistic elements specific to chat interactions.
+
+Post: Stylistic elements specific to posts.
+
+Adjectives: A list of adjectives commonly used by the character.
+
+Instructions:
+
+Extract Information: Read the user-provided data and extract relevant information for each section.
+
+Organize Data: Organize the extracted information into the appropriate sections.
+
+Format JSON: Ensure the final output is in valid JSON format.
+
+Avoid Example Data: Do not use any example data from the prompt. Only use the user-provided data to populate the fields.`
+                        },
+                        {
+                            role: "user",
+                            content: `Generate a character.json file using the following user-provided data:
+
+Character Name: Set the character's name to ${formData.ticker}.
+
+Twitter Data: Use the given tweets ${JSON.stringify(twitterResults)} to understand the voice tone, style, and topics associated with the character.
+
+Training Data: Use the training data ${JSON.stringify(trainingData)} to generate the rest of the data for the character, including bio, lore, knowledge, message examples, post examples, topics, style, and adjectives.
+
+Ensure the following:
+
+All fields in the character.json file are populated using the provided user data.
+
+Do not use any example data from the system prompt.
+
+The output should be in valid JSON format.
+
+Example Output Structure:
+{
+  "name": "${formData.ticker}",
+  "clients": [], // Populate using user data
+  "modelProvider": "", // Populate using user data
+  "settings": {
+    "secrets": {}, // Populate using user data
+    "voice": {
+      "model": "" // Populate using user data
+    }
+  },
+  "bio": [], // Populate using user data
+  "lore": [], // Populate using user data
+  "knowledge": [], // Populate using user data
+  "messageExamples": [
+    {
+      "user": "{{user1}}",
+      "content": {
+        "text": "" // Populate using user data
+      }
+    },
+    {
+      "user": "${formData.ticker}",
+      "content": {
+        "text": "" // Populate using user data
+      }
+    }
+  ],
+  "postExamples": [], // Populate using user data
+  "topics": [], // Populate using user data
+  "style": {
+    "all": [], // Populate using user data
+    "chat": [], // Populate using user data
+    "post": [] // Populate using user data
+  },
+  "adjectives": [] // Populate using user data
+}`,
+                        },
+                    ],
+                }),
+            });
+
+            if (!characterGenResponse.ok) {
+                throw new Error("Failed to regenerate character JSON.");
+            }
+
+            const characterData = await characterGenResponse.json();
+            const contentString = characterData.content;
+            const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
+
+            if (jsonMatch && jsonMatch[1]) {
+                const parsedJson = JSON.parse(jsonMatch[1]);
+                setCharacterJson(parsedJson);
+                setEditableJson(parsedJson);
+                toast.success("Character JSON refreshed successfully!");
+            } else {
+                throw new Error("Failed to parse the regenerated character JSON.");
+            }
+        } catch (error) {
+            console.error("Error refreshing character JSON:", error);
+            toast.error("Failed to refresh character JSON. Please try again.");
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#08121f] text-white p-4">
             <div className="max-w-full mx-auto">
-                <div className="mb-6 flex items-center">
+                <div className="mb-6 flex justify-between items-center">
                     <ArrowLeft
                         className="w-6 h-6 mr-4 cursor-pointer"
                         onClick={() => router.back()}
                     />
+                    {characterJson && (
+                        <ButtonV1New
+                            onClick={handleRefresh} width="w-1/6"
+                        >
+                            {isRefreshing ? "Refreshing..." : "Refresh"}
+                        </ButtonV1New>
+                    )}
                 </div>
 
                 {!characterJson ? (
@@ -1615,14 +1780,15 @@ Example Output Structure:
                                         />
                                     </div>
 
-                                    <button
+                                    {/* <button
                                         type="button"
                                         onClick={submit}
                                         disabled={isSubmitting}
                                         className="w-full bg-white text-black font-bold py-4 rounded-lg mt-6 disabled:opacity-50"
                                     >
                                         {isSubmitting ? 'PROCESSING...' : 'NEXT'}
-                                    </button>
+                                    </button> */}
+                                    <ButtonV2New isSubmitting={isSubmitting} onClick={submit} />
                                 </div>
                             )}
                         </Form>
@@ -1691,18 +1857,16 @@ Example Output Structure:
                         </div>
 
                         <div className="flex justify-center gap-4 mt-4">
-                            <button
+                            <ButtonV1New
                                 onClick={() => handleConfirmCharacter(editableJson, true)}
-                                className="bg-green-500 px-4 py-2 rounded text-white font-semibold"
                             >
                                 Create Agent
-                            </button>
-                            <button
+                            </ButtonV1New>
+                            <ButtonV1New
                                 onClick={handleLaunchButtonClick}
-                                className="bg-blue-500 px-4 py-2 rounded text-white font-semibold"
                             >
                                 Launch
-                            </button>
+                            </ButtonV1New>
                         </div>
                     </div>
 

@@ -3529,7 +3529,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 <div className="flex-shrink-0 mr-3">
                                                     <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
                                                         {message.role === 'user' ? (
-                                                            userEmail.charAt(0).toUpperCase()
+                                                            <span>U</span>
                                                         ) : (
                                                             <Image
                                                                 src="images/tiger.svg"
@@ -3549,7 +3549,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                                 'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
                                                                 } ${!isMobile ? `mt-0.5` : ``}`}
                                                         >
-                                                            {message.role === 'user' ? userEmail : 'ZkTerminal'}
+                                                            {message.role === 'user' ? 'User' : 'ZkTerminal'}
 
                                                         </span>
                                                         {message.role !== 'user' && (
