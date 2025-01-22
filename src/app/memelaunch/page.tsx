@@ -1052,7 +1052,7 @@ const MemeLaunchPage = () => {
             if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
 
             const result = await response.json();
-            toast.success(`Coin "${formData.name}" has been successfully created!`);
+            toast.success(`Coin "${formData.name}" data has been successfully added!`);
 
             const tickerObject = {
                 description: formData.description,
@@ -1423,6 +1423,15 @@ Example Output Structure:
 
             if (jsonMatch && jsonMatch[1]) {
                 const parsedJson = JSON.parse(jsonMatch[1]);
+
+                const currentSecrets = editableJson?.settings?.secrets || {};
+                const currentClients = editableJson?.clients || [];
+
+                parsedJson.settings = {
+                    ...parsedJson.settings,
+                    secrets: currentSecrets, // Carry forward secrets
+                };
+                parsedJson.clients = currentClients;
                 setCharacterJson(parsedJson);
                 setEditableJson(parsedJson);
                 toast.success("Character JSON refreshed successfully!");
