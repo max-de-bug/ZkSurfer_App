@@ -23,4 +23,10 @@ export interface ApiCoin {
 export interface ApiResponse {
     success: boolean;
     data: ApiCoin[];
+    pagination: {
+        totalCoins: number;
+        totalPages: number;
+        currentPage: number;
+        limit: number;
+    };
 }
