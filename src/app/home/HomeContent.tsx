@@ -3762,11 +3762,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 value={inputMessage}
                                                 onChange={handleInputChange}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault(); // Prevent default new line
-                                                        handleSubmit(e); // Pass the event to handleSubmit
+                                                    if (e.key === "Enter" && !e.shiftKey) {
+                                                      e.preventDefault();
+                                                      if (inputMessage.trim() !== "") {
+                                                        handleSubmit(e);
+                                                      }
                                                     }
-                                                }}
+                                                  }}
                                                 placeholder="Message ZkTerminal"
                                                 className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
                                                 style={{
@@ -3796,11 +3798,19 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         {/* Submit button */}
                                         <button
                                             type="submit"
-                                            className="bg-white text-black p-1 m-1 rounded-md font-bold"
+                                            className={`p-1 m-1 rounded-md font-bold ${
+                                                inputMessage.trim() === ""
+                                                  ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                                                  : "bg-white text-black"
+                                              }`}
                                             style={{
                                                 height: '1.5rem', // Same height as the textarea
                                             }}
-                                            disabled={isLoading || !wallet.connected}
+                                            disabled={
+                                                isLoading ||
+                                                !wallet.connected ||
+                                                inputMessage.trim() === ""
+                                              }
                                         >
                                             <BsArrowReturnLeft />
                                         </button>
