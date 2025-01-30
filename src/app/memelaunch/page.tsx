@@ -16,6 +16,7 @@ import { Wallet } from '@solana/wallet-adapter-react';
 import ButtonV1New from '@/component/ui/buttonV1New';
 import ButtonV2New from '@/component/ui/buttonV2New';
 import { useSearchParams } from 'next/navigation';
+import { useModelStore } from '@/stores/useModel-store';
 
 interface FormDataType {
     name: string;
@@ -440,6 +441,7 @@ const MemeLaunchPage = () => {
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const { selectedModel, setSelectedModel } = useModelStore();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -1212,6 +1214,7 @@ const MemeLaunchPage = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    selectedModel,
                     messages: [
                         {
                             role: "system",
@@ -1377,6 +1380,7 @@ Example Output Structure:
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    selectedModel,
                     messages: [
                         {
                             role: "system",

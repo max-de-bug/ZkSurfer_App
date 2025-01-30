@@ -41,6 +41,7 @@ import useSWR, { mutate } from 'swr';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { CreateAgentModal } from '@/component/ui/AgentModal';
+import { useModelStore } from '@/stores/useModel-store';
 
 
 interface GeneratedTweet {
@@ -223,6 +224,8 @@ const HomeContent: FC = () => {
     const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
     const [imageResultType, setImageResultType] = useState<string | null>(null);
 
+    const [thoughtsMap, setThoughtsMap] = useState<Record<number, string | null>>({});
+
     const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
 
     // const [showAgentTypePopup, setShowAgentTypePopup] = useState(false);
@@ -251,6 +254,8 @@ const HomeContent: FC = () => {
     // const [showTickerTable, setShowTickerTable] = useState(false);
     const { setAvailableTickers, setSelectedMemeTicker, availableTickers } = useTickerStore();
 
+    const [openThoughtsMap, setOpenThoughtsMap] = useState<Record<number, boolean>>({});
+
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
     };
@@ -266,6 +271,9 @@ const HomeContent: FC = () => {
     // const { address } = useAccount();
     // const { data: walletClient } = useWalletClient();
     // const publicClient = usePublicClient();
+
+    const { selectedModel, setSelectedModel } = useModelStore();
+    const [isOpen, setIsOpen] = useState(false);
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
     const [apiMessages, setApiMessages] = useState<Message[]>([]);
@@ -617,6 +625,7 @@ const HomeContent: FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    selectedModel: "Mistral",
                     messages: [{
                         role: 'user',
                         content: [{
@@ -1656,36 +1665,6 @@ const HomeContent: FC = () => {
             return;
         }
 
-
-        // Command handling for /select
-        // if (fullMessage.startsWith('/select')) {
-        //     const numberStr = fullMessage.replace('/select', '').trim();
-        //     const selectedIndex = parseInt(numberStr) - 1;
-
-        //     if (!isNaN(selectedIndex) && selectedIndex >= 0 && selectedIndex < tickers.length) {
-        //         const selectedTicker = tickers[selectedIndex];
-        //         setSelectedMemeTicker(selectedTicker);
-        //         setActiveNavbarTicker(selectedTicker);
-        //         setInputMessage('');
-
-        //         // Add a system message to show the selection
-        //         const systemMessage: Message = {
-        //             role: 'assistant',
-        //             content: `Selected ticker: ${selectedTicker}`,
-        //             type: 'text'
-        //         };
-        //         setDisplayMessages(prev => [...prev, systemMessage]);
-        //     } else {
-        //         // Show error message for invalid selection
-        //         const errorMessage: Message = {
-        //             role: 'assistant',
-        //             content: 'Invalid ticker selection. Please choose a valid number.',
-        //             type: 'text'
-        //         };
-        //         setDisplayMessages(prev => [...prev, errorMessage]);
-        //     }
-        //     return; // Don't proceed with API call
-        // }
         if (fullMessage.startsWith('/select')) {
             const numberStr = fullMessage.replace('/select', '').trim();
             const selectedIndex = parseInt(numberStr) - 1;
@@ -2071,6 +2050,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
+                                selectedModel,
                                 messages: [...apiMessages],
                                 directCommand: {
                                     type: 'image-gen',
@@ -2470,6 +2450,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        selectedModel,
                         messages: [...apiMessages, apiMessage],
                         directCommand: {
                             type: commandType,
@@ -2599,6 +2580,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             messages: [...apiMessages, apiMessage],
+                            selectedModel: 'Mistral',
                         }),
                         signal: controller.signal
                     });
@@ -2666,7 +2648,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         const response = await fetch('/api/chat', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ messages }), // send entire history
+                            body: JSON.stringify({ messages, selectedModel }), // send entire history
                             signal: controller.signal,
                         });
                         clearTimeout(timeoutId);
@@ -2716,12 +2698,24 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
+                    const extractThought = (message: string) => {
+                        const thinkMatch = message.match(/<think>([\s\S]*?)<\/think>/);
+                        if (thinkMatch) {
+                            return {
+                                thought: thinkMatch[1].trim(),
+                                content: message.replace(thinkMatch[0], "").trim(),
+                            };
+                        }
+                        return { thought: null, content: message };
+                    };
+
                     try {
                         const response = await fetch('/api/chat', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 messages: [...apiMessages, apiMessage],
+                                selectedModel
                             }),
                             signal: controller.signal
                         });
@@ -2749,11 +2743,19 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 content: data.prompt,
                             };
                         } else {
+                            const { thought, content } = extractThought(data.content);
+                            const finalContent = JSON.stringify({ thought, content });
+
                             assistantMessageForDisplay = {
                                 role: 'assistant',
-                                content: data.content,
+                                content: finalContent,
                             };
                             assistantMessageForAPI = assistantMessageForDisplay;
+
+                            // setThoughtsMap((prev) => ({
+                            //     ...prev,
+                            //     [apiMessages.length]: thought,
+                            // }));
                         }
 
                         setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
@@ -3062,10 +3064,14 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         URL.revokeObjectURL(url);
     };
 
+
     const renderMessageContent = (message: Message) => {
+        // Handle React elements
         if (React.isValidElement(message.content)) {
             return message.content;
         }
+
+        // Handle array content (existing logic)
         if (Array.isArray(message.content)) {
             return (
                 <div className="flex flex-col space-y-2">
@@ -3075,25 +3081,16 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                 const pdfName = content.text.match(/\[PDF: (.*?)\]/)?.[1] || 'Unnamed PDF';
                                 return (
                                     <div key={index} className="flex items-center space-x-2 bg-[#24284E] rounded-lg p-2 border border-[#BDA0FF]">
-                                        <Image
-                                            src="/images/pdf.svg"
-                                            alt="PDF icon"
-                                            width={20}
-                                            height={20}
-                                        />
+                                        <Image src="/images/pdf.svg" alt="PDF icon" width={20} height={20} />
                                         <span className="text-[#BDA0FF] text-xs">{pdfName}</span>
                                     </div>
                                 );
                             }
-                            return (
-                                <div key={index} className="text-white">
-                                    {renderTextContent(content.text || '')}
-                                </div>
-                            );
+                            return <div key={index} className="text-white">{renderTextContent(content.text || '')}</div>;
                         }
                         return null;
                     })}
-                    {/* New wrapper for images */}
+                    {/* Image block */}
                     <div className="flex flex-row space-x-2">
                         {message.content
                             .filter(content => content.type === 'image_url')
@@ -3111,30 +3108,27 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             ))}
                     </div>
                 </div>
-
             );
         }
-        else if (typeof message.content === 'string') {
-            // Check if it's a user message with a command
+
+        // Handle string content (user commands & assistant messages)
+        if (typeof message.content === 'string') {
+            // User commands processing
             if (message.role === 'user') {
                 let displayedContent = message.content;
 
-                // Handle '/image-gen' and '/meme-coin'
                 if (displayedContent.startsWith('/image-gen')) {
-                    // Remove '/image-gen' and show "Generate image of"
                     const prompt = displayedContent.replace('/image-gen', '').trim();
                     displayedContent = `Generate image of: ${prompt}`;
                 } else if (displayedContent.startsWith('/create-agent')) {
-                    // Remove '/create-agent' and show "Generate a meme for"
                     const prompt = displayedContent.replace('/create-agent', '').trim();
                     displayedContent = `Generate an agent for ${prompt}`;
                 }
 
-                // Render the modified content
                 return <div className="text-white">{displayedContent}</div>;
             }
 
-            // For assistant responses that are images
+            // Assistant responses (image type)
             if (message.role === 'assistant' && message.type === 'image') {
                 return (
                     <ResultBlock
@@ -3145,13 +3139,138 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         loading={loading}
                     />
                 );
-            } else {
-                // For other assistant responses (text)
-                return renderTextContent(message.content);
             }
+
+            // Assistant responses (text-based, including thoughts)
+            if (message.role === 'assistant') {
+                let parsedContent;
+                try {
+                    parsedContent = JSON.parse(message.content); // Attempt to parse JSON
+                } catch (error) {
+                    console.error("Error parsing message content:", error);
+                    parsedContent = { content: message.content, thought: null }; // Fallback in case of invalid JSON
+                }
+
+                const { content, thought } = parsedContent;
+
+                return (
+                    <div>
+                        {/* Render Thought Below Message (Only for Assistant) */}
+                        {thought && (
+                            <div className="mt-2 p-3 border-l-4 border-indigo-500  dark:bg-indigo-900 rounded-lg mb-1">
+                                <button
+                                    onClick={(e) => e.currentTarget.nextSibling.classList.toggle("hidden")}
+                                    className="text-indigo-600 dark:text-indigo-300 font-semibold flex items-center"
+                                >
+                                    ▼ Hide Thought
+                                </button>
+                                <div className="mt-2 text-gray-300 text-sm hidden">
+                                    <strong className="text-white">Thought:</strong> {thought}
+                                </div>
+                            </div>
+                        )}
+                        {/* Render Message Content */}
+                        <p className="text-white">{content}</p>
+                    </div>
+                );
+            }
+
+            return renderTextContent(message.content);
         }
+
         return null;
     };
+
+    // const renderMessageContent = (message: Message) => {
+    //     if (React.isValidElement(message.content)) {
+    //         return message.content;
+    //     }
+    //     if (Array.isArray(message.content)) {
+    //         return (
+    //             <div className="flex flex-col space-y-2">
+    //                 {message.content.map((content, index) => {
+    //                     if (content.type === 'text') {
+    //                         if (content.text?.startsWith('[PDF:')) {
+    //                             const pdfName = content.text.match(/\[PDF: (.*?)\]/)?.[1] || 'Unnamed PDF';
+    //                             return (
+    //                                 <div key={index} className="flex items-center space-x-2 bg-[#24284E] rounded-lg p-2 border border-[#BDA0FF]">
+    //                                     <Image
+    //                                         src="/images/pdf.svg"
+    //                                         alt="PDF icon"
+    //                                         width={20}
+    //                                         height={20}
+    //                                     />
+    //                                     <span className="text-[#BDA0FF] text-xs">{pdfName}</span>
+    //                                 </div>
+    //                             );
+    //                         }
+    //                         return (
+    //                             <div key={index} className="text-white">
+    //                                 {renderTextContent(content.text || '')}
+    //                             </div>
+    //                         );
+    //                     }
+    //                     return null;
+    //                 })}
+    //                 {/* New wrapper for images */}
+    //                 <div className="flex flex-row space-x-2">
+    //                     {message.content
+    //                         .filter(content => content.type === 'image_url')
+    //                         .map((content, index) => (
+    //                             <Image
+    //                                 key={index}
+    //                                 src={content.image_url?.url || ''}
+    //                                 alt="Uploaded content"
+    //                                 width={80}
+    //                                 height={80}
+    //                                 className="object-cover rounded-lg"
+    //                                 layout="fixed"
+    //                                 quality={75}
+    //                             />
+    //                         ))}
+    //                 </div>
+    //             </div>
+
+    //         );
+    //     }
+    //     else if (typeof message.content === 'string') {
+    //         // Check if it's a user message with a command
+    //         if (message.role === 'user') {
+    //             let displayedContent = message.content;
+
+    //             // Handle '/image-gen' and '/meme-coin'
+    //             if (displayedContent.startsWith('/image-gen')) {
+    //                 // Remove '/image-gen' and show "Generate image of"
+    //                 const prompt = displayedContent.replace('/image-gen', '').trim();
+    //                 displayedContent = `Generate image of: ${prompt}`;
+    //             } else if (displayedContent.startsWith('/create-agent')) {
+    //                 // Remove '/create-agent' and show "Generate a meme for"
+    //                 const prompt = displayedContent.replace('/create-agent', '').trim();
+    //                 displayedContent = `Generate an agent for ${prompt}`;
+    //             }
+
+    //             // Render the modified content
+    //             return <div className="text-white">{displayedContent}</div>;
+    //         }
+
+    //         // For assistant responses that are images
+    //         if (message.role === 'assistant' && message.type === 'image') {
+    //             return (
+    //                 <ResultBlock
+    //                     content={message.content}
+    //                     type="image"
+    //                     onMintNFT={handleMintNFT}
+    //                     onDownloadProof={handleDownload}
+    //                     loading={loading}
+    //                 />
+    //             );
+    //         } else {
+    //             // For other assistant responses (text)
+    //             return renderTextContent(message.content);
+    //         }
+    //     }
+    //     return null;
+    // };
 
     const renderTextContent = (content: string) => {
         const parts = content.split('```');
@@ -3247,7 +3366,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                     const response = await fetch('/api/chat', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ messages }),
+                                        body: JSON.stringify({ messages, selectedModel }),
                                     });
 
                                     if (!response.ok) {
@@ -3344,6 +3463,39 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         )}
                         <div>
                             <CustomWalletButton />
+                        </div>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsOpen(!isOpen)}
+                                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md focus:outline-none text-white"
+                            >
+                                {selectedModel} ▼
+                            </button>
+                            {isOpen && (
+                                <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                    <button
+                                        className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                        onClick={() => {
+                                            setSelectedModel("DeepSeek");
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        DeepSeek
+                                    </button>
+                                    <button
+                                        className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                        onClick={() => {
+                                            console.log("Before setting:", useModelStore.getState().selectedModel);
+                                            setSelectedModel("Mistral");
+                                            console.log("After setting:", useModelStore.getState().selectedModel);
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        Mistral
+                                    </button>
+
+                                </div>
+                            )}
                         </div>
                         {/* <button className="text-black bg-white p-1 rounded-lg">
                             <FaPen />
@@ -3635,94 +3787,99 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             ) : (
                                 <div>
                                     {/* Render chat messages */}
-                                    {displayMessages.map((message, index) => (
-                                        <div key={index} className="mb-4 flex justify-start w-full">
+                                    {displayMessages.map((message, index) => {
+                                        const thought = thoughtsMap?.[index];
+                                        const isOpen = openThoughtsMap[index] ?? true;
+                                        return (
                                             <div key={index} className="mb-4 flex justify-start w-full">
-                                                <div className="flex-shrink-0 mr-3">
-                                                    <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
-                                                        {message.role === 'user' ? (
-                                                            <span>U</span>
-                                                        ) : (
-                                                            <Image
-                                                                src="images/tiger.svg"
-                                                                alt="logo"
-                                                                width={40}
-                                                                height={40}
-                                                                className='p-2'
-                                                            />
-                                                        )}
+                                                <div key={index} className="mb-4 flex justify-start w-full">
+                                                    <div className="flex-shrink-0 mr-3">
+                                                        <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                                            {message.role === 'user' ? (
+                                                                <span>U</span>
+                                                            ) : (
+                                                                <Image
+                                                                    src="images/tiger.svg"
+                                                                    alt="logo"
+                                                                    width={40}
+                                                                    height={40}
+                                                                    className='p-2'
+                                                                />
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex flex-col items-start">
-                                                    <div className="flex items-center justify-between w-full mt-2">
+                                                    <div className="flex flex-col items-start">
+                                                        <div className="flex items-center justify-between w-full mt-2">
 
-                                                        <span
-                                                            className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
-                                                                'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
-                                                                } ${!isMobile ? `mt-0.5` : ``}`}
-                                                        >
-                                                            {message.role === 'user' ? 'User' : 'ZkTerminal'}
+                                                            <span
+                                                                className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                                                    'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                                                    } ${!isMobile ? `mt-0.5` : ``}`}
+                                                            >
+                                                                {message.role === 'user' ? 'User' : 'ZkTerminal'}
 
-                                                        </span>
-                                                        {message.role !== 'user' && (
-                                                            <div className="flex space-x-2">
-                                                                <button className="text-white rounded-lg">
-                                                                    <Image
-                                                                        src="images/Download.svg"
-                                                                        alt="logo"
-                                                                        width={20}
-                                                                        height={20}
-                                                                    />
-                                                                </button>
-                                                                <button className="text-white rounded-lg">
-                                                                    <Image
-                                                                        src="images/share.svg"
-                                                                        alt="logo"
-                                                                        width={20}
-                                                                        height={20}
-                                                                    />
-                                                                </button>
+                                                            </span>
+                                                            {message.role !== 'user' && (
+                                                                <div className="flex space-x-2">
+                                                                    <button className="text-white rounded-lg">
+                                                                        <Image
+                                                                            src="images/Download.svg"
+                                                                            alt="logo"
+                                                                            width={20}
+                                                                            height={20}
+                                                                        />
+                                                                    </button>
+                                                                    <button className="text-white rounded-lg">
+                                                                        <Image
+                                                                            src="images/share.svg"
+                                                                            alt="logo"
+                                                                            width={20}
+                                                                            height={20}
+                                                                        />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {message.role === 'assistant' &&
+
+                                                            (typeof message.content === 'string' && message.content.startsWith('/')) ? (
+                                                            <ResultBlock
+                                                                content={message.content}
+                                                                type="image"
+                                                                onMintNFT={handleMintNFT}
+                                                                onDownloadProof={handleDownload}
+                                                                imageResultType={message.command}
+                                                                // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                                                // onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                                onLaunchMemeCoin={
+                                                                    message.command === "create-agent"
+                                                                        ? () => setShowCreateAgentModal(true)
+                                                                        : undefined
+                                                                }
+
+                                                                // onLaunchMemeCoin={
+                                                                //     message.command === 'create-agent'
+                                                                //         ? () => {
+                                                                //             handleLaunchMemeCoin();
+                                                                //             handleLaunchAgent();
+                                                                //         }
+                                                                //         : undefined
+                                                                // }
+                                                                loading={loading}
+                                                            // loading={message.command === "create-agent" ? loading : loading}
+                                                            />
+                                                        ) : (
+                                                            <div className="inline-block p-1 rounded-lg text-white">
+                                                                {renderMessageContent(message)}
                                                             </div>
                                                         )}
+
                                                     </div>
-                                                    {message.role === 'assistant' &&
-
-                                                        (typeof message.content === 'string' && message.content.startsWith('/')) ? (
-                                                        <ResultBlock
-                                                            content={message.content}
-                                                            type="image"
-                                                            onMintNFT={handleMintNFT}
-                                                            onDownloadProof={handleDownload}
-                                                            imageResultType={message.command}
-                                                            // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                                            // onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
-                                                            onLaunchMemeCoin={
-                                                                message.command === "create-agent"
-                                                                    ? () => setShowCreateAgentModal(true)
-                                                                    : undefined
-                                                            }
-
-                                                            // onLaunchMemeCoin={
-                                                            //     message.command === 'create-agent'
-                                                            //         ? () => {
-                                                            //             handleLaunchMemeCoin();
-                                                            //             handleLaunchAgent();
-                                                            //         }
-                                                            //         : undefined
-                                                            // }
-                                                            loading={loading}
-                                                            // loading={message.command === "create-agent" ? loading : loading}
-                                                        />
-                                                    ) : (
-                                                        <div className="inline-block p-1 rounded-lg text-white">
-                                                            {renderMessageContent(message)}
-                                                        </div>
-                                                    )}
-
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    }
+                                    )}
 
                                     {isLoading && (
                                         processingCommand ? (
