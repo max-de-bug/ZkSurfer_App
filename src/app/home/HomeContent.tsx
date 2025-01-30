@@ -40,6 +40,7 @@ import { useFormStore } from '@/stores/form-store';
 import useSWR, { mutate } from 'swr';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
+import { CreateAgentModal } from '@/component/ui/AgentModal';
 
 
 interface GeneratedTweet {
@@ -89,6 +90,25 @@ interface ShowSaveFilePickerOptions {
         accept: Record<string, string[]>;
     }>;
 }
+
+interface AgentTypePopupProps {
+    onSelect: (agentType: string) => void;
+}
+
+const AgentTypePopup: React.FC<AgentTypePopupProps> = ({ onSelect }) => (
+    <div className="absolute bottom-full mb-2 bg-[#171D3D] rounded-lg shadow-lg z-50">
+        {['Micro-Agent', 'Super-Agent', 'Secret-Agent'].map((agent, index) => (
+            <button
+                key={index}
+                onClick={() => onSelect(agent.toLowerCase().replace(' ', '-'))}
+                className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+            >
+                {agent}
+            </button>
+        ))}
+    </div>
+);
+
 
 // Extend the window interface
 declare global {
@@ -202,6 +222,11 @@ const HomeContent: FC = () => {
     // const inputRef = useRef<HTMLInputElement>(null);
     const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
     const [imageResultType, setImageResultType] = useState<string | null>(null);
+
+    const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
+
+    // const [showAgentTypePopup, setShowAgentTypePopup] = useState(false);
+    const [selectedAgentType, setSelectedAgentType] = useState<string | null>(null);
 
     const { editMode, setEditMode } = useCharacterEditStore();
     const { messages, addMessage, setMessages } = useConversationStore.getState();
@@ -688,21 +713,45 @@ const HomeContent: FC = () => {
     //     }
     // };
 
+    const handleAgentTypeSelect = (agentType: string) => {
+        setSelectedAgentType(agentType);
+        handleLaunchMemeCoin(agentType);
+        // setInputMessage(`/create-agent ${agentType} `);
+        // inputRef.current?.focus();
+        // setShowAgentTypePopup(false);
+    };
+
+    const handleLaunchAgent = () => {
+        if (selectedAgentType) {
+            router.push(`/memelaunch?agentType=${selectedAgentType}`);
+        }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
         setInputMessage(value);
 
-        // Open command prompt if only "/" is typed
+        // Show AgentTypePopup if "/create-agent" is detected
+        if (value === '/create-agent') {
+            // setShowAgentTypePopup(true);
+            setShowCommandPopup(false);
+            setShowTickerPopup(false);
+            return;
+        }
+        //  else {
+        //     setShowAgentTypePopup(false);
+        // }
+
+        // Show CommandPopup if "/" is typed alone
         if (value === '/') {
+            console.log('Detected "/", showing CommandPopup');
             setShowCommandPopup(true);
             setShowTickerPopup(false);
         }
-        // Close the command prompt if anything is typed after "/"
+        // Close CommandPopup if anything is typed after "/"
         else if (value.startsWith('/')) {
-            const command = value.split(' ')[0]; // Get the first part after "/"
-            if (command.length > 1) {
-                setShowCommandPopup(false);
-            }
+            console.log(`Detected command input: ${value.split(' ')[0]}`);
+            setShowCommandPopup(false);
         } else {
             setShowCommandPopup(false);
         }
@@ -876,6 +925,11 @@ const HomeContent: FC = () => {
             setInputMessage(`/${command} `);
             setShowCommandPopup(false);
         }
+        // if (command === 'create-agent') {
+        //     setShowAgentTypePopup(true);
+        // } else {
+        //     setShowAgentTypePopup(false);
+        // }
         inputRef.current?.focus(); // Focus back on the input field
     };
 
@@ -999,6 +1053,10 @@ const HomeContent: FC = () => {
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
+    };
+
+    const openCreateAgentModal = () => {
+        setShowCreateAgentModal(true);
     };
 
     const extractTextFromPdf = async (file: File): Promise<string> => {
@@ -1384,6 +1442,17 @@ const HomeContent: FC = () => {
         if (isInitialView) {
             setIsInitialView(false); // Remove the initial boxes on first submit
         }
+
+        // const trimmedMsg = inputMessage.trim();
+        // if (!trimmedMsg) return;
+
+        // Check for /create-agent command
+        // if (trimmedMsg.startsWith("/create-agent")) {
+        //     // Instead of sending a fetch or showing a ResultBlock:
+        //     setShowCreateAgentModal(true);
+        //     setInputMessage(""); // Clear input
+        //     return; // Skip the rest
+        // }
 
         const getImageResultType = () => {
             if (inputMessage.startsWith('/image-gen')) {
@@ -2424,7 +2493,13 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     if (data.content && typeof data.content === 'string') {
                         await handleMemeImageGeneration(data.content, promptText);
                     }
+
                     setProcessingCommand(true);
+                    setShowCreateAgentModal(true);
+                    if (memeGenerationData) {
+                        console.log('set')
+                        setShowCreateAgentModal(true);
+                    }
                 }
 
 
@@ -2907,8 +2982,9 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         }
     }
 
-    const handleLaunchMemeCoin = () => {
-        if (memeGenerationData && currentSeed && wallet) {
+    const handleLaunchMemeCoin = (agentType: string) => {
+
+        if (memeGenerationData && currentSeed && wallet && agentType) {
             setMemeData({
                 name: memeGenerationData.name,
                 description: memeGenerationData.description,
@@ -2917,7 +2993,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 seed: currentSeed,
                 wallet: wallet.publicKey ? wallet.publicKey.toString() : ''
             });
-            router.push('/memelaunch');
+            router.push(`/memelaunch?agentType=${agentType}`);
         } else {
             console.error('No meme generation data available');
             router.push('/memelaunch');
@@ -3619,8 +3695,23 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                             onDownloadProof={handleDownload}
                                                             imageResultType={message.command}
                                                             // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                                            onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                            // onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                            onLaunchMemeCoin={
+                                                                message.command === "create-agent"
+                                                                    ? () => setShowCreateAgentModal(true)
+                                                                    : undefined
+                                                            }
+
+                                                            // onLaunchMemeCoin={
+                                                            //     message.command === 'create-agent'
+                                                            //         ? () => {
+                                                            //             handleLaunchMemeCoin();
+                                                            //             handleLaunchAgent();
+                                                            //         }
+                                                            //         : undefined
+                                                            // }
                                                             loading={loading}
+                                                            // loading={message.command === "create-agent" ? loading : loading}
                                                         />
                                                     ) : (
                                                         <div className="inline-block p-1 rounded-lg text-white">
@@ -3637,7 +3728,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                         processingCommand ? (
                                             // Custom loader for /create-agent and /image-gen
                                             <ResultBlock type="image" processing={true}
-                                                onDownloadProof={handleDownload} imageResultType={imageResultType} onMintNFT={handleMintNFT} onLaunchMemeCoin={handleLaunchMemeCoin} />
+                                                onDownloadProof={handleDownload} imageResultType={imageResultType} onMintNFT={handleMintNFT} onLaunchMemeCoin={openCreateAgentModal} />
                                         ) : (
                                             // Default loader
                                             <div className="text-center">
@@ -3782,6 +3873,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 }}
                                                 disabled={!wallet.connected}
                                             />
+                                            {/* {showAgentTypePopup && <AgentTypePopup onSelect={handleAgentTypeSelect} />} */}
 
                                             {showCommandPopup && (
                                                 <div ref={commandPopupRef}>
@@ -3814,6 +3906,11 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 </div>
             </div>
 
+            <CreateAgentModal
+                visible={showCreateAgentModal}
+                onClose={() => setShowCreateAgentModal(false)}
+                onAgentTypeSelect={handleAgentTypeSelect}
+            />
 
             {/* <div className="h-screen right-0 top-0">
                 <TweetPanel
