@@ -15,24 +15,67 @@ import { verifyCollectionV1, findMetadataPda } from "@metaplex-foundation/mpl-to
 
 const COLLECTION_NAME = "ZkAGI Community Mints";
 
-const fetchCollectionNft = async (wallet: any) => {
-    if (!wallet.publicKey) throw new Error("Wallet is not connected.");
-    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT || "");
-    const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
+interface CollectionNFT {
+    mint: PublicKey
+    address?: PublicKey
+    name?: string
+    collectionDetails?: any
+}
 
-    const nfts = await metaplex.nfts().findAllByOwner({ owner: new PublicKey(wallet.publicKey) });
-    const collectionNft = nfts.find((nft: { name: string; collectionDetails: any; }) => nft.name === COLLECTION_NAME && nft.collectionDetails);
+// const fetchCollectionNft = async (wallet: any) => {
+//     if (!wallet.publicKey) throw new Error("Wallet is not connected.");
+//     const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT || "");
+//     const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
+
+//     const nfts = await metaplex.nfts().findAllByOwner({ owner: new PublicKey(wallet.publicKey) });
+//     const collectionNft = nfts.find((nft: { name: string; collectionDetails: any; }) => nft.name === COLLECTION_NAME && nft.collectionDetails);
+//     if (collectionNft) {
+//         return {
+//             ...collectionNft,
+//             mint: collectionNft.address
+//         };
+//     }
+//     return collectionNft || null;
+// };
+const fetchCollectionNft = async (wallet: any): Promise<CollectionNFT | null> => {
+    if (!wallet.publicKey) throw new Error("Wallet is not connected.")
+    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT || "")
+    const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet))
+
+    const nfts = await metaplex.nfts().findAllByOwner({ owner: new PublicKey(wallet.publicKey) })
+    const collectionNft = nfts.find(
+        (nft: { name: string; collectionDetails: any }) => nft.name === COLLECTION_NAME && nft.collectionDetails,
+    )
     if (collectionNft) {
         return {
             ...collectionNft,
-            mint: collectionNft.address
-        };
+            mint: collectionNft.address,
+        }
     }
-    return collectionNft || null;
-};
+    return null
+}
 
-const createCollectionNft = async (umi: any, wallet: any) => {
-    const collectionMint = generateSigner(umi);
+
+// const createCollectionNft = async (umi: any, wallet: any) => {
+//     const collectionMint = generateSigner(umi);
+//     const { signature } = await createNft(umi, {
+//         mint: collectionMint,
+//         name: COLLECTION_NAME,
+//         uri: "https://gateway.pinata.cloud/ipfs/bafkreih66ep3bwfogf3qet7u7u3j5q7v5ci23qbxppvyjjegzmatn6vw4y",
+//         updateAuthority: umi.identity.publicKey,
+//         sellerFeeBasisPoints: percentAmount(0),
+//         isCollection: true,
+//         collectionDetails: { __kind: "V1", size: 0 },
+//         authority: umi.identity,
+//     }).sendAndConfirm(umi, { send: { commitment: "finalized" } });
+
+//     const collectionAddress = collectionMint.publicKey;
+//     console.log("Collection NFT created with address:", collectionAddress);
+//     return collectionAddress;
+// };
+
+const createCollectionNft = async (umi: any, wallet: any): Promise<PublicKey> => {
+    const collectionMint = generateSigner(umi)
     const { signature } = await createNft(umi, {
         mint: collectionMint,
         name: COLLECTION_NAME,
@@ -42,13 +85,13 @@ const createCollectionNft = async (umi: any, wallet: any) => {
         isCollection: true,
         collectionDetails: { __kind: "V1", size: 0 },
         authority: umi.identity,
-    }).sendAndConfirm(umi, { send: { commitment: "finalized" } });
+    }).sendAndConfirm(umi, { send: { commitment: "finalized" } })
 
-    const collectionAddress = collectionMint.publicKey;
-    console.log("Collection NFT created with address:", collectionAddress);
-    return collectionAddress;
-};
-
+    // Convert UMI public key to Solana PublicKey
+    const collectionAddress = new PublicKey(collectionMint.publicKey.toString())
+    console.log("Collection NFT created with address:", collectionAddress.toBase58())
+    return collectionAddress
+}
 
 const uploadToPinata = async (base64Image: string, address: string) => {
     const pinataApiKey = process.env.NEXT_PUBLIC_NFT_PINATA_API_KEY;
@@ -146,37 +189,100 @@ const uploadToPinata = async (base64Image: string, address: string) => {
 };
 
 
+// const CreateNft = async (base64Image: string, name: string, wallet: any) => {
+//     const handleMint = async () => {
+//         if (wallet.publicKey && wallet.connected) {
+//             const rpcEndpoint = process.env.NEXT_PUBLIC_RPC_ENDPOINT?.trim() || "";
+//             const umi = createUmi(rpcEndpoint);
+//             umi.use(walletAdapterIdentity(wallet)).use(mplTokenMetadata());
+
+//             try {
+//                 // Check if the collection exists
+//                 let collectionNft = await fetchCollectionNft(wallet);
+
+//                 // Create the collection if it doesn't exist
+//                 if (!collectionNft) {
+//                     console.log("Collection does not exist. Creating a new one...");
+//                     const collectionAddress = await createCollectionNft(umi, wallet);
+//                     collectionNft = { mint: collectionAddress };
+//                 } else {
+//                     console.log("Existing collection found:", collectionNft);
+//                 }
+
+//                 // Upload image and metadata to Pinata
+//                 const address = wallet.publicKey.toBase58();
+//                 const uriHash = await uploadToPinata(base64Image, address);
+//                 const uri = `https://gateway.pinata.cloud/ipfs/${uriHash}`;
+
+//                 if (!collectionNft) {
+//                     throw new Error("No collection NFT found");
+//                 }
+
+
+//                 const umiPk = umiPublicKey(collectionNft.mint.toBytes());
+//                 // Mint the new NFT and associate it with the collection
+//                 const { signature, result } = await createNft(umi, {
+//                     mint: generateSigner(umi),
+//                     name: name,
+//                     uri: uri,
+//                     updateAuthority: umi.identity.publicKey,
+//                     sellerFeeBasisPoints: percentAmount(0),
+//                     collection: {
+//                         verified: false, // Set this to true if you verify the collection
+//                         key: umiPk
+//                     },
+//                 }).sendAndConfirm(umi, { send: { commitment: "finalized" } });
+
+//                 const txSignature = bs58.encode(signature);
+//                 console.log("NFT minted with signature:", txSignature, "Result:", result);
+//                 toast.success("NFT minted successfully!");
+//                 return txSignature;
+//             } catch (error) {
+//                 console.error("Error minting NFT:", error);
+//             }
+//         } else {
+//             alert("Please connect your wallet to mint an NFT.");
+//         }
+//     };
+
+//     await handleMint();
+// };
+
+
+// Rest of your code remains the same until CreateNft function
+
 const CreateNft = async (base64Image: string, name: string, wallet: any) => {
     const handleMint = async () => {
         if (wallet.publicKey && wallet.connected) {
-            const rpcEndpoint = process.env.NEXT_PUBLIC_RPC_ENDPOINT?.trim() || "";
-            const umi = createUmi(rpcEndpoint);
-            umi.use(walletAdapterIdentity(wallet)).use(mplTokenMetadata());
+            const rpcEndpoint = process.env.NEXT_PUBLIC_RPC_ENDPOINT?.trim() || ""
+            const umi = createUmi(rpcEndpoint)
+            umi.use(walletAdapterIdentity(wallet)).use(mplTokenMetadata())
 
             try {
                 // Check if the collection exists
-                let collectionNft = await fetchCollectionNft(wallet);
+                let collectionNft = await fetchCollectionNft(wallet)
 
                 // Create the collection if it doesn't exist
                 if (!collectionNft) {
-                    console.log("Collection does not exist. Creating a new one...");
-                    const collectionAddress = await createCollectionNft(umi, wallet);
-                    collectionNft = { mint: collectionAddress };
+                    console.log("Collection does not exist. Creating a new one...")
+                    const collectionAddress = await createCollectionNft(umi, wallet)
+                    collectionNft = { mint: collectionAddress }
                 } else {
-                    console.log("Existing collection found:", collectionNft);
+                    console.log("Existing collection found:", collectionNft)
                 }
 
                 // Upload image and metadata to Pinata
-                const address = wallet.publicKey.toBase58();
-                const uriHash = await uploadToPinata(base64Image, address);
-                const uri = `https://gateway.pinata.cloud/ipfs/${uriHash}`;
+                const address = wallet.publicKey.toBase58()
+                const uriHash = await uploadToPinata(base64Image, address)
+                const uri = `https://gateway.pinata.cloud/ipfs/${uriHash}`
 
                 if (!collectionNft) {
-                    throw new Error("No collection NFT found");
+                    throw new Error("No collection NFT found")
                 }
 
+                // Convert Solana PublicKey to UMI public key
+                const umiPk = umiPublicKey(collectionNft.mint.toBytes())
 
-                const umiPk = umiPublicKey(collectionNft.mint.toBytes());
                 // Mint the new NFT and associate it with the collection
                 const { signature, result } = await createNft(umi, {
                     mint: generateSigner(umi),
@@ -185,26 +291,26 @@ const CreateNft = async (base64Image: string, name: string, wallet: any) => {
                     updateAuthority: umi.identity.publicKey,
                     sellerFeeBasisPoints: percentAmount(0),
                     collection: {
-                        verified: false, // Set this to true if you verify the collection
-                        key: umiPk
+                        verified: false,
+                        key: umiPk,
                     },
-                }).sendAndConfirm(umi, { send: { commitment: "finalized" } });
+                }).sendAndConfirm(umi, { send: { commitment: "finalized" } })
 
-                const txSignature = bs58.encode(signature);
-                console.log("NFT minted with signature:", txSignature, "Result:", result);
-                toast.success("NFT minted successfully!");
-                return txSignature;
+                const txSignature = bs58.encode(signature)
+                console.log("NFT minted with signature:", txSignature, "Result:", result)
+                toast.success("NFT minted successfully!")
+                return txSignature
             } catch (error) {
-                console.error("Error minting NFT:", error);
+                console.error("Error minting NFT:", error)
+                toast.error("Error minting NFT. Please try again later.") //Added toast error message
             }
         } else {
-            alert("Please connect your wallet to mint an NFT.");
+            alert("Please connect your wallet to mint an NFT.")
         }
-    };
+    }
 
-    await handleMint();
-};
-
+    await handleMint()
+}
 
 // const CreateNft = async (base64Image: string, name: string, wallet: any) => {
 //     const handleMint = async () => {

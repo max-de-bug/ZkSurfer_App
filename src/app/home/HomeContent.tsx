@@ -3158,12 +3158,24 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         {/* Render Thought Below Message (Only for Assistant) */}
                         {thought && (
                             <div className="mt-2 p-3 border-l-4 border-indigo-500  dark:bg-indigo-900 rounded-lg mb-1">
-                                <button
+                                {/* <button
                                     onClick={(e) => e.currentTarget.nextSibling.classList.toggle("hidden")}
                                     className="text-indigo-600 dark:text-indigo-300 font-semibold flex items-center"
                                 >
                                     ▼ Hide Thought
+                                </button> */}
+                                <button
+                                    onClick={(e) => {
+                                        const nextElement = e.currentTarget.nextSibling as HTMLElement | null;
+                                        if (nextElement) {
+                                            nextElement.classList.toggle("hidden");
+                                        }
+                                    }}
+                                    className="text-indigo-600 dark:text-indigo-300 font-semibold flex items-center"
+                                >
+                                    ▼ Hide Thought
                                 </button>
+
                                 <div className="mt-2 text-gray-300 text-sm hidden">
                                     <strong className="text-white">Thought:</strong> {thought}
                                 </div>
