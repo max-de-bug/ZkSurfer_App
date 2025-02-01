@@ -151,7 +151,7 @@ export default function ApiKeysPage() {
     };
 
     const purchase = async () => {
-        //todo
+        toast.info('Coming Soon, you cannot purchase token at this moment')
     }
 
     return (
