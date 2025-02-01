@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemeStore } from '@/stores/meme-store';
@@ -427,8 +427,13 @@ function renderJsonForm(
     );
 }
 
+const SearchParamsWrapper = ({ children }: { children: (searchParams: URLSearchParams) => JSX.Element }) => {
+    const searchParams = useSearchParams();
+    return children(searchParams);
+};
 
-const MemeLaunchPage = () => {
+
+const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams }) => {
     const router = useRouter();
     const MAX_FILE_SIZE_MB = 5;
     const wallet = useAnchorWallet();
@@ -436,7 +441,7 @@ const MemeLaunchPage = () => {
     const { username, email, password, setTwitterCredentials } = useTwitterAuthStore();
     const [showTrainingOptions, setShowTrainingOptions] = useState(false);
     const { selectedTicker, tickerInfo, setSelectedMemeTicker } = useTickerStore();
-    const searchParams = useSearchParams();
+    //const searchParams = useSearchParams();
     const agentType = searchParams.get('agentType');
 
     const [error, setError] = useState('');
@@ -1961,6 +1966,16 @@ Example Output Structure:
 
             </div>
         </div>
+    );
+};
+
+const MemeLaunchPage = () => {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <SearchParamsWrapper>
+                {(searchParams) => <MemeLaunchPageContent searchParams={searchParams} />}
+            </SearchParamsWrapper>
+        </Suspense>
     );
 };
 
