@@ -42,6 +42,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { CreateAgentModal } from '@/component/ui/AgentModal';
 import { useModelStore } from '@/stores/useModel-store';
+import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
 
 
 interface GeneratedTweet {
@@ -50,7 +51,7 @@ interface GeneratedTweet {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -2363,6 +2364,89 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
             return;
         }
+
+        if (fullMessage.startsWith('/api')) {
+
+            const displayMessage: Message = {
+                role: 'user',
+                content: `Generate an API key for using Zynapse API`
+            };
+
+             setDisplayMessages(prev => [...prev, displayMessage]);
+
+            try {
+                // Retrieve the user's Solana wallet address
+                const walletAddress = wallet.publicKey?.toString() ?? "";
+
+                let headersList = {
+                    "Accept": "/",
+                    "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+                    "api-key": "zk-123321",
+                    "Content-Type": "application/json"
+                };
+
+                let bodyContent = JSON.stringify({ "wallet_address": walletAddress });
+
+                // Step 1: Call add-user API
+                let addUserResponse = await fetch("https://zynapse.zkagi.ai/add-user", {
+                    method: "POST",
+                    body: bodyContent,
+                    headers: headersList
+                });
+
+                let addUserData = await addUserResponse.json();
+
+                console.log('addUserData.detail',addUserData.detail)
+
+                if (addUserResponse.status === 200) {
+                    console.log('hi')
+
+                    if (addUserData.api_keys && addUserData.api_keys.length > 0) {
+                        const apiKey = addUserData.api_keys[0];
+
+                        const assistantMessage: Message = {
+                            role: 'assistant',
+                            content: <ApiKeyBlock apiKey={apiKey} />,
+                        };
+
+                        setDisplayMessages(prev => [...prev, assistantMessage]);
+                        return;
+                    }
+                } else if (addUserResponse.status === 400 && addUserData.detail === "User already exists") {
+                    // Step 3: If user already exists, directly call generate-api-key
+                    let generateKeyResponse = await fetch("https://zynapse.zkagi.ai/generate-api-key", {
+                        method: "POST",
+                        body: bodyContent,
+                        headers: headersList
+                    });
+
+                    let generateKeyData = await generateKeyResponse.json();
+
+                    if (generateKeyData.api_key && generateKeyData.api_key.length > 0) {
+                        const apiKey = generateKeyData.api_key;
+
+                        const assistantMessage: Message = {
+                            role: 'assistant',
+                            content: <ApiKeyBlock apiKey={apiKey} />,
+                        };
+
+                        setDisplayMessages(prev => [...prev, assistantMessage]);
+                        return;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error generating API key:', error);
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'Error generating API key. Please try again.',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+            }
+        }
+
+
 
         if (fullMessage.startsWith('/launch')) {
             const { selectedTicker } = useTickerStore.getState();
