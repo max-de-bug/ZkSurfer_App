@@ -533,12 +533,12 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                         <label className="block text-lg">Trade</label>
 
                         {/* Toggle Switch */}
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end space-x-2 border">
                             <button
                                 onClick={() => setTradeMode('automation')}
                                 className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'automation'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-700 text-gray-300'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-700 text-gray-300'
                                     }`}
                             >
                                 Automation
@@ -546,8 +546,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                             <button
                                 onClick={() => setTradeMode('authentication')}
                                 className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'authentication'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-700 text-gray-300'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-700 text-gray-300'
                                     }`}
                             >
                                 Authentication

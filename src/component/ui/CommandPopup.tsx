@@ -149,7 +149,7 @@
 
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api';
 
 interface CommandOption {
     command: Command;
@@ -171,6 +171,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
         {
             command: 'image-gen',
             description: 'Image generation with or without ticker. Generated image can be used for minting NFT',
+        },
+        {
+            command: 'api',
+            description: 'Generate api-key for Zynapse API',
         },
         // {
         //     command: 'content',
@@ -225,10 +229,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             command: 'launch',
             description: 'Launching your saved ai coin on pump.fun',
         },
-        {
-            command: 'character-gen',
-            description: 'To generate characters',
-        },
+        // {
+        //     command: 'character-gen',
+        //     description: 'To generate characters',
+        // },
         {
             command: 'train',
             description: 'To continuously train and improve your agent',
