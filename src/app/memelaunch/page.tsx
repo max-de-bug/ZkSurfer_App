@@ -15,6 +15,8 @@ import { ApifyClient } from 'apify-client';
 import { Wallet } from '@solana/wallet-adapter-react';
 import ButtonV1New from '@/component/ui/buttonV1New';
 import ButtonV2New from '@/component/ui/buttonV2New';
+import { useSearchParams } from 'next/navigation';
+import { useModelStore } from '@/stores/useModel-store';
 
 interface FormDataType {
     name: string;
@@ -33,6 +35,7 @@ interface FormDataType {
     trainingUrls: string[];
     trainingPdfs: File[];
     trainingImages: File[];
+    trade?: string;
 }
 
 interface TickerInfo {
@@ -433,9 +436,12 @@ const MemeLaunchPage = () => {
     const { username, email, password, setTwitterCredentials } = useTwitterAuthStore();
     const [showTrainingOptions, setShowTrainingOptions] = useState(false);
     const { selectedTicker, tickerInfo, setSelectedMemeTicker } = useTickerStore();
+    const searchParams = useSearchParams();
+    const agentType = searchParams.get('agentType');
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const { selectedModel, setSelectedModel } = useModelStore();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -459,10 +465,57 @@ const MemeLaunchPage = () => {
         prompt: '',
         trainingUrls: [],
         trainingPdfs: [],
-        trainingImages: []
+        trainingImages: [],
+        ...(agentType === 'super-agent' && { trade: '' })
     });
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
+
+    const renderAgentSpecificFields = () => {
+        if (agentType !== 'super-agent') return null;
+
+        return (
+            <div>
+                <label className="block mb-2 text-lg">Trade</label>
+                {/* <input
+                    type="text"
+                    name="trade"
+                    value={formData.trade || ''}
+                    onChange={(e) => handleChange(e)}
+                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                    placeholder="Enter trade details"
+                    required
+                /> */}
+
+                <div className="mt-4">
+                    <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.open('https://t.me/mpcsolanawalletbot', '_blank')
+                        }
+                        className="bg-blue-500 text-white px-4 py-2 rounded"
+                    >
+                        Open Telegram Bot
+                    </button>
+                </div>
+
+                <div className="mt-4">
+                    <label className="block mb-2 text-sm">Telegram ID</label>
+                    <input
+                        type="text"
+                        name="trade"
+                        value={formData.trade || ''}
+                        onChange={handleChange}
+                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                        placeholder="Enter Telegram ID"
+                        required
+                    />
+                </div>
+            </div>
+        );
+    };
+
 
     const models = [
         { name: 'Pixtral-12b-2409', enabled: false },
@@ -1054,6 +1107,28 @@ const MemeLaunchPage = () => {
             const result = await response.json();
             toast.success(`Coin "${formData.name}" data has been successfully added!`);
 
+            if (agentType === 'super-agent' && formData.trade) {
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209:3000/swap',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
+
+                if (!telegramResponse.ok) {
+                    throw new Error(
+                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+                    );
+                }
+
+                toast.success('Telegram wallet setup successful!');
+            }
+
             const tickerObject = {
                 description: formData.description,
                 memecoin_address: null,
@@ -1139,6 +1214,7 @@ const MemeLaunchPage = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    selectedModel,
                     messages: [
                         {
                             role: "system",
@@ -1304,6 +1380,7 @@ Example Output Structure:
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    selectedModel,
                     messages: [
                         {
                             role: "system",
@@ -1797,6 +1874,7 @@ Example Output Structure:
                                     >
                                         {isSubmitting ? 'PROCESSING...' : 'NEXT'}
                                     </button> */}
+                                    {renderAgentSpecificFields()}
                                     <ButtonV2New isSubmitting={isSubmitting} onClick={submit} />
                                 </div>
                             )}

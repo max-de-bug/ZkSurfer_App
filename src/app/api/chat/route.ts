@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import tools from './tools.json';
+import { useModelStore } from '@/stores/useModel-store';
 
 interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMessage, 'content'> {
     generateImage?: string;
@@ -11,9 +12,44 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
 }
 
 const client = new OpenAI({
-    baseURL: process.env.OPENAI_BASE_URL,
-    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.NEXT_PUBLIC_OPENAI_BASE_URL,
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
+
+async function getAIClient() {
+    // Get the selected model from Zustand
+    const { selectedModel } = useModelStore.getState();
+
+    console.log('selectedModel route', selectedModel)
+
+    // Ensure environment variables are defined
+    const deepSeekBaseURL = process.env.NEXT_PUBLIC_DEEPSEEK_BASE_URL;
+    const deepSeekModel = process.env.NEXT_PUBLIC_DEEPSEEK_MODEL;
+    const mistralBaseURL = process.env.NEXT_PUBLIC_OPENAI_BASE_URL;
+    const mistralModel = process.env.NEXT_PUBLIC_MISTRAL_MODEL;
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
+    if (!deepSeekBaseURL || !deepSeekModel || !mistralBaseURL || !mistralModel || !apiKey) {
+        throw new Error("Missing required environment variables for AI client.");
+    }
+
+    let baseURL = deepSeekBaseURL;
+    let model = deepSeekModel;
+
+    if (selectedModel === "Mistral") {
+        baseURL = mistralBaseURL;
+        model = mistralModel;
+    }
+
+    console.log(`Using AI Provider: ${selectedModel}`);
+    console.log(`Base URL: ${baseURL}, Model: ${model}`);
+
+    return new OpenAI({
+        baseURL,
+        apiKey,
+    });
+}
+
 
 async function generateKeys() {
     console.log('Generating keys...');
@@ -118,25 +154,43 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
 
 
 
-function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+// function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+//     return Promise.race([
+//         client.chat.completions.create(request),
+//         new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout))
+//     ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
+// }
+
+async function openAIWithTimeout(client: OpenAI, request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     return Promise.race([
         client.chat.completions.create(request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout)),
     ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
 }
-
 
 export async function POST(request: Request) {
     try {
         console.log('Received request to /api/chat');
+
+        // const client = await getAIClient();
+
         // Parse request body once
-        const { messages, directCommand } = await request.json();
+        // const { messages, directCommand } = await request.json();
+        const { messages, directCommand, selectedModel } = await request.json();
         console.log('Parsed messages:', messages);
 
-        if (!client.apiKey) {
-            console.error('OPENAI_API_KEY is not set');
-            throw new Error('API configuration is incomplete');
+        // const { selectedModel } = useModelStore.getState();
+
+        console.log('Received selectedModel from frontend:', selectedModel);
+
+        if (!selectedModel) {
+            throw new Error("No selected model provided in request.");
         }
+
+        // if (!client.apiKey) {
+        //     console.error('OPENAI_API_KEY is not set');
+        //     throw new Error('API configuration is incomplete');
+        // }
 
         // Generate keys
         await generateKeys();
@@ -206,14 +260,55 @@ export async function POST(request: Request) {
             ...messages
         ];
 
-        const response = await openAIWithTimeout({
-            // model: "meta-llama/llama-3.2-11b-vision-instruct:free",
-            // model: "mistralai/Pixtral-12B-2409",
-            model: "pixtral-12b-2409",
-            messages: updatedMessages,
+        // const response = await openAIWithTimeout({
+        //     // model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+        //     // model: "mistralai/Pixtral-12B-2409",
+        //     model: "pixtral-12b-2409",
+        //     messages: updatedMessages,
+        // });
+
+        // const modelToUse = selectedModel === "Mistral"
+        //     ? process.env.NEXT_PUBLIC_MISTRAL_MODEL
+        //     : process.env.NEXT_PUBLIC_DEEPSEEK_MODEL;
+
+        // const response = await openAIWithTimeout(client, {
+        //     model: modelToUse,
+        //     messages: updatedMessages,
+        // });
+
+        // console.log('response', response);
+
+        // ✅ Select the correct model based on received `selectedModel`
+        const deepSeekBaseURL = process.env.NEXT_PUBLIC_DEEPSEEK_BASE_URL;
+        const deepSeekModel = process.env.NEXT_PUBLIC_DEEPSEEK_MODEL;
+        const mistralBaseURL = process.env.NEXT_PUBLIC_OPENAI_BASE_URL;
+        const mistralModel = process.env.NEXT_PUBLIC_MISTRAL_MODEL;
+        const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
+        if (!deepSeekBaseURL || !deepSeekModel || !mistralBaseURL || !mistralModel || !apiKey) {
+            throw new Error("Missing required environment variables for AI client.");
+        }
+
+        let baseURL = deepSeekBaseURL;
+        let model = deepSeekModel;
+
+        if (selectedModel === "Mistral") {
+            baseURL = mistralBaseURL;
+            model = mistralModel;
+        }
+
+        console.log(`Using AI Provider: ${selectedModel}`);
+        console.log(`Base URL: ${baseURL}, Model: ${model}`);
+
+        const client = new OpenAI({
+            baseURL,
+            apiKey,
         });
 
-        console.log('response', response);
+        const response = await openAIWithTimeout(client, {
+            model,
+            messages,
+        });
         const responseMessage = response.choices[0].message;
 
         let finalResponse: CustomResponse = { ...responseMessage };
