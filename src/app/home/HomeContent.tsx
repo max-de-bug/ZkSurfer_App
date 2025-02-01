@@ -2372,7 +2372,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 content: `Generate an API key for using Zynapse API`
             };
 
-             setDisplayMessages(prev => [...prev, displayMessage]);
+            setDisplayMessages(prev => [...prev, displayMessage]);
 
             try {
                 // Retrieve the user's Solana wallet address
@@ -2396,7 +2396,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
                 let addUserData = await addUserResponse.json();
 
-                console.log('addUserData.detail',addUserData.detail)
+                console.log('addUserData.detail', addUserData.detail)
 
                 if (addUserResponse.status === 200) {
                     console.log('hi')
@@ -3688,6 +3688,18 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                     className="my-2"
                                                 />
                                                 Explore AI Agents
+                                            </div>
+                                        </Link>
+                                        <Link href="/api-key" passHref >
+                                            <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
+                                                <Image
+                                                    src="images/lock.svg"
+                                                    alt="explore marketplace"
+                                                    width={15}
+                                                    height={15}
+                                                    className="my-2"
+                                                />
+                                                API Keys
                                             </div>
                                         </Link>
 

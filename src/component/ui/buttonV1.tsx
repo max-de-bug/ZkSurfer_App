@@ -8,7 +8,7 @@ const ButtonV1 = ({
   onClick: () => void;
 }) => {
   return (
-    <button onClick={onClick} className="">
+    <button onClick={onClick}>
       <div
         className="transition-all ease-out duration-250 group min-w-32 w-full overflow-hidden border-[1px] border-transparent bg-white text-white active:brightness-[85%]"
         style={{

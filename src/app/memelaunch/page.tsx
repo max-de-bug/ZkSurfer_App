@@ -1892,7 +1892,7 @@ Example Output Structure:
                                         <label className="block mb-2 text-sm">Twitter</label>
                                         <input
                                             type="text"
-                                            name="twitter_url"
+                                            name="twitter"
                                             value={formData.twitter}
                                             onChange={handleChange}
                                             className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
