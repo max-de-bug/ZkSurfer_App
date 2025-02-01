@@ -443,6 +443,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
     const { selectedTicker, tickerInfo, setSelectedMemeTicker } = useTickerStore();
     //const searchParams = useSearchParams();
     const agentType = searchParams.get('agentType');
+    const [tradeMode, setTradeMode] = useState<'automation' | 'authentication'>('automation');
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -476,21 +477,122 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
 
-    const renderAgentSpecificFields = () => {
-        if (agentType !== 'super-agent') return null;
+    // const renderAgentSpecificFields = () => {
+    //     if (agentType !== 'super-agent') return null;
 
+    //     return (
+    //         <div>
+    //             <label className="block mb-2 text-lg">Trade</label>
+    //             {/* <input
+    //                 type="text"
+    //                 name="trade"
+    //                 value={formData.trade || ''}
+    //                 onChange={(e) => handleChange(e)}
+    //                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+    //                 placeholder="Enter trade details"
+    //                 required
+    //             /> */}
+
+    //             <div className="mt-4">
+    //                 <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
+    //                 <button
+    //                     type="button"
+    //                     onClick={() =>
+    //                         window.open('https://t.me/mpcsolanawalletbot', '_blank')
+    //                     }
+    //                     className="bg-blue-500 text-white px-4 py-2 rounded"
+    //                 >
+    //                     Open Telegram Bot
+    //                 </button>
+    //             </div>
+
+    //             <div className="mt-4">
+    //                 <label className="block mb-2 text-sm">Telegram ID</label>
+    //                 <input
+    //                     type="text"
+    //                     name="trade"
+    //                     value={formData.trade || ''}
+    //                     onChange={handleChange}
+    //                     className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+    //                     placeholder="Enter Telegram ID"
+    //                     required
+    //                 />
+    //             </div>
+    //         </div>
+    //     );
+    // };
+
+    const renderAgentSpecificFields = () => {
+        // Return null if neither micro nor super agent
+        if (agentType !== 'micro-agent' && agentType !== 'super-agent') return null;
+
+        if (agentType === 'micro-agent') {
+            return (
+                <div>
+                    <div className="flex flex-row mb-2 justify-between">
+                        <label className="block text-lg">Trade</label>
+
+                        {/* Toggle Switch */}
+                        <div className="flex items-center justify-end space-x-2">
+                            <button
+                                onClick={() => setTradeMode('automation')}
+                                className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'automation'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-700 text-gray-300'
+                                    }`}
+                            >
+                                Automation
+                            </button>
+                            <button
+                                onClick={() => setTradeMode('authentication')}
+                                className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'authentication'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-700 text-gray-300'
+                                    }`}
+                            >
+                                Authentication
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-4">
+                        <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                window.open(
+                                    tradeMode === 'automation'
+                                        ? 'https://t.me/mpcsolanawalletbot'
+                                        : 'https://t.me/microagentzkagibot',
+                                    '_blank'
+                                )
+                            }
+                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                        >
+                            Open Telegram Bot
+                        </button>
+                    </div>
+
+                    <div className="mt-4">
+                        <label className="block mb-2 text-sm">Telegram ID</label>
+                        <input
+                            type="text"
+                            name="trade"
+                            value={formData.trade || ''}
+                            onChange={handleChange}
+                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            placeholder="Enter Telegram ID"
+                            required
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        // Super agent section (unchanged)
         return (
             <div>
                 <label className="block mb-2 text-lg">Trade</label>
-                {/* <input
-                    type="text"
-                    name="trade"
-                    value={formData.trade || ''}
-                    onChange={(e) => handleChange(e)}
-                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                    placeholder="Enter trade details"
-                    required
-                /> */}
 
                 <div className="mt-4">
                     <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
@@ -499,7 +601,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                         onClick={() =>
                             window.open('https://t.me/mpcsolanawalletbot', '_blank')
                         }
-                        className="bg-blue-500 text-white px-4 py-2 rounded"
+                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                     >
                         Open Telegram Bot
                     </button>
@@ -520,6 +622,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             </div>
         );
     };
+
 
 
     const models = [

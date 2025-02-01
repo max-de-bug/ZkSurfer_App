@@ -3064,7 +3064,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         URL.revokeObjectURL(url);
     };
 
-
     const renderMessageContent = (message: Message) => {
         // Handle React elements
         if (React.isValidElement(message.content)) {
@@ -3142,7 +3141,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             }
 
             // Assistant responses (text-based, including thoughts)
-            if (message.role === 'assistant') {
+            if (message.role === 'assistant' && message.type !== 'image') {
                 let parsedContent;
                 try {
                     parsedContent = JSON.parse(message.content); // Attempt to parse JSON

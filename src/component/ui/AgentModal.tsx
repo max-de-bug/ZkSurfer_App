@@ -150,21 +150,21 @@ export const CreateAgentModal: FC<CreateAgentModalProps> = ({ visible, onClose, 
                             </ul>
                         </div>
                         <div className="mt-auto text-center">
-                            {/* <button
-                            onClick={() => {
-                                onAgentTypeSelect("super-agent");
-                                onClose();
-                            }}
-                            className="bg-white text-black px-4 py-2 rounded hover:bg-gray-200 transition-colors"
-                        >
-                            Create Super Agent
-                        </button> */}
                             <button
-                                onClick={handleSuperAgentClick}
+                                onClick={() => {
+                                    onAgentTypeSelect("super-agent");
+                                    onClose();
+                                }}
                                 className="bg-white text-black px-4 py-2 rounded hover:bg-gray-200 transition-colors"
                             >
                                 Create Super Agent
                             </button>
+                            {/* <button
+                                onClick={handleSuperAgentClick}
+                                className="bg-white text-black px-4 py-2 rounded hover:bg-gray-200 transition-colors"
+                            >
+                                Create Super Agent
+                            </button> */}
                         </div>
                     </div>
 
