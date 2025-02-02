@@ -533,7 +533,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                         <label className="block text-lg">Trade</label>
 
                         {/* Toggle Switch */}
-                        <div className="flex items-center justify-end space-x-2 border">
+                        <div className="flex items-center justify-end space-x-2 border p-1">
                             <button
                                 onClick={() => setTradeMode('automation')}
                                 className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'automation'
