@@ -2534,7 +2534,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        selectedModel,
+                        selectedModel:'Mistral',
                         messages: [...apiMessages, apiMessage],
                         directCommand: {
                             type: commandType,

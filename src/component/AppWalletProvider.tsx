@@ -23,8 +23,8 @@ export default function AppWalletProvider({
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new CoinbaseWalletAdapter()
+      // new SolflareWalletAdapter(),
+      // new CoinbaseWalletAdapter()
     ],
     [network],
   );
