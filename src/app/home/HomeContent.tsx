@@ -43,6 +43,7 @@ import ReactMarkdown from 'react-markdown';
 import { CreateAgentModal } from '@/component/ui/AgentModal';
 import { useModelStore } from '@/stores/useModel-store';
 import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
+import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
 
 
 interface GeneratedTweet {
@@ -284,6 +285,7 @@ const HomeContent: FC = () => {
     const [showTickerPicker, setShowTickerPicker] = useState(false);
     const [showTickerPopup, setShowTickerPopup] = useState(false);
     const [tickers, setTickers] = useState<string[]>([]);
+    const [showConnectModal, setShowConnectModal] = useState(false);
 
     const [tweets, setTweets] = useState([]);
     const [filteredCoins, setFilteredCoins] = useState([]);
@@ -302,6 +304,14 @@ const HomeContent: FC = () => {
     );
 
     let content;
+
+    useEffect(() => {
+        if (!wallet.connected) {
+            setShowConnectModal(true);
+        } else {
+            setShowConnectModal(false);
+        }
+    }, [wallet.connected]);
 
     if (!tickersData) {
         content = <div>Loading...</div>;
@@ -2534,7 +2544,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        selectedModel,
+                        selectedModel: 'Mistral',
                         messages: [...apiMessages, apiMessage],
                         directCommand: {
                             type: commandType,
@@ -3392,6 +3402,8 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
+
+            {showConnectModal && <ConnectWalletModal onClose={() => setShowConnectModal(false)} />}
 
             {/* Main content */}
             <div className={`flex-1 flex flex-col bg-[#08121f] `}>
