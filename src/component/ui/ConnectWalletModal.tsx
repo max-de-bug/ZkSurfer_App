@@ -1,6 +1,6 @@
 import React from "react";
 import { CustomWalletButton } from './CustomWalletButton';
-import ButtonV1New from './ButtonV1New'; // Import the new button component
+import ButtonV1New from './buttonV1New';
 
 interface ConnectWalletModalProps {
     onClose: () => void;
