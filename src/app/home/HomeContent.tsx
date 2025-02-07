@@ -3729,92 +3729,24 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 className="space-y-2 overflow-y-auto"
                                                 style={{ maxHeight: '20rem' }}
                                             >
-                                                {/* {tickers.map((ticker, index) => (
-                                            <div
-                                                key={index}
-                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded"
-                                                onClick={() => handleTickerSelect(ticker)}
-                                            >
-                                                {ticker}
-                                            </div>
-                                        ))} */}
-                                                {/* {tickersData.map((item: { status: string; ticker: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<React.AwaitedReactNode> | null | undefined; }, index: React.Key | null | undefined) => {
-                                            // Convert status string to a boolean
-                                            const isStatusTrue = item.status === "true";
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                    onClick={() => toggleTickerStatus(item.ticker, isStatusTrue)}
-                                                >
-                                                    <span
-                                                        className={`inline-block w-3 h-3 rounded-full ${isStatusTrue ? 'bg-green-500' : 'bg-red-500'
-                                                            }`}
-                                                    ></span>
-                                                    <span>{item.ticker}</span>
-                                                </div>
-                                            );
-                                        })} */}
-
-                                                {/* {tickers.map((t, index) => {
-                                            // Find the ticker in tickersData
-                                            const correspondingData = tickersData.find((item: { ticker: string; }) => item.ticker === t);
-
-                                            // Determine color
-                                            let colorClass;
-                                            let currentStatus = false; // default if no data
-
-                                            if (correspondingData) {
-                                                // Status is a string "true" or "false", convert to boolean
-                                                currentStatus = correspondingData.status === "true";
-                                                colorClass = currentStatus ? 'bg-green-500' : 'bg-red-500';
-                                            } else {
-                                                // If no corresponding data, show grey circle
-                                                colorClass = 'bg-gray-500';
-                                            }
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                    onClick={() => {
-                                                        if (correspondingData) {
-                                                            // Only allow toggle if we have corresponding data
-                                                            toggleTickerStatus(t, currentStatus);
-                                                        } else {
-                                                            // No status info, can't toggle
-                                                            toast.error(No status info available for ${t});
-                                                        }
-                                                    }}
-                                                >
-                                                    <span
-                                                        className={inline-block w-3 h-3 rounded-full ${colorClass}}
-                                                    ></span>
-                                                    <span>{t}</span>
-                                                </div>
-                                            );
-                                        })} */}
-
-                                                {mergedTickers.map(({ ticker, status }) => (
-                                                    <div
-                                                        key={ticker}
-                                                        className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
-                                                            }`}
-                                                        onClick={() => toggleTickerStatus(ticker, status)}
-                                                    >
-                                                        <span
-                                                            className={`inline-block w-3 h-3 rounded-full ${status === null
-                                                                ? 'bg-gray-500'
-                                                                : status
-                                                                    ? 'bg-green-500'
-                                                                    : 'bg-red-500'
+                                                {mergedTickers.length > 0 ? (
+                                                    mergedTickers.map(({ ticker, status }) => (
+                                                        <div
+                                                            key={ticker}
+                                                            className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
                                                                 }`}
-                                                        ></span>
-                                                        <span>{ticker}</span>
-                                                    </div>
-                                                ))}
-
+                                                            onClick={() => toggleTickerStatus(ticker, status)}
+                                                        >
+                                                            <span
+                                                                className={`inline-block w-3 h-3 rounded-full ${status === null ? 'bg-gray-500' : status ? 'bg-green-500' : 'bg-red-500'
+                                                                    }`}
+                                                            ></span>
+                                                            <span>{ticker}</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -3985,7 +3917,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                                 //         : undefined
                                                                 // }
                                                                 loading={loading}
-                                                            // loading={message.command === "create-agent" ? loading : loading}
+                                                      // loading={message.command === "create-agent" ? processing : loading}
                                                             />
                                                         ) : (
                                                             <div className="inline-block p-1 rounded-lg text-white">
