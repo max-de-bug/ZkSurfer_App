@@ -483,7 +483,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         setTradeMode(mode); // This is your local state for the toggle
         setFormData((prev) => ({ ...prev, tradeMode: mode })); // Store the toggle option in formData
     };
-    
+
 
     // const renderAgentSpecificFields = () => {
     //     if (agentType !== 'super-agent') return null;
@@ -539,10 +539,10 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
                     <div className="flex flex-row mb-2 justify-between">
                         <div className="flex flex-col">
-                        <div className="text-[#7E7CCF] font-ttfirs text-lg">
-                            AiFi: Trading
-                        </div>
-                        <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Authenticate your telegram to enable trading</div>
+                            <div className="text-[#7E7CCF] font-ttfirs text-lg">
+                                AiFi: Trading
+                            </div>
+                            <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Authenticate your telegram to enable trading</div>
                         </div>
 
                         {/* Toggle Switch */}
@@ -606,9 +606,9 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         return (
             <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
                 <div className="text-[#7E7CCF] font-ttfirs text-lg italic">
-                            AiFi: Trading
-                        </div>
-                        <div className="text-xs text-[#B9B9B9] font-ttfirs">Authenticate your telegram to enable trading</div>
+                    AiFi: Trading
+                </div>
+                <div className="text-xs text-[#B9B9B9] font-ttfirs">Authenticate your telegram to enable trading</div>
 
 
                 <div className="mt-4">
@@ -1254,49 +1254,47 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 toast.success('Telegram wallet setup successful!');
             }
 
-             if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
-                console.log('creds',formData.trade)
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209:3000/swap',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
-                    }
-                );
+            // if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
+            //     const telegramResponse = await fetch(
+            //         'http://34.67.134.209:3000/swap',
+            //         {
+            //             method: 'POST',
+            //             headers: { 'Content-Type': 'application/json' },
+            //             body: JSON.stringify({
+            //                 telegramId: formData.trade,
+            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //             }),
+            //         }
+            //     );
 
-                if (!telegramResponse.ok) {
-                    throw new Error(
-                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-                    );
-                }
+            //     if (!telegramResponse.ok) {
+            //         throw new Error(
+            //             `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+            //         );
+            //     }
 
-                toast.success('Telegram wallet setup successful!');
-            }else  if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
-                console.log('creds',formData.trade)
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209:80/swap',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
-                    }
-                );
+            //     toast.success('Telegram wallet setup successful!');
+            // } else if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
+            //     const telegramResponse = await fetch(
+            //         'http://34.67.134.209:80/swap',
+            //         {
+            //             method: 'POST',
+            //             headers: { 'Content-Type': 'application/json' },
+            //             body: JSON.stringify({
+            //                 telegramId: formData.trade,
+            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //             }),
+            //         }
+            //     );
 
-                if (!telegramResponse.ok) {
-                    throw new Error(
-                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-                    );
-                }
+            //     if (!telegramResponse.ok) {
+            //         throw new Error(
+            //             `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+            //         );
+            //     }
 
-                toast.success('Telegram wallet setup successful!');
-            }
+            //     toast.success('Telegram wallet setup successful!');
+            // }
 
             const tickerObject = {
                 description: formData.description,
