@@ -3917,7 +3917,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                                 //         : undefined
                                                                 // }
                                                                 loading={loading}
-                                                            // loading={message.command === "create-agent" ? loading : loading}
+                                                      // loading={message.command === "create-agent" ? processing : loading}
                                                             />
                                                         ) : (
                                                             <div className="inline-block p-1 rounded-lg text-white">

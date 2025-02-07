@@ -36,6 +36,7 @@ interface FormDataType {
     trainingPdfs: File[];
     trainingImages: File[];
     trade?: string;
+    tradeMode?: 'automation' | 'authentication';
 }
 
 interface TickerInfo {
@@ -472,10 +473,17 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         trainingUrls: [],
         trainingPdfs: [],
         trainingImages: [],
-        ...(agentType === 'super-agent' && { trade: '' })
+        ...(agentType === 'super-agent' && { trade: '' }),
+        ...(agentType === 'micro-agent' && { tradeMode: 'automation' })
     });
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
+
+    const handleTradeModeChange = (mode: 'automation' | 'authentication') => {
+        setTradeMode(mode); // This is your local state for the toggle
+        setFormData((prev) => ({ ...prev, tradeMode: mode })); // Store the toggle option in formData
+    };
+    
 
     // const renderAgentSpecificFields = () => {
     //     if (agentType !== 'super-agent') return null;
@@ -528,29 +536,34 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
         if (agentType === 'micro-agent') {
             return (
-                <div className="mt-2">
+                <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
                     <div className="flex flex-row mb-2 justify-between">
-                        <label className="block text-lg">Trade</label>
+                        <div className="flex flex-col">
+                        <div className="text-[#7E7CCF] font-ttfirs text-lg">
+                            AiFi: Trading
+                        </div>
+                        <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Authenticate your telegram to enable trading</div>
+                        </div>
 
                         {/* Toggle Switch */}
-                        <div className="flex items-center justify-end space-x-2 border p-1">
+                        <div className="flex items-center justify-end space-x-2 border p-1 rounded-lg">
                             <button
-                                onClick={() => setTradeMode('automation')}
+                                onClick={() => handleTradeModeChange('automation')}
                                 className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'automation'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-700 text-gray-300'
                                     }`}
                             >
-                                Automation
+                                Autonomous
                             </button>
                             <button
-                                onClick={() => setTradeMode('authentication')}
+                                onClick={() => handleTradeModeChange('authentication')}
                                 className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'authentication'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-700 text-gray-300'
                                     }`}
                             >
-                                Authentication
+                                Self Signed
                             </button>
                         </div>
                     </div>
@@ -591,8 +604,12 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
         // Super agent section (unchanged)
         return (
-            <div>
-                <label className="block mb-2 text-lg">Trade</label>
+            <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
+                <div className="text-[#7E7CCF] font-ttfirs text-lg italic">
+                            AiFi: Trading
+                        </div>
+                        <div className="text-xs text-[#B9B9B9] font-ttfirs">Authenticate your telegram to enable trading</div>
+
 
                 <div className="mt-4">
                     <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
@@ -1218,6 +1235,50 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             if (agentType === 'super-agent' && formData.trade) {
                 const telegramResponse = await fetch(
                     'http://34.67.134.209:3000/swap',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
+
+                if (!telegramResponse.ok) {
+                    throw new Error(
+                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+                    );
+                }
+
+                toast.success('Telegram wallet setup successful!');
+            }
+
+             if (agentType === 'micro-agent' && formData.tradMode === 'automation') {
+                console.log('creds',formData.trade)
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209:3000/swap',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
+
+                if (!telegramResponse.ok) {
+                    throw new Error(
+                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+                    );
+                }
+
+                toast.success('Telegram wallet setup successful!');
+            }else  if (agentType === 'micro-agent' && formData.tradMode === 'authentication') {
+                console.log('creds',formData.trade)
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209:80/swap',
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1952,50 +2013,58 @@ Example Output Structure:
                                                     <div className="text-xs text-[#B9B9B9] font-ttfirs">Choose optional features to supercharge your agent</div>
                                                 </div>
 
-                                                <div className="bg-yellow-200 text-yellow-900 p-4 rounded mb-6">
-                                                    <p className="mb-2">
-                                                        ⚠️ <strong>Ensure the following before proceeding:</strong>
-                                                    </p>
-                                                    <ul className="list-disc list-inside">
-                                                        <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
-                                                        <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
-                                                    </ul>
-                                                </div>
+                                                <div className='border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg'>
+                                                    <div className="mb-4">
+                                                        <div className="text-[#7E7CCF] font-ttfirs text-lg">
+                                                            SOCIAL CONTENT ENGINE
+                                                        </div>
+                                                        <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Upon providing your credentials of your twitter handle your provided training data will be utilized to regulalry post content</div>
+                                                    </div>
+                                                    <div className="bg-yellow-200 text-yellow-900 p-4 rounded mb-6">
+                                                        <p className="mb-2">
+                                                            ⚠️ <strong>Ensure the following before proceeding:</strong>
+                                                        </p>
+                                                        <ul className="list-disc list-inside">
+                                                            <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
+                                                            <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
+                                                        </ul>
+                                                    </div>
 
-                                                <div>
-                                                    <label className="block mb-2 text-sm">Twitter Username</label>
-                                                    <input
-                                                        type="text"
-                                                        name="username"
-                                                        onChange={handleTwitterCredentialsChange}
-                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                        placeholder="Enter Twitter Username"
-                                                        required
-                                                    />
-                                                </div>
+                                                    <div className="mb-1">
+                                                        <label className="block mb-2 text-sm">Twitter Username</label>
+                                                        <input
+                                                            type="text"
+                                                            name="username"
+                                                            onChange={handleTwitterCredentialsChange}
+                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                            placeholder="Enter Twitter Username"
+                                                            required
+                                                        />
+                                                    </div>
 
-                                                <div>
-                                                    <label className="block mb-2 text-sm">Twitter Email</label>
-                                                    <input
-                                                        type="email"
-                                                        name="email"
-                                                        onChange={handleTwitterCredentialsChange}
-                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                        placeholder="Enter Twitter Email"
-                                                        required
-                                                    />
-                                                </div>
+                                                    <div className="mb-1">
+                                                        <label className="block mb-2 text-sm">Twitter Email</label>
+                                                        <input
+                                                            type="email"
+                                                            name="email"
+                                                            onChange={handleTwitterCredentialsChange}
+                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                            placeholder="Enter Twitter Email"
+                                                            required
+                                                        />
+                                                    </div>
 
-                                                <div>
-                                                    <label className="block mb-2 text-sm">Twitter Password</label>
-                                                    <input
-                                                        type="password"
-                                                        name="password"
-                                                        onChange={handleTwitterCredentialsChange}
-                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                        placeholder="Enter Twitter Password"
-                                                        required
-                                                    />
+                                                    <div>
+                                                        <label className="block mb-2 text-sm">Twitter Password</label>
+                                                        <input
+                                                            type="password"
+                                                            name="password"
+                                                            onChange={handleTwitterCredentialsChange}
+                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                            placeholder="Enter Twitter Password"
+                                                            required
+                                                        />
+                                                    </div>
                                                 </div>
 
                                                 {renderAgentSpecificFields()}
