@@ -1254,7 +1254,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 toast.success('Telegram wallet setup successful!');
             }
 
-             if (agentType === 'micro-agent' && formData.tradMode === 'automation') {
+             if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
                 console.log('creds',formData.trade)
                 const telegramResponse = await fetch(
                     'http://34.67.134.209:3000/swap',
@@ -1275,7 +1275,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 }
 
                 toast.success('Telegram wallet setup successful!');
-            }else  if (agentType === 'micro-agent' && formData.tradMode === 'authentication') {
+            }else  if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
                 console.log('creds',formData.trade)
                 const telegramResponse = await fetch(
                     'http://34.67.134.209:80/swap',
