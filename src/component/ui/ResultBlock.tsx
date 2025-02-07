@@ -69,7 +69,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                             <button
                                 onClick={onLaunchMemeCoin}
                                 className="flex items-center space-x-2 text-white rounded"
-                                // disabled={loading || processing}
+                                disabled={loading || processing}
                             >
                                 <span className="text-[#A0AEC0] hover:text-[#00FF89] font-abeezee">Launch Agent</span>
                                 <Image

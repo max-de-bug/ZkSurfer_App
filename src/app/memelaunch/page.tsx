@@ -1783,8 +1783,8 @@ Example Output Structure:
                                             </div>
 
                                             <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block text-sm">Agent's Twitter Handle</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent's twitter profile(if any), this will not be used for training purposes</p>
+                                                <label className="block text-sm">Agent&apos;s Twitter Handle</label>
+                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s twitter profile(if any), this will not be used for training purposes</p>
                                                 <input
                                                     type="text"
                                                     name="twitter"
@@ -1796,8 +1796,8 @@ Example Output Structure:
                                             </div>
 
                                             <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block  text-sm">Agent's Telegram Handle</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent's telegram profile(if any),  this will not be used for training purposes</p>
+                                                <label className="block  text-sm">Agent&apos;s Telegram Handle</label>
+                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s telegram profile(if any),  this will not be used for training purposes</p>
                                                 <input
                                                     type="text"
                                                     name="telegram"
@@ -1809,8 +1809,8 @@ Example Output Structure:
                                             </div>
 
                                             <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block  text-sm">Agent's Website</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent's website (if any),  this will not be used for training purposes </p>
+                                                <label className="block  text-sm">Agent&apos;s Website</label>
+                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s website (if any),  this will not be used for training purposes </p>
                                                 <input
                                                     type="url"
                                                     name="website"
