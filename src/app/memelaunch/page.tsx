@@ -1254,7 +1254,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 toast.success('Telegram wallet setup successful!');
             }
 
-             if (agentType === 'micro-agent' && formData.tradMode === 'automation') {
+             if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
                 console.log('creds',formData.trade)
                 const telegramResponse = await fetch(
                     'http://34.67.134.209:3000/swap',
@@ -1275,7 +1275,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 }
 
                 toast.success('Telegram wallet setup successful!');
-            }else  if (agentType === 'micro-agent' && formData.tradMode === 'authentication') {
+            }else  if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
                 console.log('creds',formData.trade)
                 const telegramResponse = await fetch(
                     'http://34.67.134.209:80/swap',
@@ -1830,7 +1830,7 @@ Example Output Structure:
                                                     <div className="text-[#7E7CCF] font-ttfirs text-xl">
                                                         TRAIN YOUR AGENT
                                                     </div>
-                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent's responses.</div>
+                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent&apos;sresponses.</div>
                                                 </div>
                                                 <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
                                                     Maximum total upload size: 5 MB (including PDFs and images).
@@ -2008,7 +2008,7 @@ Example Output Structure:
                                             <div className='border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4'>
                                                 <div className="mb-4">
                                                     <div className="text-[#7E7CCF] font-ttfirs text-xl">
-                                                        ENHANCE YOUR AGENT's CAPABILITIES
+                                                        ENHANCE YOUR AGENT&apos;s CAPABILITIES
                                                     </div>
                                                     <div className="text-xs text-[#B9B9B9] font-ttfirs">Choose optional features to supercharge your agent</div>
                                                 </div>
