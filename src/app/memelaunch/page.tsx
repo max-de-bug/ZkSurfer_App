@@ -1830,7 +1830,7 @@ Example Output Structure:
                                                     <div className="text-[#7E7CCF] font-ttfirs text-xl">
                                                         TRAIN YOUR AGENT
                                                     </div>
-                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent's responses.</div>
+                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent&apos;sresponses.</div>
                                                 </div>
                                                 <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
                                                     Maximum total upload size: 5 MB (including PDFs and images).
@@ -2008,7 +2008,7 @@ Example Output Structure:
                                             <div className='border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4'>
                                                 <div className="mb-4">
                                                     <div className="text-[#7E7CCF] font-ttfirs text-xl">
-                                                        ENHANCE YOUR AGENT's CAPABILITIES
+                                                        ENHANCE YOUR AGENT&apos;s CAPABILITIES
                                                     </div>
                                                     <div className="text-xs text-[#B9B9B9] font-ttfirs">Choose optional features to supercharge your agent</div>
                                                 </div>
