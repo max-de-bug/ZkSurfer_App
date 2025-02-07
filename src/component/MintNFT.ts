@@ -82,7 +82,7 @@ const createCollectionNft = async (umi: any, wallet: any): Promise<PublicKey> =>
         uri: "https://gateway.pinata.cloud/ipfs/bafkreih66ep3bwfogf3qet7u7u3j5q7v5ci23qbxppvyjjegzmatn6vw4y",
         updateAuthority: umi.identity.publicKey,
         sellerFeeBasisPoints: percentAmount(0),
-        isCollection: true,
+        isCollection: false,
         collectionDetails: { __kind: "V1", size: 0 },
         authority: umi.identity,
     }).sendAndConfirm(umi, { send: { commitment: "finalized" } })
