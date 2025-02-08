@@ -3158,6 +3158,34 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         URL.revokeObjectURL(url);
     };
 
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        const touchX = e.touches[0].clientX;
+        // Only start tracking if the touch is near the left edge (say within 50px)
+        if (touchX < 50) {
+            setTouchStartX(touchX);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (touchStartX !== null) {
+            const currentX = e.touches[0].clientX;
+            const diff = currentX - touchStartX;
+            // If the swipe distance is greater than a threshold (e.g., 100px), open the menu.
+            if (diff > 100) {
+                toggleMenu();
+                // Reset so that the menu does not toggle repeatedly during the swipe
+                setTouchStartX(null);
+            }
+        }
+    };
+
+    const handleTouchEnd = () => {
+        // Reset the starting point when the touch ends.
+        setTouchStartX(null);
+    };
+
     const renderMessageContent = (message: Message) => {
         // Handle React elements
         if (React.isValidElement(message.content)) {
@@ -3400,6 +3428,18 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
     };
 
 
+    const [hasHydrated, setHasHydrated] = useState(false);
+
+    useEffect(() => {
+        setHasHydrated(true);
+    }, []);
+
+    // If we're not hydrated yet, return nothing or a skeleton
+    // so there is no mismatch between SSR and client.
+    if (!hasHydrated) {
+        return null;
+    }
+
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
@@ -3431,187 +3471,116 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     </div>
                 </header> */}
 
-                <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4 px-2">
-                    {isMobile && (
-                        <button onClick={toggleMenu} className="text-white">
-                            <BiMenuAltLeft size={28} />
-                        </button>
-                    )}
-                    <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
-                        <div>
-                            <Image
-                                src="images/tiger.svg"
-                                alt="logo"
-                                width={30}
-                                height={30}
-                            />
-                        </div>
-                        <div className='font-ttfirs text-xl'>ZkTerminal</div>
-                    </div>
-                    {/* {editMode && (
-                        <div className="flex items-center space-x-2">
-                            <span>Edit Mode</span>
-                            <button
-                                onClick={() => setEditMode(false)}
-                                className="bg-gray-500 px-2 py-1 rounded text-white"
-                            >
-                                Edit Mode Off
-                            </button>
-                        </div>
-                    )} */}
-                    {editMode && (
-                        <button
-                            onClick={async () => {
-                                // Turn off edit mode
-                                setEditMode(false);
-
-                                try {
-                                    addMessage({ role: 'user', content: 'generate a character.json using the above data' });
-                                    const { messages } = useConversationStore.getState();
-
-                                    // Make a final call to /api/chat with the full conversation history
-                                    const response = await fetch('/api/chat', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ messages, selectedModel }),
-                                    });
-
-                                    if (!response.ok) {
-                                        throw new Error('Failed to finalize character data.');
-                                    }
-
-                                    const finalData = await response.json();
-                                    console.log('finalData', finalData)
-                                    const fullContent = finalData.content;
-                                    let updatedCharacterJson: any;
-
-                                    const jsonMatch = fullContent.match(/```json\s*([\s\S]*?)\s*```/);
-
-                                    if (jsonMatch && jsonMatch[1]) {
-                                        // jsonMatch[1] contains the JSON inside the code block
-                                        updatedCharacterJson = JSON.parse(jsonMatch[1]);
-                                        setCharacterJson(updatedCharacterJson);
-
-                                        const editorMessage = {
-                                            role: 'assistant',
-                                            content: (
-                                                <div className="bg-[#24284E] p-4 rounded-lg">
-                                                    {useFormStore.getState().success ? (
-                                                        <div className="text-green-500">Character saved successfully!</div>
-                                                    ) : (
-                                                        <>
-                                                            <p className="text-white mb-2">Please review and confirm your character.json:</p>
-                                                            <CharecterJsonEditor
-                                                                initialJson={updatedCharacterJson}
-                                                                onConfirm={(finalJson: any) => {
-                                                                    setCharacterJson(finalJson);
-                                                                    handleConfirmCharacter(finalJson);
-                                                                }}
-                                                                onCancel={() => setCharacterJson(null)}
-                                                            />
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )
-                                        };
-
-
-                                        // Append this editorMessage to the chat display
-                                        setDisplayMessages((prev) => [...prev, editorMessage as Message]);
-
-                                    } else {
-                                        console.error("Failed to extract JSON from the response.");
-                                    }
-                                    // Now the CharacterGenForm or CharecterJsonEditor which relies on that store
-                                    // should reflect the updated character JSON as it did initially.
-
-                                } catch (error) {
-                                    console.error('Error finalizing character:', error);
-                                    // Optionally display an error message to the user
-                                }
-                            }}
-                            className="bg-gray-500 px-2 py-1 rounded text-white"
-                        >
-                            Edit Mode Off
-                        </button>
-                    )}
-                    <div className="flex items-center space-x-4">
-                        {/* Add ticker display here */}
-                        {activeNavbarTicker && (
-                            <div
-                                className={`
-                    cursor-pointer 
-                    px-3 
-                    py-1 
-                    rounded-lg 
-                    text-white 
-                    flex 
-                    items-center 
-                    gap-2
-                    border-2 
-                    border-green-500 
-                    bg-[#1a2633]
-                    hover:bg-[#243242]
-                    transition-colors
-                `}
-                                onClick={() => handleTickerClick(activeNavbarTicker)}
-                            >
-                                <span>{activeNavbarTicker}</span>
-                                <button
-                                    className="text-gray-400 hover:text-white"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveNavbarTicker(null);
-                                    }}
-                                >
-                                    <IoMdClose size={16} />
+                {isMobile ? (
+                    // Mobile header: two groups—left and right
+                    <div
+                        className="w-full bg-[#08121f] px-4 py-2"
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        <div className="flex items-center justify-between">
+                            {/* Left group: menu button and logo */}
+                            <div className="flex items-center">
+                                <button onClick={toggleMenu} className="text-white">
+                                    <BiMenuAltLeft size={28} />
                                 </button>
-                            </div>
-                        )}
-                        <div>
-                            <CustomWalletButton />
-                        </div>
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsOpen(!isOpen)}
-                                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md focus:outline-none text-white"
-                            >
-                                {selectedModel} ▼
-                            </button>
-                            {isOpen && (
-                                <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
-                                    <button
-                                        className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                        onClick={() => {
-                                            setSelectedModel("DeepSeek");
-                                            setIsOpen(false);
-                                        }}
-                                    >
-                                        DeepSeek
-                                    </button>
-                                    <button
-                                        className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                        onClick={() => {
-                                            console.log("Before setting:", useModelStore.getState().selectedModel);
-                                            setSelectedModel("Mistral");
-                                            console.log("After setting:", useModelStore.getState().selectedModel);
-                                            setIsOpen(false);
-                                        }}
-                                    >
-                                        Mistral
-                                    </button>
-
+                                <div className="px-2">
+                                    <Image
+                                        src="/images/tiger.svg"
+                                        alt="Logo"
+                                        width={30}
+                                        height={30}
+                                    />
                                 </div>
-                            )}
+                            </div>
+                            {/* Right group: wallet connect and dropdown */}
+                            <div className="flex items-center gap-2">
+                                <CustomWalletButton />
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsOpen(!isOpen)}
+                                        className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
+                                    >
+                                        {selectedModel} ▼
+                                    </button>
+                                    {isOpen && (
+                                        <div className="absolute right-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                            <button
+                                                className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                onClick={() => {
+                                                    setSelectedModel("DeepSeek");
+                                                    setIsOpen(false);
+                                                }}
+                                            >
+                                                DeepSeek
+                                            </button>
+                                            <button
+                                                className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                onClick={() => {
+                                                    setSelectedModel("Mistral");
+                                                    setIsOpen(false);
+                                                }}
+                                            >
+                                                Mistral
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        {/* <button className="text-black bg-white p-1 rounded-lg">
-                            <FaPen />
-                        </button> */}
-                        {/* <button className="text-white">
-                            <HiDotsVertical />
-                        </button> */}
                     </div>
-                </header>
+                ) : (
+                    // Desktop header: your original one (or adjusted as needed)
+                    <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
+                        <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
+                            <div>
+                                <Image
+                                    src="/images/tiger.svg"
+                                    alt="logo"
+                                    width={30}
+                                    height={30}
+                                />
+                            </div>
+                            <div className="font-ttfirs text-xl">ZkTerminal</div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                            <CustomWalletButton />
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsOpen(!isOpen)}
+                                    className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
+                                >
+                                    {selectedModel} ▼
+                                </button>
+                                {isOpen && (
+                                    <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                        <button
+                                            className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                            onClick={() => {
+                                                setSelectedModel("DeepSeek");
+                                                setIsOpen(false);
+                                            }}
+                                        >
+                                            DeepSeek
+                                        </button>
+                                        <button
+                                            className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                            onClick={() => {
+                                                setSelectedModel("Mistral");
+                                                setIsOpen(false);
+                                            }}
+                                        >
+                                            Mistral
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+                )}
+
+
 
                 {/* content post header */}
                 <div className="flex h-full gap-5 ">
@@ -3917,7 +3886,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                                 //         : undefined
                                                                 // }
                                                                 loading={loading}
-                                                      // loading={message.command === "create-agent" ? processing : loading}
+                                                            //   loading={message.command === "create-agent" ? loading : loading}
                                                             />
                                                         ) : (
                                                             <div className="inline-block p-1 rounded-lg text-white">
