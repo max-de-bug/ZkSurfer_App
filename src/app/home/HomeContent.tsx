@@ -44,6 +44,8 @@ import { CreateAgentModal } from '@/component/ui/AgentModal';
 import { useModelStore } from '@/stores/useModel-store';
 import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
 import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
+import PresaleBanner from '@/component/ui/PreSaleBanner';
+import {useWhitelistStore} from '@/stores/use-whitelist-store';
 
 
 interface GeneratedTweet {
@@ -207,6 +209,7 @@ const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
 
 const HomeContent: FC = () => {
     const wallet = useWallet();
+    const { connected } = useWallet();
     const { data: session, status } = useSession();
     const [files, setFiles] = useState<FileObject[]>([]);
     const [fileInput, setFileInput] = useState<File | null>(null);
@@ -252,6 +255,7 @@ const HomeContent: FC = () => {
     const [isInitialView, setIsInitialView] = useState(true);
     const [isToggleAllowed, setIsToggleAllowed] = useState(true);
 
+    const { checkWhitelist, isWhitelisted } = useWhitelistStore();
 
     // const [showTickerTable, setShowTickerTable] = useState(false);
     const { setAvailableTickers, setSelectedMemeTicker, availableTickers } = useTickerStore();
@@ -346,6 +350,12 @@ const HomeContent: FC = () => {
             };
         });
     }
+    
+    useEffect(() => {
+        if (wallet.connected && walletAddress) {
+          checkWhitelist(walletAddress);
+        }
+      }, [wallet.connected, walletAddress, checkWhitelist]);
 
 
     async function toggleTickerStatus(ticker: string | number | bigint | boolean | React.ReactPortal | Promise<React.AwaitedReactNode> | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined, currentStatus: any) {
@@ -412,6 +422,7 @@ const HomeContent: FC = () => {
 
     const sampleCommands = [
         { label: 'Create Agent', command: '/create-agent: ' },
+        { label: 'Join Pre-Sale', command: 'pre-sale' },
         { label: 'Mint NFT', command: '/image-gen of ' },
     ];
 
@@ -425,8 +436,13 @@ const HomeContent: FC = () => {
     }, []);
 
     const handleCommandBoxClick = (command: string) => {
-        setInputMessage(command); // Populate the input field with the selected command
-        inputRef.current?.focus();
+        if (command === 'pre-sale') {
+            // Redirect to the pre-sale page when the middle box is clicked.
+            router.push('/pre-sale');
+        } else {
+            setInputMessage(command); // Populate the input field with the selected command
+            inputRef.current?.focus();
+        }
     };
 
     const commandPopupRef = useRef<HTMLDivElement | null>(null);
@@ -3440,13 +3456,16 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         return null;
     }
 
+    console.log('isWhitelisted',isWhitelisted)
+
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
             {showConnectModal && <ConnectWalletModal onClose={() => setShowConnectModal(false)} />}
 
+            <PresaleBanner walletConnected={connected} walletAddress={walletAddress} />
             {/* Main content */}
-            <div className={`flex-1 flex flex-col bg-[#08121f] `}>
+            <div className={`flex-1 flex flex-col bg-[#08121f] pt-16 md:pt-10`}>
                 {/* Header code remains the same */}
 
                 {/* <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
@@ -3789,7 +3808,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[650px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">
                                         {sampleCommands.map((cmd, index) => (
                                             <div
                                                 key={index}
@@ -3797,8 +3816,10 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                 onClick={() => handleCommandBoxClick(cmd.command)}
                                             >
                                                 <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
-                                                <p className="text-sm text-gray-300">
-                                                    Click to use the <span className="font-semibold">{cmd.command}</span> command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.
+                                                <p className="text-sm text-gray-300 text-center">
+                                                    {cmd.command === 'pre-sale'
+                                                        ? 'Click to join pre sale'
+                                                        : `Click to use the ${cmd.command} command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.`}
                                                 </p>
                                             </div>
                                         ))}
