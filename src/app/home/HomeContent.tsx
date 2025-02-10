@@ -45,7 +45,7 @@ import { useModelStore } from '@/stores/useModel-store';
 import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
 import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
-import {useWhitelistStore} from '@/stores/use-whitelist-store';
+import { useWhitelistStore } from '@/stores/use-whitelist-store';
 
 
 interface GeneratedTweet {
@@ -350,12 +350,12 @@ const HomeContent: FC = () => {
             };
         });
     }
-    
+
     useEffect(() => {
         if (wallet.connected && walletAddress) {
-          checkWhitelist(walletAddress);
+            checkWhitelist(walletAddress);
         }
-      }, [wallet.connected, walletAddress, checkWhitelist]);
+    }, [wallet.connected, walletAddress, checkWhitelist]);
 
 
     async function toggleTickerStatus(ticker: string | number | bigint | boolean | React.ReactPortal | Promise<React.AwaitedReactNode> | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined, currentStatus: any) {
@@ -3443,6 +3443,73 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         });
     };
 
+    // Helper: Extract image URL from message.content
+    const getImageUrlFromMessageContent = (
+        content: Message['content']
+    ): string | undefined => {
+        // If it's a string, assume it's the image URL.
+        if (typeof content === 'string') {
+            return content;
+        }
+        // If it's an array, try to find an object of type 'image_url'
+        if (Array.isArray(content)) {
+            for (const item of content) {
+                // Ensure the item is an object and has a 'type' property
+                if (
+                    typeof item === 'object' &&
+                    item !== null &&
+                    'type' in item &&
+                    item.type === 'image_url' &&
+                    item.image_url &&
+                    item.image_url.url
+                ) {
+                    return item.image_url.url;
+                }
+            }
+        }
+        return undefined;
+    };
+
+
+
+    // Helper: Convert a data URL to a Blob
+    function dataURLtoBlob(dataurl: string): Blob {
+        const arr = dataurl.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        if (!mimeMatch) {
+            throw new Error("Invalid data URL");
+        }
+        const mime = mimeMatch[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    }
+
+    // Updated download function
+    const downloadImage = (imageData: string) => {
+        try {
+            // Convert the data URL to a Blob
+            const blob = dataURLtoBlob(imageData);
+            // Create a blob URL
+            const blobUrl = URL.createObjectURL(blob);
+            // Create a temporary anchor element and trigger the download
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = 'zkdownloaded-image.png'; // Change the filename/extension if needed
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            // Clean up the blob URL after a short delay
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        } catch (error) {
+            console.error("Error downloading image:", error);
+        }
+    };
+
 
     const [hasHydrated, setHasHydrated] = useState(false);
 
@@ -3456,7 +3523,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         return null;
     }
 
-    console.log('isWhitelisted',isWhitelisted)
+    console.log('isWhitelisted', isWhitelisted)
 
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
@@ -3862,7 +3929,22 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                                             </span>
                                                             {message.role !== 'user' && (
                                                                 <div className="flex space-x-2">
-                                                                    <button className="text-white rounded-lg">
+                                                                    <button className="text-white rounded-lg" onClick={() => {
+                                                                        const imageContent = message.content;
+                                                                        // If it's not a complete data URL, add the header.
+                                                                        let base64Image: string;
+                                                                        if (typeof imageContent === 'string') {
+                                                                            // Check if the string already starts with the proper header.
+                                                                            if (!imageContent.startsWith('data:image/')) {
+                                                                                base64Image = `data:image/jpeg;base64,${imageContent}`;
+                                                                            } else {
+                                                                                base64Image = imageContent;
+                                                                            }
+                                                                            downloadImage(base64Image);
+                                                                        } else {
+                                                                            console.error('Unexpected image content format');
+                                                                        }
+                                                                    }}>
                                                                         <Image
                                                                             src="images/Download.svg"
                                                                             alt="logo"

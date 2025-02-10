@@ -307,7 +307,7 @@ const PreSalePage: React.FC<PreSalePageProps> = ({ initialRaised = 0 }) => {
             return;
         }
         const wallet = window.solana.publicKey.toString();
-        const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'); //devnet for testing
+        const connection = new Connection(clusterApiUrl('devnet'), 'confirmed'); //devnet for testing
         const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY;
         if (!treasuryAddress) {
             throw new Error("Environment variable NEXT_PUBLIC_TREASURY is not defined.");
