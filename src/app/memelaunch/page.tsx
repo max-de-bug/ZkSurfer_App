@@ -587,7 +587,21 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                     </div>
 
                     <div className="mt-4">
-                        <label className="block mb-2 text-sm">Telegram ID</label>
+                        <label className="block mb-2 text-sm">
+                            Telegram ID{" "}
+                            <span className="text-xs text-gray-400 italic text-xs">
+                                (Click{" "}
+                                <a
+                                    href="https://t.me/UserBotInfoBot?start=anything"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-blue-500"
+                                >
+                                    here
+                                </a>
+                                , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID. Paste it in the input below.)
+                            </span>
+                        </label>
                         <input
                             type="text"
                             name="trade"
@@ -598,6 +612,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                             required
                         />
                     </div>
+
                 </div>
             );
         }
@@ -625,7 +640,21 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 </div>
 
                 <div className="mt-4">
-                    <label className="block mb-2 text-sm">Telegram ID</label>
+                    <label className="block mb-2 text-sm">
+                        Telegram ID{" "}
+                        <span className="text-xs text-gray-400 italic">
+                            (Click{" "}
+                            <a
+                                href="https://t.me/UserBotInfoBot?start=anything"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline text-blue-500 "
+                            >
+                                here
+                            </a>
+                            , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID. Paste it in the input below.)
+                        </span>
+                    </label>
                     <input
                         type="text"
                         name="trade"
@@ -1181,15 +1210,12 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
     //     }
     // };
 
-
-
     const handleSubmit = async (e: React.FormEvent) => {
         setIsSubmitting(true);
-
         let twitterData: any[] | null = [];
 
         try {
-            // First API call to create the agent
+            // First part remains the same until the character generation request
             const pdfTexts = await Promise.all(
                 formData.trainingPdfs.map(async (file) => {
                     const arrayBuffer = await file.arrayBuffer();
@@ -1221,6 +1247,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 user_prompt: formData.prompt,
             };
 
+            // Initial API call remains the same
             const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
@@ -1232,27 +1259,26 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             const result = await response.json();
             toast.success(`Coin "${formData.name}" data has been successfully added!`);
 
-            if (agentType === 'super-agent' && formData.trade) {
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209:3000/swap',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
-                    }
-                );
+            // Handle Telegram setup if needed (remains the same)
+            // if (agentType === 'super-agent' && formData.trade) {
+            //     const telegramResponse = await fetch(
+            //         'http://34.67.134.209:3000/swap',
+            //         {
+            //             method: 'POST',
+            //             headers: { 'Content-Type': 'application/json' },
+            //             body: JSON.stringify({
+            //                 telegramId: formData.trade,
+            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //             }),
+            //         }
+            //     );
 
-                if (!telegramResponse.ok) {
-                    throw new Error(
-                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-                    );
-                }
+            //     if (!telegramResponse.ok) {
+            //         throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+            //     }
+            //     toast.success('Telegram wallet setup successful!');
+            // }
 
-                toast.success('Telegram wallet setup successful!');
-            }
 
             // if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
             //     const telegramResponse = await fetch(
@@ -1296,35 +1322,27 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             //     toast.success('Telegram wallet setup successful!');
             // }
 
+            // Store ticker info
             const tickerObject = {
                 description: formData.description,
                 memecoin_address: null,
                 coin_name: formData.name,
                 image_base64: formData.imageBase64,
                 training_data: [
-                    {
-                        type: 'pdfs',
-                        content: pdfTexts
-                    },
-                    {
-                        type: 'images',
-                        content: formData.trainingImages.map((file) => URL.createObjectURL(file))
-                    },
-                    {
-                        type: 'urls',
-                        content: formData.trainingUrls.filter(url => url.trim() !== '')
-                    }
+                    { type: 'pdfs', content: pdfTexts },
+                    { type: 'images', content: formData.trainingImages.map((file) => URL.createObjectURL(file)) },
+                    { type: 'urls', content: formData.trainingUrls.filter(url => url.trim() !== '') }
                 ],
                 urls: formData.trainingUrls,
                 seed: parseInt(formData.seed) || 0,
                 user_prompt: formData.prompt
             };
             useTickerStore.getState().setTickerInfo(formData.ticker, tickerObject);
-
             setSelectedMemeTicker(formData.ticker);
+
             const currentTicker = formData.ticker;
 
-            //secondhalf 
+            // secondhalf 
             if (!currentTicker) {
                 throw new Error('Selected ticker is null. Please set a valid ticker.');
             }
@@ -1372,12 +1390,213 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             //     }
             // }
 
+
+            // Process Twitter data
             const twitterResults = await processTwitterData(formData.trainingUrls);
 
-            //const twitterData = await processTwitterData(twitterUrls);
-
-            // Make the AI character generation request
+            // Modified character generation request with streaming
             const characterGenResponse = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    selectedModel,
+                    messages: [
+                        {
+                            role: "system",
+                            content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
+
+ Name: The character's name.
+
+ Clients: A list of clients (if any).
+
+ ModelProvider: The model provider (e.g., "zkagi").
+
+ Settings:
+
+ Secrets: Any secrets related to the character.
+
+ Voice: Voice settings, including the model (e.g., "en_US-male-medium").
+
+ Bio: Key points about the character's background, achievements, and beliefs.
+
+ Lore: Additional backstory about the character.
+
+ Knowledge: Specific knowledge or insights the character has.
+
+ MessageExamples: Examples of messages the character might send, including user interactions.
+
+ PostExamples: Examples of posts the character might make.
+
+ Topics: Key topics the character is associated with.
+
+ Style:
+
+ All: General stylistic elements.
+
+ Chat: Stylistic elements specific to chat interactions.
+
+ Post: Stylistic elements specific to posts.
+
+ Adjectives: A list of adjectives commonly used by the character.
+
+ Instructions:
+
+ Extract Information: Read the user-provided data and extract relevant information for each section.
+
+ Organize Data: Organize the extracted information into the appropriate sections.
+
+ Format JSON: Ensure the final output is in valid JSON format.
+
+ Avoid Example Data: Do not use any example data from the prompt. Only use the user-provided data to populate the fields.`
+                        },
+                        {
+                            role: "user",
+                            content: `Generate a character.json file using the following user-provided data:
+
+ Character Name: Set the character's name to ${formData.ticker}.
+
+ Twitter Data: Use the given tweets ${JSON.stringify(twitterResults)} to understand the voice tone, style, and topics associated with the character.
+
+ Training Data: Use the training data ${JSON.stringify(trainingData)} to generate the rest of the data for the character, including bio, lore, knowledge, message examples, post examples, topics, style, and adjectives.
+
+ Ensure the following:
+
+ All fields in the character.json file are populated using the provided user data.
+
+ Do not use any example data from the system prompt.
+
+ The output should be in valid JSON format.
+
+ Example Output Structure:
+ {
+   "name": "${formData.ticker}",
+   "clients": [],  Populate using user data
+   "modelProvider": "",  Populate using user data
+   "settings": {
+     "secrets": {},  Populate using user data
+     "voice": {
+       "model": ""  Populate using user data
+     }
+   },
+   "bio": [],  Populate using user data
+   "lore": [],  Populate using user data
+   "knowledge": [],  Populate using user data
+   "messageExamples": [
+     {
+       "user": "{{user1}}",
+       "content": {
+         "text": ""  Populate using user data
+       }
+     },
+     {
+       "user": "${formData.ticker}",
+       "content": {
+         "text": ""  Populate using user data
+       }
+     }
+   ],
+   "postExamples": [],  Populate using user data
+   "topics": [],  Populate using user data
+   "style": {
+     "all": [],  Populate using user data
+     "chat": [],  Populate using user data
+     "post": []  Populate using user data
+   },
+   "adjectives": []  Populate using user data
+ }`
+                        }
+                    ]
+                })
+            });
+
+            if (!characterGenResponse.ok) throw new Error('Failed to generate character profile.');
+
+            // Handle streaming response
+            const reader = characterGenResponse.body?.getReader();
+            if (!reader) throw new Error('No reader available');
+
+            let accumulatedResponse = '';
+
+            // Create a text decoder for the streaming data
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // Decode the chunk and add it to accumulated response
+                const chunk = decoder.decode(value);
+                accumulatedResponse += chunk;
+
+                // Check if we have a complete JSON structure
+                if (accumulatedResponse.includes('```json') && accumulatedResponse.includes('```')) {
+                    const jsonMatch = accumulatedResponse.match(/```json\n([\s\S]*?)\n```/);
+                    if (jsonMatch && jsonMatch[1]) {
+                        try {
+                            const parsedJson = JSON.parse(jsonMatch[1]);
+                            parsedJson.clients = ["TWITTER"];
+                            parsedJson.settings.secrets = {
+                                TWITTER_USERNAME: username,
+                                TWITTER_PASSWORD: password,
+                                TWITTER_EMAIL: email
+                            };
+                            setCharacterJson(parsedJson);
+                            setEditableJson(parsedJson);
+                        } catch (error) {
+                            console.error('Error parsing JSON:', error);
+                        }
+                    }
+                }
+
+                // Check for proof in the stream
+                if (chunk.includes('[PROOF]')) {
+                    const proofMatch = chunk.match(/\[PROOF\] (.*)/);
+                    if (proofMatch) {
+                        console.log('Received proof:', proofMatch[1]);
+                        // Handle the proof as needed
+                    }
+                }
+
+                // Check for any error messages
+                if (chunk.includes('[ERROR]')) {
+                    const errorMatch = chunk.match(/\[ERROR\] (.*)/);
+                    if (errorMatch) {
+                        throw new Error(errorMatch[1]);
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('Error in submission process:', error);
+            toast.error('An error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    const maskedJsonData = maskSecrets(editableJson);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+
+        const currentTicker = formData.ticker;
+
+        if (!currentTicker) {
+            throw new Error('Selected ticker is null. Please set a valid ticker.');
+        }
+
+        const trainingData =
+            useTickerStore.getState().tickerInfo[currentTicker]?.training_data || [];
+
+        const twitterResults = await processTwitterData(formData.trainingUrls);
+
+        try {
+            // Create a temporary state to hold streaming content
+            let accumulatedContent = '';
+
+            // Initialize response state
+            setCharacterJson(null);
+
+            const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1430,6 +1649,7 @@ Organize Data: Organize the extracted information into the appropriate sections.
 Format JSON: Ensure the final output is in valid JSON format.
 
 Avoid Example Data: Do not use any example data from the prompt. Only use the user-provided data to populate the fields.`
+                            // Your existing system message
                         },
                         {
                             role: "user",
@@ -1486,185 +1706,84 @@ Example Output Structure:
   },
   "adjectives": [] // Populate using user data
 }`
-                        }
-                    ]
-                })
-            });
-
-            if (!characterGenResponse.ok) throw new Error('Failed to generate character profile.');
-
-            const characterData = await characterGenResponse.json();
-
-            // Parse JSON from response and set secrets
-            const contentString = characterData.content;
-            const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
-
-            if (jsonMatch && jsonMatch[1]) {
-                const parsedJson = JSON.parse(jsonMatch[1]);
-                parsedJson.clients = ["TWITTER"];
-                parsedJson.settings.secrets = {
-                    TWITTER_USERNAME: username,
-                    TWITTER_PASSWORD: password,
-                    TWITTER_EMAIL: email
-                };
-                setCharacterJson(parsedJson);
-                setEditableJson(parsedJson);
-            } else {
-                throw new Error('Failed to parse character JSON from response.');
-            }
-            console.log('characterData', jsonMatch)
-
-            // setCharacterJson(jsonMatch);
-
-        } catch (error) {
-            console.error('Error in submission process:', error);
-            toast.error('An error occurred. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const maskedJsonData = maskSecrets(editableJson);
-
-    // Function to handle refresh
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-
-        const currentTicker = formData.ticker;
-
-        //secondhalf 
-        if (!currentTicker) {
-            throw new Error('Selected ticker is null. Please set a valid ticker.');
-        }
-
-        const trainingData =
-            useTickerStore.getState().tickerInfo[currentTicker]?.training_data || [];
-
-        const twitterResults = await processTwitterData(formData.trainingUrls);
-
-        try {
-            const characterGenResponse = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    selectedModel,
-                    messages: [
-                        {
-                            role: "system",
-                            content: `You are an AI assistant tasked with generating a character.json file based on user-provided data. The file should include the following sections:
-
-Name: The character's name.
-
-Clients: A list of clients (if any).
-
-ModelProvider: The model provider (e.g., "zkagi").
-
-Settings:
-
-Secrets: Any secrets related to the character.
-
-Voice: Voice settings, including the model (e.g., "en_US-male-medium").
-
-Bio: Key points about the character's background, achievements, and beliefs.
-
-Lore: Additional backstory about the character.
-
-Knowledge: Specific knowledge or insights the character has.
-
-MessageExamples: Examples of messages the character might send, including user interactions.
-
-PostExamples: Examples of posts the character might make.
-
-Topics: Key topics the character is associated with.
-
-Style:
-
-All: General stylistic elements.
-
-Chat: Stylistic elements specific to chat interactions.
-
-Post: Stylistic elements specific to posts.
-
-Adjectives: A list of adjectives commonly used by the character.
-
-Instructions:
-
-Extract Information: Read the user-provided data and extract relevant information for each section.
-
-Organize Data: Organize the extracted information into the appropriate sections.
-
-Format JSON: Ensure the final output is in valid JSON format.
-
-Avoid Example Data: Do not use any example data from the prompt. Only use the user-provided data to populate the fields.`
-                        },
-                        {
-                            role: "user",
-                            content: `Generate a character.json file using the following user-provided data:
-
-Character Name: Set the character's name to ${formData.ticker}.
-
-Twitter Data: Use the given tweets ${JSON.stringify(twitterResults)} to understand the voice tone, style, and topics associated with the character.
-
-Training Data: Use the training data ${JSON.stringify(trainingData)} to generate the rest of the data for the character, including bio, lore, knowledge, message examples, post examples, topics, style, and adjectives.
-
-Ensure the following:
-
-All fields in the character.json file are populated using the provided user data.
-
-Do not use any example data from the system prompt.
-
-The output should be in valid JSON format.
-
-Example Output Structure:
-{
-  "name": "${formData.ticker}",
-  "clients": [], // Populate using user data
-  "modelProvider": "", // Populate using user data
-  "settings": {
-    "secrets": {}, // Populate using user data
-    "voice": {
-      "model": "" // Populate using user data
-    }
-  },
-  "bio": [], // Populate using user data
-  "lore": [], // Populate using user data
-  "knowledge": [], // Populate using user data
-  "messageExamples": [
-    {
-      "user": "{{user1}}",
-      "content": {
-        "text": "" // Populate using user data
-      }
-    },
-    {
-      "user": "${formData.ticker}",
-      "content": {
-        "text": "" // Populate using user data
-      }
-    }
-  ],
-  "postExamples": [], // Populate using user data
-  "topics": [], // Populate using user data
-  "style": {
-    "all": [], // Populate using user data
-    "chat": [], // Populate using user data
-    "post": [] // Populate using user data
-  },
-  "adjectives": [] // Populate using user data
-}`,
                         },
                     ],
                 }),
             });
 
-            if (!characterGenResponse.ok) {
+            if (!response.ok) {
                 throw new Error("Failed to regenerate character JSON.");
             }
 
-            const characterData = await characterGenResponse.json();
-            const contentString = characterData.content;
-            const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
+            // Get the response reader
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('No reader available');
 
+            // Create a temporary div for accumulating JSON content
+            let jsonContent = '';
+            let foundJsonStart = false;
+
+            // Read the stream
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // Convert the chunk to text
+                const chunk = new TextDecoder().decode(value);
+
+                // Handle special messages (proof and errors)
+                if (chunk.startsWith('data: [PROOF]')) {
+                    // Handle proof if needed
+                    continue;
+                }
+
+                if (chunk.startsWith('data: [ERROR]')) {
+                    console.error('Stream error:', chunk);
+                    continue;
+                }
+
+                // Accumulate the content
+                accumulatedContent += chunk;
+
+                // Look for JSON content
+                if (!foundJsonStart && accumulatedContent.includes('```json')) {
+                    foundJsonStart = true;
+                    jsonContent = accumulatedContent.split('```json\n')[1];
+                } else if (foundJsonStart) {
+                    jsonContent += chunk;
+                }
+
+                // Try to parse JSON as it comes in
+                if (foundJsonStart && jsonContent.includes('```')) {
+                    const cleanJson = jsonContent.split('```')[0].trim();
+                    try {
+                        const parsedJson = JSON.parse(cleanJson);
+
+                        // Preserve existing secrets and clients
+                        const currentSecrets = editableJson?.settings?.secrets || {};
+                        const currentClients = editableJson?.clients || [];
+
+                        parsedJson.settings = {
+                            ...parsedJson.settings,
+                            secrets: currentSecrets,
+                        };
+                        parsedJson.clients = currentClients;
+
+                        // Update the UI with the parsed JSON
+                        setCharacterJson(parsedJson);
+                        setEditableJson(parsedJson);
+                    } catch (e) {
+                        // If JSON parsing fails, continue accumulating content
+                        console.debug('Partial JSON not yet valid, continuing to accumulate');
+                    }
+                }
+
+                // Optional: Update a progress indicator or streaming status
+                // setStreamingProgress(accumulatedContent.length);
+            }
+
+            // Final validation of the complete response
+            const jsonMatch = accumulatedContent.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch && jsonMatch[1]) {
                 const parsedJson = JSON.parse(jsonMatch[1]);
 
@@ -1673,15 +1792,17 @@ Example Output Structure:
 
                 parsedJson.settings = {
                     ...parsedJson.settings,
-                    secrets: currentSecrets, // Carry forward secrets
+                    secrets: currentSecrets,
                 };
                 parsedJson.clients = currentClients;
+
                 setCharacterJson(parsedJson);
                 setEditableJson(parsedJson);
                 toast.success("Character JSON refreshed successfully!");
             } else {
                 throw new Error("Failed to parse the regenerated character JSON.");
             }
+
         } catch (error) {
             console.error("Error refreshing character JSON:", error);
             toast.error("Failed to refresh character JSON. Please try again.");
