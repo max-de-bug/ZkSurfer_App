@@ -46,7 +46,6 @@ import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
 import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
 import { useWhitelistStore } from '@/stores/use-whitelist-store';
-import remarkGfm from 'remark-gfm';
 
 
 interface GeneratedTweet {
