@@ -1,0 +1,356 @@
+/generate-tweet
+
+ if (fullMessage.startsWith('/generate-tweet') && activeNavbarTicker) {
+            // Extract the number and prompt from the command
+            const commandParts = fullMessage.replace('/generate-tweet', '').trim().split(' ');
+            const numberOfTweets = parseInt(commandParts[0]);
+            const tweetPrompt = commandParts.slice(1).join(' ').trim();
+
+            // Validate number of tweets
+            if (isNaN(numberOfTweets) || numberOfTweets <= 0 || numberOfTweets > 20) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'Please specify a valid number of tweets (1-20). Format: /generate-tweet [number] [prompt]',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+                return;
+            }
+
+            // For display purposes, show the original message
+            const displayMessage: Message = {
+                role: 'user',
+                content: fullMessage
+            };
+
+            setDisplayMessages(prev => [...prev, displayMessage]);
+            setInputMessage('');
+
+            try {
+                // Get ticker info from stored map
+                const { tickerInfo, selectedTicker } = useTickerStore.getState();
+                if (selectedTicker) {
+                    const tickerInfoUse = tickerInfo[selectedTicker];
+
+                    if (!tickerInfo) throw new Error('Ticker info not found');
+
+                    const trainingData = tickerInfoUse.training_data || [];
+                    let twitterUrl = '';
+                    let twitterData = null;
+
+                    if (tickerInfoUse.urls && Array.isArray(tickerInfoUse.urls)) {
+                        twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com') || url.includes('x.com')) || '';
+                        if (twitterUrl) {
+                            // const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
+                            // if (username) {
+                            //     twitterData = await processTwitterData(username);
+                            // }
+                            try {
+                                const urlObj = new URL(twitterUrl);
+                                const pathname = urlObj.pathname;
+                                const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
+                                let username = '';
+
+                                if (pathSegments.length > 0) {
+                                    username = pathSegments[0];
+                                }
+
+                                if (username) {
+                                    twitterData = await processTwitterData(username);
+                                }
+                            } catch (error) {
+                                console.error('Invalid URL:', twitterUrl);
+                            }
+                        }
+                    }
+
+                    const combinedData = {
+                        training_data: trainingData,
+                        twitter_data: twitterData
+                    };
+
+                    console.log('combinedData', combinedData)
+                    const imageUrl = `data:image/png;base64,${tickerInfoUse.image_base64}`;
+
+                    const textGenResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: `You are a helpful AI assistant trained to create content based on a given knowledge base. Using the example tweets provided in ${JSON.stringify(twitterData)}, learn the unique tone, style, and personality reflected in the writing, such as humor, formality, common themes, and favorite topics. Generate exactly ${numberOfTweets} new tweets in a style inspired by the given tweets, but ensure the wording, topics, and expressions are unique.
+
+Output the tweets in the following JSON format:
+
+{
+  "tweets": [
+    {"tweet": "tweet1"},
+    {"tweet": "tweet2"},
+    ...
+  ]
+}
+
+If the user requests an image related to a tweet, generate a detailed prompt for an image that aligns with the character style (see attached image) and matches the tweet's content. Use the format:
+{
+  "prompt": "<generated_prompt>"
+}
+In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary knowledge for topics to include in the tweets. Keep responses strictly in these formats.`
+                                },
+                                {
+                                    role: 'user',
+                                    content: [{
+                                        type: 'text',
+                                        text: `Number of tweets: ${numberOfTweets}. Prompt: ${tweetPrompt}`,
+                                    }, {
+                                        type: 'image_url',
+                                        image_url: {
+                                            url: imageUrl
+                                        }
+                                    }]
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!textGenResponse.ok) throw new Error('Failed to generate text');
+                    const textGenData = await textGenResponse.json();
+
+                    try {
+                        // Try parsing the response as JSON first
+                        const parsedContent = JSON.parse(textGenData.content);
+                        if (parsedContent.tweets && Array.isArray(parsedContent.tweets)) {
+                            parsedContent.tweets.forEach((tweetObj: any) => {
+                                if (tweetObj.tweet) {
+                                    setGeneratedTweets(prev => [...prev, { tweet: tweetObj.tweet }]);
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        // Fallback to regex parsing if JSON parsing fails
+                        const tweetContent = textGenData.content.match(/"tweet":\s*"([^"]*)"/g);
+                        if (tweetContent) {
+                            const tweets = tweetContent.map((match: string) =>
+                                match.split('"tweet":')[1].trim().replace(/(^"|"$)/g, '')
+                            );
+                            tweets.forEach((tweet: string) => {
+                                setGeneratedTweets(prev => [...prev, { tweet }]);
+                            });
+                        }
+                    }
+
+                    setShowTweetPanel(true);
+
+                    let rawContent = textGenData.content;
+
+                    // Remove any backticks or markdown-like markers
+                    rawContent = rawContent.replace(/```json|```/g, '');
+
+                    // Parse the cleaned JSON string
+                    const textGenDataContent = JSON.parse(rawContent);
+
+                    // Map the parsed JSON to `generatedTweets` format
+                    // const generatedTweet = textGenDataContent.tweets.map((item: { tweet: any; }) => ({ tweet: item.tweet }));
+
+                    const generatedTweet = textGenDataContent.tweets.map((item: { tweet: any; }, index: number) => ({
+                        tweet: item.tweet,
+                        id: index + 1
+                    }));
+                    setGeneratedTweets(generatedTweet);
+
+                    // Handle the response
+                    const assistantMessage: Message = {
+                        role: 'assistant',
+                        // content: textGenData.content,
+                        content: <GeneratedTweetsTable
+                            tweets={generatedTweet}
+                            wallet={wallet.publicKey?.toString() ?? ""}
+                            ticker={activeNavbarTicker} />,
+                        type: 'text'
+                    };
+                    setDisplayMessages(prev => [...prev, assistantMessage]);
+
+                    // Rest of the image generation code remains the same
+                    let promptMatch;
+                    try {
+                        const contentObj = JSON.parse(textGenData.content);
+                        if (contentObj.arguments?.prompt) {
+                            promptMatch = contentObj.arguments.prompt;
+                        }
+                    } catch (e) {
+                        promptMatch = textGenData.content.match(/"prompt"\s*:\s*"([^"]+)"/)?.[1];
+                    }
+
+                    if (promptMatch) {
+                        const tickerSeed = tickerInfoUse ? tickerInfoUse.seed : -1;
+                        const tickerUserPrompt = tickerInfoUse ? tickerInfoUse.user_prompt : '';
+
+                        const fullPrompt = tickerUserPrompt ? `${promptMatch} with character ${tickerUserPrompt}` : promptMatch;
+
+                        const imageGenResponse = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                selectedModel,
+                                messages: [...apiMessages],
+                                directCommand: {
+                                    type: 'image-gen',
+                                    prompt: fullPrompt,
+                                    seed: tickerSeed,
+                                }
+                            })
+                        });
+
+                        if (!imageGenResponse.ok) throw new Error('Failed to generate image');
+                        const imageData = await imageGenResponse.json();
+
+                        const imageMessage: Message = {
+                            role: 'assistant',
+                            content: imageData.content,
+                            type: 'image',
+                            command: 'image-gen'
+                        };
+
+                        setDisplayMessages(prev => [...prev, imageMessage]);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in generate-tweet command:', error);
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'Sorry, there was an error processing your tweet generation request.',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+            }
+            return;
+        }
+
+
+        
+        if (fullMessage.startsWith('/save') || fullMessage.startsWith('/saves')) {
+            if (!activeNavbarTicker) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No agent selected. Please select an agent first.',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+                return;
+            }
+
+            if (generatedTweets.length === 0) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: 'No generated tweets found. Please generate tweets first using /generate-tweet command.',
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+                return;
+            }
+
+            try {
+                const command = fullMessage.trim();
+                const parts = command.split(' ');
+
+                const numberStr = fullMessage.replace('/save', '').trim();
+                const selectedIndex = parseInt(numberStr) - 1;
+
+                // Handle single tweet save
+                if (command.startsWith('/save ')) {
+                    if (isNaN(selectedIndex) || selectedIndex < 0) {
+                        throw new Error('Invalid tweet ID');
+                    }
+
+                    const tweetToSave = generatedTweets[selectedIndex];
+
+                    // Construct the payload with only the selected tweet
+                    const payload = {
+                        wallet_address: wallet.publicKey?.toString(),
+                        ticker: activeNavbarTicker,
+                        tweets: [{
+                            tweet_text: tweetToSave.tweet,
+                            tweet_img: null  // Add if required
+                        }]
+                    };
+
+                    const response = await fetch('https://zynapse.zkagi.ai/contentengine_generatedtweet', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': 'zk-123321'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to save tweet');
+
+                    const successMessage: Message = {
+                        role: 'assistant',
+                        content: `Successfully saved tweet #${selectedIndex + 1}`,
+                        type: 'text'
+                    };
+                    setDisplayMessages(prev => [...prev, successMessage]);
+                }
+                // Handle multiple tweets save
+                // Modified save tweets function
+                else if (command.startsWith('/saves ')) {
+                    const tweetIds = parts[1].split(',').map(id => parseInt(id.trim()) - 1);
+
+                    // Collect all valid tweets first
+                    const tweetsToSave = tweetIds
+                        .filter(tweetId => {
+                            if (isNaN(tweetId) || tweetId < 0 || tweetId >= generatedTweets.length) {
+                                console.error(`Invalid tweet ID: ${tweetId + 1}`);
+                                return false;
+                            }
+                            return true;
+                        })
+                        .map(tweetId => ({
+                            tweet_text: generatedTweets[tweetId].tweet,
+                            tweet_img: null // Add image data if needed
+                        }));
+
+                    // Format payload according to API requirements
+                    const payload = {
+                        wallet_address: wallet.publicKey?.toString(),
+                        ticker: activeNavbarTicker,
+                        tweets: tweetsToSave  // Use 'tweets' instead of 'tweet_text'
+                    };
+
+                    const response = await fetch('https://zynapse.zkagi.ai/contentengine_generatedtweet', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': 'zk-123321'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to save tweets: ${response.statusText}`);
+                    }
+
+                    const savedTweetNumbers = tweetIds.map(id => id + 1).join(', ');
+                    const successMessage: Message = {
+                        role: 'assistant',
+                        content: tweetIds.length === 1
+                            ? `Successfully saved tweet #${savedTweetNumbers}`
+                            : `Successfully saved tweets #${savedTweetNumbers}`,
+                        type: 'text'
+                    };
+                    setDisplayMessages(prev => [...prev, successMessage]);
+                }
+            }
+            catch (error) {
+                const errorMessage: Message = {
+                    role: 'assistant',
+                    content: `Error: ${error instanceof Error ? error.message : 'Failed to save tweet(s)'}`,
+                    type: 'text'
+                };
+                setDisplayMessages(prev => [...prev, errorMessage]);
+            }
+
+            setInputMessage('');
+            return;
+        }

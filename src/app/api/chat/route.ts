@@ -11,6 +11,7 @@ interface CustomResponse extends Omit<OpenAI.Chat.Completions.ChatCompletionMess
     prompt?: string;
 }
 
+// Create a “default” client (if needed)
 const client = new OpenAI({
     baseURL: process.env.NEXT_PUBLIC_OPENAI_BASE_URL,
     apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
@@ -20,7 +21,7 @@ async function getAIClient() {
     // Get the selected model from Zustand
     const { selectedModel } = useModelStore.getState();
 
-    console.log('selectedModel route', selectedModel)
+    console.log('selectedModel route', selectedModel);
 
     // Ensure environment variables are defined
     const deepSeekBaseURL = process.env.NEXT_PUBLIC_DEEPSEEK_BASE_URL;
@@ -50,10 +51,15 @@ async function getAIClient() {
     });
 }
 
-
 async function generateKeys() {
     console.log('Generating keys...');
-    const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` } });
+    const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'api-key': `${process.env.API_KEY}`
+        }
+    });
     if (!response.ok) {
         throw new Error('Failed to generate keys');
     }
@@ -66,7 +72,10 @@ async function generateProof(text: string) {
     const limitedText = text.substring(0, 500);
     const response = await fetch('https://zynapse.zkagi.ai/api/generate-proof', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
+        headers: {
+            'Content-Type': 'application/json',
+            'api-key': `${process.env.API_KEY}`
+        },
         body: JSON.stringify({ text: limitedText }),
     });
     if (!response.ok) {
@@ -77,14 +86,14 @@ async function generateProof(text: string) {
     return result;
 }
 
-
-
-
 async function verifyProof(proof: string) {
     console.log('Verifying proof:', proof);
     const response = await fetch('https://zynapse.zkagi.ai/api/verify-proof', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'api-key': `${process.env.API_KEY}` },
+        headers: {
+            'Content-Type': 'application/json',
+            'api-key': `${process.env.API_KEY}`
+        },
         body: JSON.stringify({ proof }),
     });
     if (!response.ok) {
@@ -95,13 +104,11 @@ async function verifyProof(proof: string) {
     return result;
 }
 
-async function generate_image(prompt: string, seed?: number) { //id_image?: string
-    // console.log('Generating image...');
-    console.log('Generating image...', { prompt, seed }); //id_image
-
+async function generate_image(prompt: string, seed?: number) {
+    console.log('Generating image...', { prompt, seed });
     const fetchWithTimeout = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-            reject(new Error('Request timed out after 60 seconds'));
+            reject(new Error('Request timed out after 120 seconds'));
         }, 120000);
 
         fetch('https://zynapse.zkagi.ai/generate-image', {
@@ -119,7 +126,6 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
                 start_step: 0,
                 guidance: 4,
                 seed: seed ?? -1,
-                // id_image: id_image ?? '',
                 id_weight: 1.0,
                 neg_prompt: "bad quality, worst quality, text, signature, watermark, extra limbs",
                 true_cfg: 1.0,
@@ -128,7 +134,7 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
             }),
         })
             .then(response => {
-                clearTimeout(timeout); // Clear timeout if request is successful
+                clearTimeout(timeout);
                 if (!response.ok) {
                     throw new Error(`Failed to generate image: ${response.statusText}`);
                 }
@@ -141,7 +147,6 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
     try {
         const result: any = await fetchWithTimeout;
         console.log('result', result);
-        // return result.image;
         return {
             image: result.image,
             seed: result.seed // Include seed in return value
@@ -152,133 +157,99 @@ async function generate_image(prompt: string, seed?: number) { //id_image?: stri
     }
 }
 
-
-
-// function openAIWithTimeout(request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-//     return Promise.race([
-//         client.chat.completions.create(request),
-//         new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout))
-//     ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
-// }
-
-async function openAIWithTimeout(client: OpenAI, request: any, timeout = 120000): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-    return Promise.race([
-        client.chat.completions.create(request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out')), timeout)),
-    ]) as Promise<OpenAI.Chat.Completions.ChatCompletion>;
-}
+//
+// ─── STREAMING API ENDPOINT ─────────────────────────────────────────────
+//
 
 export async function POST(request: Request) {
     try {
         console.log('Received request to /api/chat');
 
-        // const client = await getAIClient();
-
-        // Parse request body once
-        // const { messages, directCommand } = await request.json();
+        // Parse the request body once.
         const { messages, directCommand, selectedModel } = await request.json();
         console.log('Parsed messages:', messages);
-
-        // const { selectedModel } = useModelStore.getState();
-
         console.log('Received selectedModel from frontend:', selectedModel);
 
         if (!selectedModel) {
             throw new Error("No selected model provided in request.");
         }
 
-        // if (!client.apiKey) {
-        //     console.error('OPENAI_API_KEY is not set');
-        //     throw new Error('API configuration is incomplete');
-        // }
-
-        // Generate keys
+        // Generate keys first.
         await generateKeys();
 
-        // Handle direct commands first
-        if (directCommand) {
-            // Generate image directly
-            const generatedImage = await generate_image(directCommand.prompt, directCommand.seed); // directCommand.id_image
+        // If this is a direct command (e.g. image generation), handle it without streaming chat.
+        // if (directCommand) {
+        //     // Generate image directly.
+        //     const generatedImage = await generate_image(directCommand.prompt, directCommand.seed);
+        //     // Generate and verify proof.
+        //     const proof = await generateProof(directCommand.prompt);
+        //     await verifyProof(proof);
 
-            console.log('directCommand', directCommand)
-            // Generate and verify proof
+        //     // For simplicity, stream out a single JSON payload.
+        //     const payload = JSON.stringify({
+        //         content: generatedImage.image,
+        //         type: 'img',
+        //         prompt: directCommand.prompt,
+        //         seed: generatedImage.seed,
+        //         proof
+        //     });
+        //     const encoder = new TextEncoder();
+        //     const stream = new ReadableStream({
+        //         start(controller) {
+        //             controller.enqueue(encoder.encode(payload));
+        //             controller.close();
+        //         }
+        //     });
+        //     return new Response(stream, {
+        //         headers: { "Content-Type": "application/json" }
+        //     });
+        // }
+
+        if (directCommand) {
+            // Call your image-generation service.
+            const generatedImage = await generate_image(directCommand.prompt, directCommand.seed);
+
+            // Generate and verify proof.
             const proof = await generateProof(directCommand.prompt);
             await verifyProof(proof);
 
-            return NextResponse.json({
-                content: generatedImage.image,
-                type: 'img',
-                prompt: directCommand.prompt,
-                seed: generatedImage.seed,
-                proof
+            const encoder = new TextEncoder();
+
+            const stream = new ReadableStream({
+                async start(controller) {
+                    // For example, send a progress update (you can send multiple progress events if available).
+                    const progressEvent = JSON.stringify({ progress: 50 }); // 50% complete, for instance.
+                    controller.enqueue(encoder.encode(`data: ${progressEvent}\n\n`));
+
+                    // Optionally, you might wait a bit or send additional updates here...
+
+                    // Now send the final payload.
+                    const finalPayload = JSON.stringify({
+                        content: generatedImage.image,
+                        type: 'img',
+                        prompt: directCommand.prompt,
+                        seed: generatedImage.seed,
+                        proof,
+                    });
+                    controller.enqueue(encoder.encode(`data: ${finalPayload}\n\n`));
+                    controller.close();
+                },
+            });
+
+            return new Response(stream, {
+                headers: { "Content-Type": "text/event-stream" }
             });
         }
 
-        // If not a direct command, proceed with normal chat flow
-        // Add system prompt
-        //         const tool_prompt = `You are an advanced AI assistant named ZKSurfer made by ZkAGI with access to external tools, but your primary capability is your own extensive knowledge and reasoning. Your goal is to provide helpful, accurate responses to user queries.
 
-        //  <tools>
-        //  ${JSON.stringify(tools)}
-        //  </tools>
-
-        //  Guidelines for tool usage:
-
-        //  1. Rely primarily on your own knowledge and capabilities. This should be your default approach for answering queries.
-
-        //  2. Use tools only when absolutely necessary. Consider using a tool if:
-        //     - The query explicitly requires real-time or external data you cannot access otherwise.
-        //     - The task involves specialized computations or data processing beyond your built-in capabilities.
-        //     - You need to verify critical information that you're unsure about.
-
-        //  3. Before using a tool, carefully evaluate:
-        //     - Is the information truly essential to answer the query?
-        //     - Is there any way to provide a satisfactory response without the tool?
-        //     - Will the tool provide significant value beyond what you can offer directly?
-
-        //  4. If you determine a tool is necessary:
-        //     - Verify the tool is listed in the provided <tools> section.
-        //     - Use only the tools explicitly defined in the <tools> section. Do not create or invent new tools.
-        //     - Use only the arguments required by the tool signature as defined in the <tools> section.
-        //     - Call multiple tools in sequence if needed to gather all necessary information.
-
-        //  5. To use a tool, format your request as follows:
-        //     <tool_call>
-        //     {"name": "<function-name>", "arguments": <args-dict>}
-        //     </tool_call>
-
-        //  6. After using a tool, integrate the results seamlessly into your response. Explain how the tool output contributes to answering the user's query.
-
-        //  Remember: 
-        //  - Your intelligence and knowledge are your primary assets. Tools are supplementary and should be used judiciously to enhance your capabilities, not replace them.
-        //  - Only use tools that are explicitly defined in the <tools> section. Do not create, invent, or assume the existence of any tools not listed there.
-        //  - Adhere strictly to the defined tool signatures and do not attempt to use arguments or functionalities not specified in the tool definitions.`;
-
-
+        // ─── NORMAL CHAT FLOW (STREAMED) ─────────────────────────────
+        // Prepend a system prompt.
         const updatedMessages = [
             { role: "system", content: 'You are an advanced AI assistant named ZkTerminal made by ZkAGI' },
             ...messages
         ];
 
-        // const response = await openAIWithTimeout({
-        //     // model: "meta-llama/llama-3.2-11b-vision-instruct:free",
-        //     // model: "mistralai/Pixtral-12B-2409",
-        //     model: "pixtral-12b-2409",
-        //     messages: updatedMessages,
-        // });
-
-        // const modelToUse = selectedModel === "Mistral"
-        //     ? process.env.NEXT_PUBLIC_MISTRAL_MODEL
-        //     : process.env.NEXT_PUBLIC_DEEPSEEK_MODEL;
-
-        // const response = await openAIWithTimeout(client, {
-        //     model: modelToUse,
-        //     messages: updatedMessages,
-        // });
-
-        // console.log('response', response);
-
-        // ✅ Select the correct model based on received `selectedModel`
+        // Select the correct base URL and model.
         const deepSeekBaseURL = process.env.NEXT_PUBLIC_DEEPSEEK_BASE_URL;
         const deepSeekModel = process.env.NEXT_PUBLIC_DEEPSEEK_MODEL;
         const mistralBaseURL = process.env.NEXT_PUBLIC_OPENAI_BASE_URL;
@@ -291,81 +262,83 @@ export async function POST(request: Request) {
 
         let baseURL = deepSeekBaseURL;
         let model = deepSeekModel;
-
         if (selectedModel === "Mistral") {
             baseURL = mistralBaseURL;
             model = mistralModel;
         }
-
         console.log(`Using AI Provider: ${selectedModel}`);
         console.log(`Base URL: ${baseURL}, Model: ${model}`);
 
-        const client = new OpenAI({
-            baseURL,
-            apiKey,
-        });
+        // Create a client using the selected provider.
+        const aiClient = new OpenAI({ baseURL, apiKey });
 
-        const response = await openAIWithTimeout(client, {
+        // Request a streaming completion from OpenAI (make sure your OpenAI client supports stream mode).
+        const openAIStream = await aiClient.chat.completions.create({
             model,
-            messages,
+            messages: updatedMessages,
+            stream: true,
         });
-        const responseMessage = response.choices[0].message;
 
-        let finalResponse: CustomResponse = { ...responseMessage };
+        // Prepare a ReadableStream that will push SSE-formatted tokens to the client.
+        const encoder = new TextEncoder();
+        let accumulatedResponse = '';
+        let buffer = '';
 
-        // Check for tool calls
-        // if (responseMessage.content) {
-        //     const toolCallMatch = responseMessage.content.match(/<tool_call>([^]*?)<\/tool_call>/);
-        //     if (toolCallMatch) {
-        //         const toolCallContent = toolCallMatch[1];
-        //         try {
-        //             const toolCall = JSON.parse(toolCallContent);
-        //             console.log('Tool call detected:', toolCall);
+        const stream = new ReadableStream({
+            async start(controller) {
+                try {
+                    // Loop over the stream of tokens.
+                    for await (const chunk of openAIStream) {
+                        const delta = chunk.choices[0].delta;
+                        if (delta && delta.content) {
+                            const token = delta.content;
+                            accumulatedResponse += token;
+                            buffer += token;
 
-        //             switch (toolCall.name) {
-        //                 case 'generate_image':
-        //                     const generatedImage = await generate_image(toolCall.arguments.prompt);
-        //                     finalResponse.content = generatedImage.image;
-        //                     finalResponse.type = 'img';
-        //                     finalResponse.prompt = responseMessage.content;
-        //                     console.log('finalResponse', finalResponse);
-        //                     break;
-        //                 default:
-        //                     console.log('Unknown tool call:', toolCall.name);
-        //             }
-        //         } catch (error) {
-        //             console.error('Error parsing or executing tool call:', error);
-        //         }
-        //     }
-        // }
-
-        // Generate proof
-        const lastMessage = messages[messages.length - 1].content;
-        console.log('lastMessage', lastMessage);
-
-        if (Array.isArray(lastMessage)) {
-            const firstObject = lastMessage[0];
-            if (firstObject.type === 'text') {
-                console.log('Text:', firstObject.text);
-                const proof = await generateProof(firstObject.text);
-                await verifyProof(proof);
-                finalResponse.proof = proof;
-            } else {
-                console.log('The first object is not a text message');
+                            // Check if the buffer ends with a space or common punctuation,
+                            // which we treat as a word (or sentence) boundary.
+                            if (/[ \t\n\r.,!?]$/.test(buffer)) {
+                                // Flush the complete word(s) from the buffer.
+                                const message = `${buffer}`;
+                                controller.enqueue(encoder.encode(message));
+                                buffer = ''; // Reset the buffer after flushing.
+                            }
+                        }
+                    }
+                    // After the loop, if there is any remaining text in the buffer, flush it.
+                    if (buffer.length > 0) {
+                        controller.enqueue(encoder.encode(`${buffer}`));
+                    }
+                    // Once streaming is complete, generate and verify a proof.
+                    if (accumulatedResponse.trim()) {
+                        const proof = await generateProof(accumulatedResponse);
+                        await verifyProof(proof);
+                        // Send a final SSE event with the proof.
+                        const proofMessage = `data: [PROOF] ${proof}\n\n`;
+                        controller.enqueue(encoder.encode(proofMessage));
+                    }
+                } catch (error) {
+                    // If an error occurs during streaming, send an SSE error event.
+                    controller.enqueue(encoder.encode(`data: [ERROR] ${error}\n\n`));
+                    controller.error(error);
+                }
+                controller.close();
             }
-        } else {
-            const proof = await generateProof(lastMessage);
-            await verifyProof(proof);
-            finalResponse.proof = proof;
-        }
+        });
 
-        return NextResponse.json(finalResponse);
+        // Return the streaming response with headers appropriate for SSE.
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache, no-transform"
+            }
+        });
 
     } catch (error) {
         console.error('Error in /api/chat:', error);
-        return NextResponse.json(
-            { error: 'An error occurred while processing your request' },
-            { status: 500 }
+        return new Response(
+            JSON.stringify({ error: 'An error occurred while processing your request' }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
         );
     }
 }

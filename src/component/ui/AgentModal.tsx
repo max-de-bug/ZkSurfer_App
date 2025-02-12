@@ -226,7 +226,7 @@ export const CreateAgentModal: FC<CreateAgentModalProps> = ({ visible, onClose, 
                                 onClick={() => {
                                     onAgentTypeSelect("secret-agent");
                                     onClose();
-                                    window.location.href = "https://tidycal.com/zkagi/discussion";
+                                    window.location.href = "https://docs.google.com/forms/d/e/1FAIpQLSfYxhtk8yQVlR9iWtkXzvyjsscptn440YDNNIh46efTrPnoEQ/viewform?usp=sharing";
                                 }}
                                 className="bg-white text-black px-4 py-2 rounded hover:bg-gray-200 transition-colors"
                             >

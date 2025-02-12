@@ -46,6 +46,7 @@ import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
 import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
 import { useWhitelistStore } from '@/stores/use-whitelist-store';
+import remarkGfm from 'remark-gfm';
 
 
 interface GeneratedTweet {
@@ -419,10 +420,9 @@ const HomeContent: FC = () => {
         }
     }
 
-
     const sampleCommands = [
         { label: 'Create Agent', command: '/create-agent: ' },
-        { label: 'Join Pre-Sale', command: 'pre-sale' },
+        // { label: 'Join Pre-Sale', command: 'pre-sale' },
         { label: 'Mint NFT', command: '/image-gen of ' },
     ];
 
@@ -638,33 +638,39 @@ const HomeContent: FC = () => {
         { name: 'Ponke', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
     ];
 
-
     const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
+        console.log('pig')
         try {
-            // Format and compress the image here instead of in the message handling
+            // Format the image into a data URL if it isn't already.
             let formattedImage = imageData;
             if (!imageData.startsWith('data:image/')) {
                 formattedImage = `data:image/png;base64,${imageData}`;
             }
+            // Compress the image as needed.
             const compressedImage = await compressImage(formattedImage);
 
+            // Send the image and prompt to your /api/chat endpoint.
             const imageUploadResponse = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     selectedModel: "Mistral",
-                    messages: [{
-                        role: 'user',
-                        content: [{
-                            type: 'text',
-                            text: 'Analyze the given image and suggest a creative name and description that fit the theme and appearance of the image. Ensure the output is always in the format: {"name":<generated_name>, "description":<generated_description>}.Return only a JSON response in the following format: {"name":<generated_name>, "description":<generated_description>}.'
-                        }, {
-                            type: 'image_url',
-                            image_url: {
-                                url: compressedImage
-                            }
-                        }]
-                    }]
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'text',
+                                    text:
+                                        'Analyze the given image and suggest a creative name and description that fit the theme and appearance of the image. Ensure the output is always in the format: {"name":<generated_name>, "description":<generated_description>}. Return only a JSON response in the following format: {"name":<generated_name>, "description":<generated_description>}.'
+                                },
+                                {
+                                    type: 'image_url',
+                                    image_url: { url: compressedImage }
+                                }
+                            ]
+                        }
+                    ]
                 })
             });
 
@@ -672,32 +678,51 @@ const HomeContent: FC = () => {
                 throw new Error('Failed to process image');
             }
 
-            const data = await imageUploadResponse.json();
+            // Ensure that the response body is a readable stream.
+            if (!imageUploadResponse.body) {
+                throw new Error("Readable stream not supported in this environment");
+            }
 
-            try {
-                // const jsonMatch = data.content.match(/\{.*\}/);
-                const jsonMatch = data.content.match(/```json\n({[\s\S]*?})\n```/);
-                console.log('jsonMatch', jsonMatch)
-                console.log('jsonMatch[0]', jsonMatch[1])
-                if (jsonMatch && jsonMatch[0]) {
-                    const parsedData = JSON.parse(jsonMatch[1]);
-                    console.log('parsedData', parsedData)
-                    setMemeGenerationData({
-                        ...parsedData,
-                        prompt,
-                        base64Image: compressedImage,
-                        seed: data.proof?.seed || -1
-                    });
-                } else {
-                    throw new Error('No JSON object found in response');
+            // Read from the streaming response.
+            const reader = imageUploadResponse.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let done = false;
+            let accumulatedContent = '';
+
+            while (!done) {
+                const { value, done: doneReading } = await reader.read();
+                done = doneReading;
+                if (value) {
+                    // Decode the current chunk and add it to the accumulator.
+                    const chunk = decoder.decode(value, { stream: true });
+                    accumulatedContent += chunk;
                 }
-            } catch (e) {
-                console.error('Failed to parse agent data:', e);
+            }
+
+            console.log("Accumulated streaming content:", accumulatedContent);
+
+            // Extract the JSON object wrapped in triple backticks.
+            // Adjust the regex if your formatting is different.
+            const jsonMatch = accumulatedContent.match(/```json\s*\n?({[\s\S]*?})\n?```/);
+            if (jsonMatch && jsonMatch[1]) {
+                const parsedData = JSON.parse(jsonMatch[1]);
+                console.log('Parsed data from streaming response:', parsedData);
+
+                // Update your state with the analysis result.
+                setMemeGenerationData({
+                    ...parsedData,
+                    prompt,
+                    base64Image: compressedImage,
+                    seed: parsedData.proof?.seed || -1
+                });
+            } else {
+                throw new Error('No JSON object found in streaming response');
             }
         } catch (error) {
             console.error('Error in agent image generation:', error);
         }
     };
+
 
     useEffect(() => {
         const handleMarketClick = () => {
@@ -1748,29 +1773,6 @@ const HomeContent: FC = () => {
             return;
         }
 
-
-        // if (fullMessage.startsWith('/video-lypsing')) {
-        //     const videoFile = files.find((file) => file.file.type.startsWith('video/'));
-        //     const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
-
-        //     if (videoFile && audioFile) {
-        //         // Process the video and audio files
-        //         await processFilesForVideoLypsing(videoFile.file, audioFile.file);
-
-        //         // Clear the uploaded files
-        //         setFiles([]);
-        //     } else {
-        //         const errorMessage: Message = {
-        //             role: 'assistant',
-        //             content: 'Please upload one video file and one audio file.',
-        //             type: 'text',
-        //         };
-        //         setDisplayMessages((prev) => [...prev, errorMessage]);
-        //     }
-        //     setInputMessage('');
-        //     return;
-        // }
-
         if (fullMessage.startsWith('/video-lipsync')) {
             const videoFile = files.find((file) => file.file.type.startsWith('video/'));
             const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
@@ -1884,360 +1886,6 @@ const HomeContent: FC = () => {
         }
 
         // Inside handleSubmit function, add this before the other command handling:
-
-        // Command handling for /generate-tweet
-        if (fullMessage.startsWith('/generate-tweet') && activeNavbarTicker) {
-            // Extract the number and prompt from the command
-            const commandParts = fullMessage.replace('/generate-tweet', '').trim().split(' ');
-            const numberOfTweets = parseInt(commandParts[0]);
-            const tweetPrompt = commandParts.slice(1).join(' ').trim();
-
-            // Validate number of tweets
-            if (isNaN(numberOfTweets) || numberOfTweets <= 0 || numberOfTweets > 20) {
-                const errorMessage: Message = {
-                    role: 'assistant',
-                    content: 'Please specify a valid number of tweets (1-20). Format: /generate-tweet [number] [prompt]',
-                    type: 'text'
-                };
-                setDisplayMessages(prev => [...prev, errorMessage]);
-                return;
-            }
-
-            // For display purposes, show the original message
-            const displayMessage: Message = {
-                role: 'user',
-                content: fullMessage
-            };
-
-            setDisplayMessages(prev => [...prev, displayMessage]);
-            setInputMessage('');
-
-            try {
-                // Get ticker info from stored map
-                const { tickerInfo, selectedTicker } = useTickerStore.getState();
-                if (selectedTicker) {
-                    const tickerInfoUse = tickerInfo[selectedTicker];
-
-                    if (!tickerInfo) throw new Error('Ticker info not found');
-
-                    const trainingData = tickerInfoUse.training_data || [];
-                    let twitterUrl = '';
-                    let twitterData = null;
-
-                    if (tickerInfoUse.urls && Array.isArray(tickerInfoUse.urls)) {
-                        twitterUrl = tickerInfoUse.urls.find((url: string) => url.includes('twitter.com') || url.includes('x.com')) || '';
-                        if (twitterUrl) {
-                            // const username = twitterUrl.split('twitter.com/').pop()?.split('/')[0] || '';
-                            // if (username) {
-                            //     twitterData = await processTwitterData(username);
-                            // }
-                            try {
-                                const urlObj = new URL(twitterUrl);
-                                const pathname = urlObj.pathname;
-                                const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
-                                let username = '';
-
-                                if (pathSegments.length > 0) {
-                                    username = pathSegments[0];
-                                }
-
-                                if (username) {
-                                    twitterData = await processTwitterData(username);
-                                }
-                            } catch (error) {
-                                console.error('Invalid URL:', twitterUrl);
-                            }
-                        }
-                    }
-
-                    const combinedData = {
-                        training_data: trainingData,
-                        twitter_data: twitterData
-                    };
-
-                    console.log('combinedData', combinedData)
-                    const imageUrl = `data:image/png;base64,${tickerInfoUse.image_base64}`;
-
-                    const textGenResponse = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            messages: [
-                                {
-                                    role: "system",
-                                    content: `You are a helpful AI assistant trained to create content based on a given knowledge base. Using the example tweets provided in ${JSON.stringify(twitterData)}, learn the unique tone, style, and personality reflected in the writing, such as humor, formality, common themes, and favorite topics. Generate exactly ${numberOfTweets} new tweets in a style inspired by the given tweets, but ensure the wording, topics, and expressions are unique.
-
-Output the tweets in the following JSON format:
-
-{
-  "tweets": [
-    {"tweet": "tweet1"},
-    {"tweet": "tweet2"},
-    ...
-  ]
-}
-
-If the user requests an image related to a tweet, generate a detailed prompt for an image that aligns with the character style (see attached image) and matches the tweet's content. Use the format:
-{
-  "prompt": "<generated_prompt>"
-}
-In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary knowledge for topics to include in the tweets. Keep responses strictly in these formats.`
-                                },
-                                {
-                                    role: 'user',
-                                    content: [{
-                                        type: 'text',
-                                        text: `Number of tweets: ${numberOfTweets}. Prompt: ${tweetPrompt}`,
-                                    }, {
-                                        type: 'image_url',
-                                        image_url: {
-                                            url: imageUrl
-                                        }
-                                    }]
-                                }
-                            ]
-                        })
-                    });
-
-                    if (!textGenResponse.ok) throw new Error('Failed to generate text');
-                    const textGenData = await textGenResponse.json();
-
-                    try {
-                        // Try parsing the response as JSON first
-                        const parsedContent = JSON.parse(textGenData.content);
-                        if (parsedContent.tweets && Array.isArray(parsedContent.tweets)) {
-                            parsedContent.tweets.forEach((tweetObj: any) => {
-                                if (tweetObj.tweet) {
-                                    setGeneratedTweets(prev => [...prev, { tweet: tweetObj.tweet }]);
-                                }
-                            });
-                        }
-                    } catch (e) {
-                        // Fallback to regex parsing if JSON parsing fails
-                        const tweetContent = textGenData.content.match(/"tweet":\s*"([^"]*)"/g);
-                        if (tweetContent) {
-                            const tweets = tweetContent.map((match: string) =>
-                                match.split('"tweet":')[1].trim().replace(/(^"|"$)/g, '')
-                            );
-                            tweets.forEach((tweet: string) => {
-                                setGeneratedTweets(prev => [...prev, { tweet }]);
-                            });
-                        }
-                    }
-
-                    setShowTweetPanel(true);
-
-                    let rawContent = textGenData.content;
-
-                    // Remove any backticks or markdown-like markers
-                    rawContent = rawContent.replace(/```json|```/g, '');
-
-                    // Parse the cleaned JSON string
-                    const textGenDataContent = JSON.parse(rawContent);
-
-                    // Map the parsed JSON to `generatedTweets` format
-                    // const generatedTweet = textGenDataContent.tweets.map((item: { tweet: any; }) => ({ tweet: item.tweet }));
-
-                    const generatedTweet = textGenDataContent.tweets.map((item: { tweet: any; }, index: number) => ({
-                        tweet: item.tweet,
-                        id: index + 1
-                    }));
-                    setGeneratedTweets(generatedTweet);
-
-                    // Handle the response
-                    const assistantMessage: Message = {
-                        role: 'assistant',
-                        // content: textGenData.content,
-                        content: <GeneratedTweetsTable
-                            tweets={generatedTweet}
-                            wallet={wallet.publicKey?.toString() ?? ""}
-                            ticker={activeNavbarTicker} />,
-                        type: 'text'
-                    };
-                    setDisplayMessages(prev => [...prev, assistantMessage]);
-
-                    // Rest of the image generation code remains the same
-                    let promptMatch;
-                    try {
-                        const contentObj = JSON.parse(textGenData.content);
-                        if (contentObj.arguments?.prompt) {
-                            promptMatch = contentObj.arguments.prompt;
-                        }
-                    } catch (e) {
-                        promptMatch = textGenData.content.match(/"prompt"\s*:\s*"([^"]+)"/)?.[1];
-                    }
-
-                    if (promptMatch) {
-                        const tickerSeed = tickerInfoUse ? tickerInfoUse.seed : -1;
-                        const tickerUserPrompt = tickerInfoUse ? tickerInfoUse.user_prompt : '';
-
-                        const fullPrompt = tickerUserPrompt ? `${promptMatch} with character ${tickerUserPrompt}` : promptMatch;
-
-                        const imageGenResponse = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                selectedModel,
-                                messages: [...apiMessages],
-                                directCommand: {
-                                    type: 'image-gen',
-                                    prompt: fullPrompt,
-                                    seed: tickerSeed,
-                                }
-                            })
-                        });
-
-                        if (!imageGenResponse.ok) throw new Error('Failed to generate image');
-                        const imageData = await imageGenResponse.json();
-
-                        const imageMessage: Message = {
-                            role: 'assistant',
-                            content: imageData.content,
-                            type: 'image',
-                            command: 'image-gen'
-                        };
-
-                        setDisplayMessages(prev => [...prev, imageMessage]);
-                    }
-                }
-            } catch (error) {
-                console.error('Error in generate-tweet command:', error);
-                const errorMessage: Message = {
-                    role: 'assistant',
-                    content: 'Sorry, there was an error processing your tweet generation request.',
-                    type: 'text'
-                };
-                setDisplayMessages(prev => [...prev, errorMessage]);
-            }
-            return;
-        }
-
-        if (fullMessage.startsWith('/save') || fullMessage.startsWith('/saves')) {
-            if (!activeNavbarTicker) {
-                const errorMessage: Message = {
-                    role: 'assistant',
-                    content: 'No agent selected. Please select an agent first.',
-                    type: 'text'
-                };
-                setDisplayMessages(prev => [...prev, errorMessage]);
-                return;
-            }
-
-            if (generatedTweets.length === 0) {
-                const errorMessage: Message = {
-                    role: 'assistant',
-                    content: 'No generated tweets found. Please generate tweets first using /generate-tweet command.',
-                    type: 'text'
-                };
-                setDisplayMessages(prev => [...prev, errorMessage]);
-                return;
-            }
-
-            try {
-                const command = fullMessage.trim();
-                const parts = command.split(' ');
-
-                const numberStr = fullMessage.replace('/save', '').trim();
-                const selectedIndex = parseInt(numberStr) - 1;
-
-                // Handle single tweet save
-                if (command.startsWith('/save ')) {
-                    if (isNaN(selectedIndex) || selectedIndex < 0) {
-                        throw new Error('Invalid tweet ID');
-                    }
-
-                    const tweetToSave = generatedTweets[selectedIndex];
-
-                    // Construct the payload with only the selected tweet
-                    const payload = {
-                        wallet_address: wallet.publicKey?.toString(),
-                        ticker: activeNavbarTicker,
-                        tweets: [{
-                            tweet_text: tweetToSave.tweet,
-                            tweet_img: null  // Add if required
-                        }]
-                    };
-
-                    const response = await fetch('https://zynapse.zkagi.ai/contentengine_generatedtweet', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'api-key': 'zk-123321'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error('Failed to save tweet');
-
-                    const successMessage: Message = {
-                        role: 'assistant',
-                        content: `Successfully saved tweet #${selectedIndex + 1}`,
-                        type: 'text'
-                    };
-                    setDisplayMessages(prev => [...prev, successMessage]);
-                }
-                // Handle multiple tweets save
-                // Modified save tweets function
-                else if (command.startsWith('/saves ')) {
-                    const tweetIds = parts[1].split(',').map(id => parseInt(id.trim()) - 1);
-
-                    // Collect all valid tweets first
-                    const tweetsToSave = tweetIds
-                        .filter(tweetId => {
-                            if (isNaN(tweetId) || tweetId < 0 || tweetId >= generatedTweets.length) {
-                                console.error(`Invalid tweet ID: ${tweetId + 1}`);
-                                return false;
-                            }
-                            return true;
-                        })
-                        .map(tweetId => ({
-                            tweet_text: generatedTweets[tweetId].tweet,
-                            tweet_img: null // Add image data if needed
-                        }));
-
-                    // Format payload according to API requirements
-                    const payload = {
-                        wallet_address: wallet.publicKey?.toString(),
-                        ticker: activeNavbarTicker,
-                        tweets: tweetsToSave  // Use 'tweets' instead of 'tweet_text'
-                    };
-
-                    const response = await fetch('https://zynapse.zkagi.ai/contentengine_generatedtweet', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'api-key': 'zk-123321'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Failed to save tweets: ${response.statusText}`);
-                    }
-
-                    const savedTweetNumbers = tweetIds.map(id => id + 1).join(', ');
-                    const successMessage: Message = {
-                        role: 'assistant',
-                        content: tweetIds.length === 1
-                            ? `Successfully saved tweet #${savedTweetNumbers}`
-                            : `Successfully saved tweets #${savedTweetNumbers}`,
-                        type: 'text'
-                    };
-                    setDisplayMessages(prev => [...prev, successMessage]);
-                }
-            }
-            catch (error) {
-                const errorMessage: Message = {
-                    role: 'assistant',
-                    content: `Error: ${error instanceof Error ? error.message : 'Failed to save tweet(s)'}`,
-                    type: 'text'
-                };
-                setDisplayMessages(prev => [...prev, errorMessage]);
-            }
-
-            setInputMessage('');
-            return;
-        }
 
         if (fullMessage.startsWith('/character-gen')) {
             const { selectedTicker } = useTickerStore.getState();
@@ -2567,48 +2215,89 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             prompt: promptText
                         }
                     }),
-                    signal: controller.signal
+                    signal: controller.signal,
                 });
 
-                clearTimeout(timeoutId);
-
                 if (!response.ok) throw new Error('Failed to get response');
+                if (!response.body) throw new Error("Readable stream not supported in this environment");
 
-                const data = await response.json();
-                if (data.seed) {
-                    setCurrentSeed(data.seed);
-                }
-                setProofData(data.proof);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let done = false;
+                let finalEvent: any = null;
 
-                if (isMemeGen) {
-                    if (data.content && typeof data.content === 'string') {
-                        await handleMemeImageGeneration(data.content, promptText);
+                // Read the stream chunk by chunk.
+                while (!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    if (value) {
+                        // Decode the current chunk.
+                        const chunk = decoder.decode(value, { stream: true });
+                        // Split the chunk into individual SSE lines.
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const jsonStr = line.slice('data: '.length).trim();
+                                if (!jsonStr) continue;
+                                try {
+                                    const event = JSON.parse(jsonStr);
+                                    // If a progress update is sent, update your progress indicator.
+                                    // if (event.progress !== undefined) {
+                                    //     setProgress(event.progress);
+                                    // }
+                                    // If this event has the final image data.
+                                    if (event.content && event.type === 'img') {
+                                        if (event.seed) setCurrentSeed(event.seed);
+                                        if (event.proof) setProofData(event.proof);
+                                        // Save this final event for further processing.
+                                        finalEvent = event;
+                                    }
+                                } catch (err) {
+                                    console.error("Error parsing SSE event:", err);
+                                }
+                            }
+                        }
                     }
+                }
 
-                    setProcessingCommand(true);
-                    setShowCreateAgentModal(true);
-                    if (memeGenerationData) {
-                        console.log('set')
+                // Once streaming is complete, process the final event.
+                if (finalEvent) {
+                    if (isMemeGen) {
+                        // If this is meme generation, call handleMemeImageGeneration
+                        // so that it can, for example, compress/format the image and
+                        // update the meme generation UI accordingly.
+                        const assistantMessage: Message = {
+                            role: 'assistant',
+                            content: finalEvent.content,
+                            type: 'image',
+                            command: isMemeGen ? 'create-agent' : 'image-gen'
+                        };
+                        setDisplayMessages(prev => [...prev, assistantMessage]);
+                        await handleMemeImageGeneration(finalEvent.content, promptText);
+                        setProcessingCommand(true);
                         setShowCreateAgentModal(true);
+                        setApiMessages(prev => [
+                            ...prev,
+                            { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
+                        ]);
+                        // (Optionally, if memeGenerationData exists you might call setShowCreateAgentModal again.)
+                    } else {
+                        // For regular image generation, simply create the assistant message.
+                        const assistantMessage: Message = {
+                            role: 'assistant',
+                            content: finalEvent.content,
+                            type: 'image',
+                            command: isMemeGen ? 'create-agent' : 'image-gen'
+                        };
+                        setDisplayMessages(prev => [...prev, assistantMessage]);
+                        setApiMessages(prev => [
+                            ...prev,
+                            { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
+                        ]);
                     }
+                } else {
+                    console.warn("No final event received from the stream.");
                 }
-
-
-                const assistantMessage: Message = {
-                    role: 'assistant',
-                    content: data.content,
-                    type: 'image',
-                    command: isMemeGen ? 'create-agent' : 'image-gen'
-                };
-
-                setDisplayMessages(prev => [...prev, assistantMessage]);
-                setApiMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: data.prompt || data.content,
-                    // type: 'image',
-                    // command: isMemeGen ? 'create-agent' : 'image-gen'
-                }]);
-
             } catch (error) {
                 console.error('Error:', error);
             } finally {
@@ -2632,8 +2321,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         text: inputMessage.trim()
                     });
                 }
-
-
 
                 for (const fileObj of files) {
                     if (fileObj.isPdf) {
@@ -2685,6 +2372,16 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 const timeoutId = setTimeout(() => controller.abort(), 120000);
 
                 try {
+                    // Create temporary message for streaming response
+                    const tempAssistantMessage: Message = {
+                        role: 'assistant',
+                        content: ''
+                    };
+
+                    // Add temporary message to display
+                    setDisplayMessages(prev => [...prev, tempAssistantMessage]);
+
+                    // Initiate the streaming request
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2699,32 +2396,51 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
                     if (!response.ok) throw new Error('Failed to get response');
 
-                    const data = await response.json();
-                    setProofData(data.proof);
+                    // Get the response reader
+                    const reader = response.body?.getReader();
+                    if (!reader) throw new Error('No reader available');
 
-                    let assistantMessageForDisplay: Message;
-                    let assistantMessageForAPI: Message;
+                    let accumulatedContent = '';
 
-                    if (data.type === 'image' || (typeof data.content === 'string' && data.content.startsWith('/'))) {
-                        setResultType('image');
-                        assistantMessageForDisplay = {
-                            role: 'assistant',
-                            content: data.content,
-                        };
-                        assistantMessageForAPI = {
-                            role: 'assistant',
-                            content: data.prompt || data.content,
-                        };
-                    } else {
-                        assistantMessageForDisplay = {
-                            role: 'assistant',
-                            content: data.content,
-                        };
-                        assistantMessageForAPI = assistantMessageForDisplay;
+                    // Read the stream
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        // Convert the chunk to text
+                        const chunk = new TextDecoder().decode(value);
+
+                        // Handle special messages (proof and errors)
+                        if (chunk.startsWith('data: [PROOF]')) {
+                            const proof = chunk.replace('data: [PROOF]', '').trim();
+                            setProofData(proof);
+                            continue;
+                        }
+
+                        if (chunk.startsWith('data: [ERROR]')) {
+                            console.error('Stream error:', chunk);
+                            continue;
+                        }
+
+                        // Accumulate the content
+                        accumulatedContent += chunk;
+
+                        // Update the temporary message with accumulated content
+                        setDisplayMessages(prev => {
+                            const newMessages = [...prev];
+                            newMessages[newMessages.length - 1] = {
+                                role: 'assistant',
+                                content: accumulatedContent
+                            };
+                            return newMessages;
+                        });
                     }
 
-                    setDisplayMessages(prev => [...prev, assistantMessageForDisplay]);
-                    setApiMessages(prev => [...prev, assistantMessageForAPI]);
+                    // After streaming is complete, update API messages
+                    setApiMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: accumulatedContent
+                    }]);
 
                 } catch (error) {
                     console.error('Error:', error);
@@ -2732,151 +2448,147 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     setIsLoading(false);
                     setCurrentCommand(null);
                 }
+
             } else {
                 // Existing text-only handling
-                if (editMode) {
-                    // Add the user message to conversation store
-                    addMessage({ role: 'user', content: inputMessage });
+                // Add the user message to display and API messages.
+                const userMessage: Message = { role: 'user', content: inputMessage };
+                setDisplayMessages((prev: Message[]) => [...prev, userMessage]);
+                setApiMessages((prev: Message[]) => [...prev, userMessage]);
 
-                    // Also update displayMessages so the user message appears immediately
-                    const userMessage: Message = { role: 'user', content: inputMessage };
-                    setDisplayMessages((prev) => [...prev, userMessage]);
+                setInputMessage('');
+                setIsLoading(true);
 
-                    // If you're also tracking API messages separately, add it there too
-                    // (optional depending on your logic)
-                    setApiMessages((prev) => [...prev, userMessage]);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-                    setInputMessage('');
-                    setIsLoading(true);
-
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-                    try {
-                        // Send the entire conversation
-                        const { messages } = useConversationStore.getState();
-                        const response = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ messages, selectedModel }), // send entire history
-                            signal: controller.signal,
-                        });
-                        clearTimeout(timeoutId);
-
-                        if (!response.ok) throw new Error('Failed to get response');
-
-                        const data = await response.json();
-                        setProofData(data.proof);
-
-                        // Add assistant response to conversation store
-                        addMessage({ role: 'assistant', content: data.content });
-
-                        let assistantMessageForDisplay: Message;
-                        let assistantMessageForAPI: Message;
-
-                        if (data.type === 'img') {
-                            setResultType(data.type);
-                            assistantMessageForDisplay = { role: 'assistant', content: data.content };
-                            assistantMessageForAPI = { role: 'assistant', content: data.prompt };
-                        } else {
-                            assistantMessageForDisplay = { role: 'assistant', content: data.content };
-                            assistantMessageForAPI = assistantMessageForDisplay;
-                        }
-
-                        // Update display and API messages with the assistant's response
-                        setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
-                        setApiMessages((prev) => [...prev, assistantMessageForAPI]);
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                    } finally {
-                        setIsLoading(false);
+                // Helper function to extract a <think> block (if any) from a message.
+                const extractThought = (message: string) => {
+                    const thinkMatch = message.match(/<think>([\s\S]*?)<\/think>/);
+                    if (thinkMatch) {
+                        return {
+                            thought: thinkMatch[1].trim(),
+                            content: message.replace(thinkMatch[0], '').trim(),
+                        };
                     }
-                }
-                else {
+                    return { thought: null, content: message };
+                };
 
-                    const userMessage: Message = { role: 'user', content: inputMessage };
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [...apiMessages, { role: 'user', content: inputMessage } as Message],
+                            selectedModel,
+                        }),
+                        signal: controller.signal,
+                    });
+                    clearTimeout(timeoutId);
 
-                    setDisplayMessages((prev) => [...prev, userMessage]);
+                    if (!response.ok) throw new Error('Failed to get response');
 
-                    const apiMessage: Message = { role: 'user', content: inputMessage };
-                    setApiMessages((prev) => [...prev, apiMessage]);
+                    // Create a placeholder assistant message (with empty content) that will be updated as chunks arrive.
+                    const placeholderAssistantMessage: Message = { role: 'assistant', content: '' };
+                    setDisplayMessages((prev: Message[]) => [...prev, placeholderAssistantMessage]);
+                    setApiMessages((prev: Message[]) => [...prev, placeholderAssistantMessage]);
 
-                    setInputMessage('');
-                    setIsLoading(true);
+                    // Ensure that response.body is available.
+                    if (!response.body) throw new Error("Readable stream not supported in this environment");
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
 
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 120000);
+                    let done = false;
+                    let accumulatedContent = '';
+                    let buffer = ''; // holds incomplete word from previous chunk
 
-                    const extractThought = (message: string) => {
-                        const thinkMatch = message.match(/<think>([\s\S]*?)<\/think>/);
-                        if (thinkMatch) {
-                            return {
-                                thought: thinkMatch[1].trim(),
-                                content: message.replace(thinkMatch[0], "").trim(),
-                            };
+                    while (!done) {
+                        const { value, done: doneReading } = await reader.read();
+                        done = doneReading;
+                        if (value) {
+                            // Decode the chunk.
+                            let chunk = decoder.decode(value, { stream: true });
+                            // Optionally remove unwanted parts from the chunk.
+                            chunk = chunk.replace(/data:/g, '');
+                            chunk = chunk.replace(/\[PROOF\]\s*\[object Object\]/g, '');
+
+                            // Prepend any leftover text from the previous chunk.
+                            let combined = buffer + chunk;
+                            let newlineIndex: number;
+
+                            // Process complete lines (separated by newline).
+                            while ((newlineIndex = combined.indexOf('\n')) !== -1) {
+                                const fullLine = combined.slice(0, newlineIndex);
+                                accumulatedContent += fullLine + '\n' + '\n';
+
+
+                                // Update the assistant's message so the UI shows the streamed text.
+                                setDisplayMessages((prevMessages) => {
+                                    const messagesCopy = [...prevMessages];
+                                    messagesCopy[messagesCopy.length - 1] = {
+                                        ...messagesCopy[messagesCopy.length - 1],
+                                        content: accumulatedContent,
+                                    };
+                                    return messagesCopy;
+                                });
+
+                                // Remove the processed line and its newline from the combined text.
+                                combined = combined.slice(newlineIndex + 1);
+                            }
+
+                            // Save any incomplete part for the next chunk.
+                            buffer = combined;
                         }
-                        return { thought: null, content: message };
-                    };
-
-                    try {
-                        const response = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                messages: [...apiMessages, apiMessage],
-                                selectedModel
-                            }),
-                            signal: controller.signal
-                        });
-                        clearTimeout(timeoutId);
-
-                        if (!response.ok) throw new Error('Failed to get response');
-
-                        const data = await response.json();
-
-
-
-                        let assistantMessageForDisplay: Message;
-                        let assistantMessageForAPI: Message;
-
-                        setProofData(data.proof);
-
-                        if (data.type === 'img') {
-                            setResultType(data.type)
-                            assistantMessageForDisplay = {
-                                role: 'assistant',
-                                content: data.content,
-                            };
-                            assistantMessageForAPI = {
-                                role: 'assistant',
-                                content: data.prompt,
-                            };
-                        } else {
-                            const { thought, content } = extractThought(data.content);
-                            const finalContent = JSON.stringify({ thought, content });
-
-                            assistantMessageForDisplay = {
-                                role: 'assistant',
-                                content: finalContent,
-                            };
-                            assistantMessageForAPI = assistantMessageForDisplay;
-
-                            // setThoughtsMap((prev) => ({
-                            //     ...prev,
-                            //     [apiMessages.length]: thought,
-                            // }));
-                        }
-
-                        setDisplayMessages((prev) => [...prev, assistantMessageForDisplay]);
-                        setApiMessages((prev) => [...prev, assistantMessageForAPI]);
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                    } finally {
-                        setIsLoading(false);
                     }
 
+                    // Flush any remaining text if it didn’t end with a newline.
+                    if (buffer.length > 0) {
+                        accumulatedContent += buffer;
+                        setDisplayMessages((prevMessages) => {
+                            const messagesCopy = [...prevMessages];
+                            messagesCopy[messagesCopy.length - 1] = {
+                                ...messagesCopy[messagesCopy.length - 1],
+                                content: accumulatedContent,
+                            };
+                            return messagesCopy;
+                        });
+                    }
+
+
+                    // Flush any remaining text in the buffer (if any) after streaming completes.
+                    // if (buffer) {
+                    //     accumulatedContent += buffer;
+                    // }
+
+                    // Optionally extract thought if present.
+                    const { thought, content } = extractThought(accumulatedContent);
+                    const rawFinalContent = thought ? JSON.stringify({ thought, content }) : accumulatedContent;
+
+                    // Update the assistant's message with the final formatted content.
+                    setDisplayMessages((prevMessages: Message[]) => {
+                        const messagesCopy = [...prevMessages];
+                        messagesCopy[messagesCopy.length - 1] = {
+                            ...messagesCopy[messagesCopy.length - 1],
+                            content: rawFinalContent,
+                        };
+                        return messagesCopy;
+                    });
+                    setApiMessages((prevMessages: Message[]) => {
+                        const messagesCopy = [...prevMessages];
+                        messagesCopy[messagesCopy.length - 1] = {
+                            ...messagesCopy[messagesCopy.length - 1],
+                            content: rawFinalContent,
+                        };
+                        return messagesCopy;
+                    });
+
+                    // Optionally update proof data if it's sent along.
+                    // setProofData(data.proof);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                } finally {
+                    setIsLoading(false);
                 }
             }
         }
@@ -2905,8 +2617,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                     coin.ticker === selectedTicker && !coin.memcoin_address
             );
             setFilteredCoins(filteredCoins);
-
-            console.log('filteredcoins', filteredCoins)
 
             const coinOptionsMessage: Message = {
                 role: 'assistant',
@@ -2995,7 +2705,6 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                 return coin._id === coinId;
             });
 
-            console.log('selectedCoin', selectedCoin)
 
             let memecoinAddress = '';
             if (wallet) {
@@ -3250,6 +2959,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
 
         // Handle string content (user commands & assistant messages)
         if (typeof message.content === 'string') {
+            console.log('testing success')
             // User commands processing
             if (message.role === 'user') {
                 let displayedContent = message.content;
@@ -3319,7 +3029,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                             </div>
                         )}
                         {/* Render Message Content */}
-                        <p className="text-white">{content}</p>
+                        {renderTextContent(content)}
                     </div>
                 );
             }
@@ -3330,111 +3040,46 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         return null;
     };
 
-    // const renderMessageContent = (message: Message) => {
-    //     if (React.isValidElement(message.content)) {
-    //         return message.content;
-    //     }
-    //     if (Array.isArray(message.content)) {
-    //         return (
-    //             <div className="flex flex-col space-y-2">
-    //                 {message.content.map((content, index) => {
-    //                     if (content.type === 'text') {
-    //                         if (content.text?.startsWith('[PDF:')) {
-    //                             const pdfName = content.text.match(/\[PDF: (.*?)\]/)?.[1] || 'Unnamed PDF';
-    //                             return (
-    //                                 <div key={index} className="flex items-center space-x-2 bg-[#24284E] rounded-lg p-2 border border-[#BDA0FF]">
-    //                                     <Image
-    //                                         src="/images/pdf.svg"
-    //                                         alt="PDF icon"
-    //                                         width={20}
-    //                                         height={20}
-    //                                     />
-    //                                     <span className="text-[#BDA0FF] text-xs">{pdfName}</span>
-    //                                 </div>
-    //                             );
-    //                         }
-    //                         return (
-    //                             <div key={index} className="text-white">
-    //                                 {renderTextContent(content.text || '')}
-    //                             </div>
-    //                         );
-    //                     }
-    //                     return null;
-    //                 })}
-    //                 {/* New wrapper for images */}
-    //                 <div className="flex flex-row space-x-2">
-    //                     {message.content
-    //                         .filter(content => content.type === 'image_url')
-    //                         .map((content, index) => (
-    //                             <Image
-    //                                 key={index}
-    //                                 src={content.image_url?.url || ''}
-    //                                 alt="Uploaded content"
-    //                                 width={80}
-    //                                 height={80}
-    //                                 className="object-cover rounded-lg"
-    //                                 layout="fixed"
-    //                                 quality={75}
-    //                             />
-    //                         ))}
-    //                 </div>
-    //             </div>
-
-    //         );
-    //     }
-    //     else if (typeof message.content === 'string') {
-    //         // Check if it's a user message with a command
-    //         if (message.role === 'user') {
-    //             let displayedContent = message.content;
-
-    //             // Handle '/image-gen' and '/meme-coin'
-    //             if (displayedContent.startsWith('/image-gen')) {
-    //                 // Remove '/image-gen' and show "Generate image of"
-    //                 const prompt = displayedContent.replace('/image-gen', '').trim();
-    //                 displayedContent = `Generate image of: ${prompt}`;
-    //             } else if (displayedContent.startsWith('/create-agent')) {
-    //                 // Remove '/create-agent' and show "Generate a meme for"
-    //                 const prompt = displayedContent.replace('/create-agent', '').trim();
-    //                 displayedContent = `Generate an agent for ${prompt}`;
-    //             }
-
-    //             // Render the modified content
-    //             return <div className="text-white">{displayedContent}</div>;
-    //         }
-
-    //         // For assistant responses that are images
-    //         if (message.role === 'assistant' && message.type === 'image') {
+    // const renderTextContent = (content: string) => {
+    //     console.log('text content')
+    //     const parts = content.split('```');
+    //     return parts.map((part, index) => {
+    //         if (index % 2 === 0) {
+    //             const formattedPart = part.replace(/\n/g, '\n\n');
+    //             // This is regular text - pass the current part, not the whole content
+    //             return <ReactMarkdown key={index}>{formattedPart}</ReactMarkdown>;
+    //         } else {
+    //             // This is a code block
     //             return (
     //                 <ResultBlock
-    //                     content={message.content}
-    //                     type="image"
-    //                     onMintNFT={handleMintNFT}
+    //                     key={index}
+    //                     content={part.trim().split('\n').slice(1).join('\n')}
+    //                     language={part.trim().split('\n')[0]}
+    //                     type="code"
     //                     onDownloadProof={handleDownload}
-    //                     loading={loading}
     //                 />
     //             );
-    //         } else {
-    //             // For other assistant responses (text)
-    //             return renderTextContent(message.content);
     //         }
-    //     }
-    //     return null;
+    //     });
     // };
 
-    const renderTextContent = (content: string) => {
+    const renderTextContent = (content?: string) => {
+        if (!content) {
+            return null; // or return an empty fragment: <></>
+        }
+        console.log('text content');
         const parts = content.split('```');
         return parts.map((part, index) => {
             if (index % 2 === 0) {
                 const formattedPart = part.replace(/\n/g, '\n\n');
-                // This is regular text - pass the current part, not the whole content
                 return <ReactMarkdown key={index}>{formattedPart}</ReactMarkdown>;
             } else {
-                // This is a code block
+                const lines = part.trim().split('\n');
                 return (
                     <ResultBlock
                         key={index}
-                        content={part.trim().split('\n').slice(1).join('\n')}
-                        language={part.trim().split('\n')[0]}
+                        content={lines.slice(1).join('\n')}
+                        language={lines[0]}
                         type="code"
                         onDownloadProof={handleDownload}
                     />
@@ -3442,6 +3087,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
             }
         });
     };
+
 
     // Helper: Extract image URL from message.content
     const getImageUrlFromMessageContent = (
@@ -3523,16 +3169,16 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
         return null;
     }
 
-    console.log('isWhitelisted', isWhitelisted)
-
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
             {showConnectModal && <ConnectWalletModal onClose={() => setShowConnectModal(false)} />}
 
-            <PresaleBanner walletConnected={connected} walletAddress={walletAddress} />
+            {/* <PresaleBanner walletConnected={connected} walletAddress={walletAddress} /> */}
+
             {/* Main content */}
-            <div className={`flex-1 flex flex-col bg-[#08121f] pt-16 md:pt-10`}>
+            <div className={`flex-1 flex flex-col bg-[#08121f] `}>
+                {/* pt-16 md:pt-10 */}
                 {/* Header code remains the same */}
 
                 {/* <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
@@ -3875,7 +3521,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                         <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[650px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
                                         {sampleCommands.map((cmd, index) => (
                                             <div
                                                 key={index}
@@ -4013,7 +3659,7 @@ In addition to the tweets, use ${JSON.stringify(trainingData)} as supplementary 
                                             // Default loader
                                             <div className="text-center">
                                                 <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
-                                                <p>Processing your query. This may take up to 5 minutes...</p>
+                                                <p>Processing your query. This may take up to 2 minutes...</p>
                                             </div>
                                         )
                                     )}

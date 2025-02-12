@@ -101,7 +101,7 @@ const ResultBlock: React.FC<ResultBlockProps> = ({
                     <div className="relative min-h-64 rounded-lg bg-gray-700 flex overflow-hidden">
                         {processing ? (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75">
-                                <p className="text-gray-400">Processing... This may take up to 5 minutes.</p>
+                                <p className="text-gray-400">Processing... This may take up to 2 minutes.</p>
                                 <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mt-4"></span>
                             </div>
                         ) : loading ? (
