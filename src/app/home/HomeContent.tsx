@@ -219,7 +219,8 @@ const HomeContent: FC = () => {
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
-    const [proofData, setProofData] = useState(null);
+    // const [proofData, setProofData] = useState(null);
+    const [proofData, setProofData] = useState<string | null>(null);
     const [resultType, setResultType] = useState('');
     const [pdfContent, setPdfContent] = useState<string | null>(null);
     const [currentPdfName, setCurrentPdfName] = useState<string | null>(null);
