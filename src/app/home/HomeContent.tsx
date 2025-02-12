@@ -2224,28 +2224,30 @@ const HomeContent: FC = () => {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let done = false;
-                let finalEvent: any = null;
+                let finalEvent = null;
+                let buffer = ''; // buffer for incomplete data
 
                 // Read the stream chunk by chunk.
                 while (!done) {
                     const { value, done: doneReading } = await reader.read();
                     done = doneReading;
                     if (value) {
-                        // Decode the current chunk.
-                        const chunk = decoder.decode(value, { stream: true });
-                        // Split the chunk into individual SSE lines.
-                        const lines = chunk.split('\n');
+                        // Decode and add the chunk to the buffer.
+                        buffer += decoder.decode(value, { stream: true });
+
+                        // Split the buffer into lines.
+                        let lines = buffer.split('\n');
+                        // Keep the last element in the buffer if it is incomplete.
+                        buffer = lines.pop() || '';
+
+                        // Process each complete line.
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const jsonStr = line.slice('data: '.length).trim();
                                 if (!jsonStr) continue;
                                 try {
                                     const event = JSON.parse(jsonStr);
-                                    // If a progress update is sent, update your progress indicator.
-                                    // if (event.progress !== undefined) {
-                                    //     setProgress(event.progress);
-                                    // }
-                                    // If this event has the final image data.
+                                    // For example, if this event carries image data:
                                     if (event.content && event.type === 'img') {
                                         if (event.seed) setCurrentSeed(event.seed);
                                         if (event.proof) setProofData(event.proof);
@@ -2260,18 +2262,35 @@ const HomeContent: FC = () => {
                     }
                 }
 
+                // Optionally process any remaining data in the buffer after the loop ends.
+                if (buffer) {
+                    const line = buffer.trim();
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.slice('data: '.length).trim();
+                        if (jsonStr) {
+                            try {
+                                const event = JSON.parse(jsonStr);
+                                if (event.content && event.type === 'img') {
+                                    if (event.seed) setCurrentSeed(event.seed);
+                                    if (event.proof) setProofData(event.proof);
+                                    finalEvent = event;
+                                }
+                            } catch (err) {
+                                console.error("Error parsing SSE event in final buffer:", err);
+                            }
+                        }
+                    }
+                }
+
                 // Once streaming is complete, process the final event.
                 if (finalEvent) {
                     if (isMemeGen) {
-                        // If this is meme generation, call handleMemeImageGeneration
-                        // so that it can, for example, compress/format the image and
-                        // update the meme generation UI accordingly.
-                        const assistantMessage: Message = {
+                        const assistantMessage = {
                             role: 'assistant',
                             content: finalEvent.content,
                             type: 'image',
                             command: isMemeGen ? 'create-agent' : 'image-gen'
-                        };
+                        } as Message;
                         setDisplayMessages(prev => [...prev, assistantMessage]);
                         await handleMemeImageGeneration(finalEvent.content, promptText);
                         setProcessingCommand(true);
@@ -2280,15 +2299,13 @@ const HomeContent: FC = () => {
                             ...prev,
                             { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
                         ]);
-                        // (Optionally, if memeGenerationData exists you might call setShowCreateAgentModal again.)
                     } else {
-                        // For regular image generation, simply create the assistant message.
-                        const assistantMessage: Message = {
+                        const assistantMessage = {
                             role: 'assistant',
                             content: finalEvent.content,
                             type: 'image',
                             command: isMemeGen ? 'create-agent' : 'image-gen'
-                        };
+                        } as Message;
                         setDisplayMessages(prev => [...prev, assistantMessage]);
                         setApiMessages(prev => [
                             ...prev,
@@ -2302,8 +2319,8 @@ const HomeContent: FC = () => {
                 console.error('Error:', error);
             } finally {
                 setIsLoading(false);
-                setCurrentCommand(null);
             }
+
         }
         else {
             let displayMessageContent: any[] = [];
@@ -3573,7 +3590,7 @@ const HomeContent: FC = () => {
                                                                 {message.role === 'user' ? 'User' : 'ZkTerminal'}
 
                                                             </span>
-                                                            {message.role !== 'user' && (
+                                                            {/* {message.role !== 'user' && (
                                                                 <div className="flex space-x-2">
                                                                     <button className="text-white rounded-lg" onClick={() => {
                                                                         const imageContent = message.content;
@@ -3607,7 +3624,56 @@ const HomeContent: FC = () => {
                                                                         />
                                                                     </button>
                                                                 </div>
+                                                            )} */}
+
+                                                            {message.role !== 'user' && (
+                                                                <div className="flex space-x-2">
+                                                                    <button
+                                                                        className="text-white rounded-lg"
+                                                                        onClick={() => {
+                                                                            if (typeof message.content === 'string') {
+                                                                                // Check if the content is a data URL for an image.
+                                                                                if (message.content.startsWith('data:image/')) {
+                                                                                    // Download as an image.
+                                                                                    downloadImage(message.content);
+                                                                                } else {
+                                                                                    // Otherwise, treat the content as text.
+                                                                                    // Create a Blob from the text content.
+                                                                                    const blob = new Blob([message.content], { type: 'text/plain' });
+                                                                                    const url = URL.createObjectURL(blob);
+                                                                                    // Create a temporary anchor element and trigger the download.
+                                                                                    const a = document.createElement('a');
+                                                                                    a.href = url;
+                                                                                    a.download = 'generated.txt';
+                                                                                    document.body.appendChild(a);
+                                                                                    a.click();
+                                                                                    document.body.removeChild(a);
+                                                                                    URL.revokeObjectURL(url);
+                                                                                }
+                                                                            } else {
+                                                                                console.error('Unexpected content format');
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Image
+                                                                            src="images/Download.svg"
+                                                                            alt="Download"
+                                                                            width={20}
+                                                                            height={20}
+                                                                        />
+                                                                    </button>
+                                                                    <button className="text-white rounded-lg">
+                                                                        <Image
+                                                                            src="images/share.svg"
+                                                                            alt="Share"
+                                                                            width={20}
+                                                                            height={20}
+                                                                        />
+                                                                    </button>
+                                                                </div>
                                                             )}
+
+
                                                         </div>
                                                         {message.role === 'assistant' &&
 
