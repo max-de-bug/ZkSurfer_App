@@ -300,6 +300,11 @@ const HomeContent: FC = () => {
     const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [displayMessages, isLoading]);
+
+
     const { data: tickersData } = useSWR(
         walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
         ([url, key, addr]) => fetcher(url, key, addr),
@@ -1591,6 +1596,9 @@ const HomeContent: FC = () => {
             }
 
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             setFiles([]);
             return;
         }
@@ -1744,6 +1752,9 @@ const HomeContent: FC = () => {
                     setSelectedMemeTicker(selectedTicker);
                     setActiveNavbarTicker(selectedTicker);
                     setInputMessage('');
+                    if (inputRef.current) {
+                        inputRef.current.style.height = '2.5rem'; 
+                      }
 
                     // Add a system message to show the selection
                     const systemMessage: Message = {
@@ -1830,6 +1841,9 @@ const HomeContent: FC = () => {
             }
 
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             return;
         }
 
@@ -1845,6 +1859,9 @@ const HomeContent: FC = () => {
             };
             setDisplayMessages(prev => [...prev, tokenMessage]);
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             return;
         }
 
@@ -1876,12 +1893,18 @@ const HomeContent: FC = () => {
             await handleTweetCommand(fullMessage);
 
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             return;
         }
 
         if (fullMessage.startsWith('/tweet ') || fullMessage.startsWith('/tweets ')) {
             await handleTweetCommand(fullMessage);
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             return;
         }
 
@@ -1907,6 +1930,9 @@ const HomeContent: FC = () => {
             };
             setDisplayMessages(prev => [...prev, characterMessage]);
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem'; 
+              }
             return;
         }
 
@@ -1922,6 +1948,9 @@ const HomeContent: FC = () => {
                 };
                 setDisplayMessages((prev) => [...prev, errorMessage]);
                 setInputMessage('');
+                if (inputRef.current) {
+                    inputRef.current.style.height = '2.5rem'; 
+                  }
                 return;
             }
 
@@ -1934,6 +1963,9 @@ const HomeContent: FC = () => {
                 };
                 setDisplayMessages((prev) => [...prev, errorMessage]);
                 setInputMessage('');
+                if (inputRef.current) {
+                    inputRef.current.style.height = '2.5rem';
+                  }
                 return;
             }
 
@@ -1988,6 +2020,9 @@ const HomeContent: FC = () => {
 
             setDisplayMessages((prev) => [...prev, displayMessage]);
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem';
+              }
             setFiles([]);
             setPdfContent(null);
             setCurrentPdfName(null);
@@ -2198,6 +2233,9 @@ const HomeContent: FC = () => {
             setDisplayMessages(prev => [...prev, displayMessage]);
             setApiMessages(prev => [...prev, apiMessage]);
             setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem';
+              }
             setIsLoading(true);
 
             const controller = new AbortController();
@@ -2319,6 +2357,7 @@ const HomeContent: FC = () => {
                 console.error('Error:', error);
             } finally {
                 setIsLoading(false);
+                setProcessingCommand(false)
             }
 
         }
@@ -2380,6 +2419,9 @@ const HomeContent: FC = () => {
                 setApiMessages(prev => [...prev, apiMessage]);
 
                 setInputMessage('');
+                if (inputRef.current) {
+                    inputRef.current.style.height = '2.5rem';
+                  }
                 setFiles([]);
                 setPdfContent(null);
                 setCurrentPdfName(null);
@@ -2474,6 +2516,9 @@ const HomeContent: FC = () => {
                 setApiMessages((prev: Message[]) => [...prev, userMessage]);
 
                 setInputMessage('');
+                if (inputRef.current) {
+                    inputRef.current.style.height = '2.5rem'; 
+                  }
                 setIsLoading(true);
 
                 const controller = new AbortController();
@@ -2604,6 +2649,7 @@ const HomeContent: FC = () => {
 
                 } catch (error) {
                     console.error('Error:', error);
+                    toast.error('Due to unexpected capacity contraints ZkTerminal is unable to process this prompt. Please try again later or open a new chat window and retry.')
                 } finally {
                     setIsLoading(false);
                 }
@@ -3715,6 +3761,7 @@ const HomeContent: FC = () => {
                                         )
                                     }
                                     )}
+                                    <div ref={messagesEndRef} />
 
                                     {isLoading && (
                                         processingCommand ? (
