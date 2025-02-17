@@ -3823,10 +3823,11 @@ const HomeContent: FC = () => {
                                                                         className="text-white rounded-lg"
                                                                         onClick={() => {
                                                                             if (typeof message.content === 'string') {
+                                                                                console.log('message.content', message.content)
                                                                                 // Check if the content is a data URL for an image.
-                                                                                if (message.content.startsWith('data:image/')) {
+                                                                                if (message.content.startsWith('/9j/')) {
                                                                                     // Download as an image.
-                                                                                    downloadImage(message.content);
+                                                                                    downloadImage(`data:image/png;base64,${message.content}`);
                                                                                 } else {
                                                                                     // Otherwise, treat the content as text.
                                                                                     // Create a Blob from the text content.
