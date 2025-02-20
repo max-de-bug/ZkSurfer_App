@@ -3031,20 +3031,49 @@ const HomeContent: FC = () => {
 
     const [loading, setLoading] = useState(false);
 
+    // const handleMintNFT = async (base64Image: string) => {
+    //     setLoading(true);
+    //     try {
+    //         // const { txSignature, result } = await createNft(base64Image, 'NFT', wallet);
+
+    //         // console.log('signature', txSignature)
+    //         // console.log('result', result)
+    //         const response = await createNft(base64Image, 'NFT', wallet);
+
+    //         console.log(response);
+    //         // const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
+    //         // window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
+    //     } catch (error) {
+    //         console.error("Failed to mint NFT:", error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
     const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
         try {
-            // const { txSignature, result } = await createNft(base64Image, 'NFT', wallet);
+            const response = await fetch("/api/mint-nft", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    base64Image,
+                    name: "NFT", // Or any name you want to use
+                    recipient: wallet.publicKey ? wallet.publicKey.toString() : "",
+                }),
+            });
 
-            // console.log('signature', txSignature)
-            // console.log('result', result)
-            const response = await createNft(base64Image, 'NFT', wallet);
-
-            console.log(response);
-            // const metaplexUrl = `https://core.metaplex.com/explorer/${assetPublicKey}?env=devnet`;
-            // window.open(metaplexUrl, '_blank', 'noopener,noreferrer');
-        } catch (error) {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Error minting NFT");
+            }
+            console.log("NFT minted successfully! Mint address:", data.mintAddress);
+            toast.success("NFT minted successfully!");
+        } catch (error: any) {
             console.error("Failed to mint NFT:", error);
+            toast.error("Failed to mint NFT");
         } finally {
             setLoading(false);
         }
