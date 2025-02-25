@@ -867,6 +867,20 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         return results;
     };
 
+    const downloadJson = () => {
+        if (!characterJson) return;
+        const fileData = JSON.stringify(characterJson, null, 2);
+        const blob = new Blob([fileData], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        // Use the agent ticker if available or default to 'character'
+        link.download = `${formData.ticker || "character"}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
 
     // const processTwitterData = async (twitterUrls: string[]) => {
     //     const client = new ApifyClient({
@@ -2265,9 +2279,18 @@ Example Output Structure:
                         <div className="flex flex-col md:flex-row gap-4">
                             {/* JSON Editor / Viewer */}
                             <div className="md:w-1/2 w-full overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
-                                <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
+                                <div className="flex flex-row justify-between">
+                                    <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
+                                    <button
+                                        onClick={downloadJson}
+                                        className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors mb-2"
+                                    >
+                                        Export JSON
+                                    </button>
+                                </div>
                                 <JsonViewer value={maskedJsonData} theme="dark" />
                             </div>
+
 
                             {/* JSON Form */}
                             <div className="md:w-1/2 w-full bg-gray-900 p-6 rounded-lg text-sm">
@@ -2275,6 +2298,7 @@ Example Output Structure:
                                 {renderJsonForm(maskedJsonData, setEditableJson)}
                             </div>
                         </div>
+
 
                         <div className="flex justify-center gap-4 mt-4">
                             <ButtonV1New
