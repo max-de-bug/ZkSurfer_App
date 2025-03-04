@@ -24,7 +24,7 @@ export const CreateAgentModal: FC<CreateAgentModalProps> = ({ visible, onClose, 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             {/* The "container" for the modal content */}
-            <div className="bg-[#171D3D] p-6 rounded-lg w-full max-w-7xl shadow-lg relative">
+            <div className="bg-[#171D3D] p-6 rounded-lg w-full max-w-7xl shadow-lg relative h-screen overflow-y-auto">
                 {/* Close button in top-right corner (optional) */}
                 <button
                     onClick={onClose}

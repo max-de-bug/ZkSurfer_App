@@ -2258,6 +2258,15 @@ Example Output Structure:
                                     >
                                         {isSubmitting ? 'PROCESSING...' : 'NEXT'}
                                     </button> */}
+                                        {isSubmitting && !isRefreshing && (
+                                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+                                                <div className="p-4 rounded shadow">
+                                                    <p className="text-white text-2xl text-center">
+                                                        Generating character json...
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="flex flex-col items-center justify-center mt-4">
                                             <div className="text-xs text-center text-gray-400 mb-4">
                                                 TIP : Agent Ticker & Image cannot be changed after creation.
