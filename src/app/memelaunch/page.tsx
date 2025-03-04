@@ -162,18 +162,38 @@ function renderJsonForm(
                 const isUneditableField = ["name", "modelProvider", "settings"].includes(key);
                 const isStyleKey = key === "style";
                 const isMessageExampleKey = key === "messageExamples";
+                const getModelProvider = (value?: string): string =>
+                    value && value.trim() ? value : "en_US-male-medium";
+
 
                 // Uneditable fields
+                // if (isUneditableField) {
+                //     return (
+                //         <div
+                //             key={key}
+                //             className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
+                //         >
+                //             <div className="block text-sm font-semibold text-gray-200">
+                //                 {key} (Non-editable)
+                //             </div>
+                //             <div className="text-gray-500 break-words whitespace-normal overflow-hidden">{JSON.stringify(data[key])}</div>
+                //         </div>
+                //     );
+                // }
                 if (isUneditableField) {
+                    let displayValue = data[key];
+                    // If the field is modelProvider, apply our default logic.
+                    if (key === "modelProvider") {
+                        displayValue = getModelProvider(data[key]);
+                    }
                     return (
-                        <div
-                            key={key}
-                            className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-                        >
+                        <div key={key} className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2">
                             <div className="block text-sm font-semibold text-gray-200">
                                 {key} (Non-editable)
                             </div>
-                            <div className="text-gray-500 break-words whitespace-normal overflow-hidden">{JSON.stringify(data[key])}</div>
+                            <div className="text-gray-500 break-words whitespace-normal overflow-hidden">
+                                {JSON.stringify(displayValue)}
+                            </div>
                         </div>
                     );
                 }
@@ -934,6 +954,15 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
     const handleConfirmCharacter = async (finalJson: any, shouldRedirect = true) => {
         setError('');
         setSuccess(false);
+
+        const updatedJson = {
+            ...finalJson,
+            modelProvider:
+                finalJson.modelProvider && finalJson.modelProvider.trim()
+                    ? finalJson.modelProvider
+                    : "en_US-male-medium",
+        };
+
         try {
             const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
                 method: 'POST',
@@ -944,7 +973,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 body: JSON.stringify({
                     wallet_address: publicKey,
                     ticker: formData.ticker,
-                    characteristics: finalJson
+                    characteristics: updatedJson
                 })
             });
 
@@ -1054,6 +1083,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             }
 
             const coinsData: { data: Coin[] } = await coinsResponse.json();
+            console.log('coinsData', coinsData)
             const coins = coinsData.data;
 
             const coinMap = new Map<string, Coin>(coins.map((coin) => [coin.ticker, coin]));
@@ -1274,67 +1304,70 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             toast.success(`Coin "${formData.name}" data has been successfully added!`);
 
             // Handle Telegram setup if needed (remains the same)
-            // if (agentType === 'super-agent' && formData.trade) {
-            //     const telegramResponse = await fetch(
-            //         'http://34.67.134.209:3000/swap',
-            //         {
-            //             method: 'POST',
-            //             headers: { 'Content-Type': 'application/json' },
-            //             body: JSON.stringify({
-            //                 telegramId: formData.trade,
-            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-            //             }),
-            //         }
-            //     );
+            if (agentType === 'super-agent' && formData.trade) {
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209/swap',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': 'swap123',
+                        },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
 
-            //     if (!telegramResponse.ok) {
-            //         throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-            //     }
-            //     toast.success('Telegram wallet setup successful!');
-            // }
+                if (!telegramResponse.ok) {
+                    throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                }
+                toast.success('Telegram wallet setup successful!');
+            }
 
 
-            // if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
-            //     const telegramResponse = await fetch(
-            //         'http://34.67.134.209:3000/swap',
-            //         {
-            //             method: 'POST',
-            //             headers: { 'Content-Type': 'application/json' },
-            //             body: JSON.stringify({
-            //                 telegramId: formData.trade,
-            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-            //             }),
-            //         }
-            //     );
+            if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209:3000/swap',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
 
-            //     if (!telegramResponse.ok) {
-            //         throw new Error(
-            //             `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-            //         );
-            //     }
+                if (!telegramResponse.ok) {
+                    throw new Error(
+                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+                    );
+                }
 
-            //     toast.success('Telegram wallet setup successful!');
-            // } else if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
-            //     const telegramResponse = await fetch(
-            //         'http://34.67.134.209:80/swap',
-            //         {
-            //             method: 'POST',
-            //             headers: { 'Content-Type': 'application/json' },
-            //             body: JSON.stringify({
-            //                 telegramId: formData.trade,
-            //                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-            //             }),
-            //         }
-            //     );
+                toast.success('Telegram wallet setup successful!');
+            } else if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
+                const telegramResponse = await fetch(
+                    'http://34.67.134.209/swap',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegramId: formData.trade,
+                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                        }),
+                    }
+                );
 
-            //     if (!telegramResponse.ok) {
-            //         throw new Error(
-            //             `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-            //         );
-            //     }
+                if (!telegramResponse.ok) {
+                    throw new Error(
+                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
+                    );
+                }
 
-            //     toast.success('Telegram wallet setup successful!');
-            // }
+                toast.success('Telegram wallet setup successful!');
+            }
 
             // Store ticker info
             const tickerObject = {
@@ -1826,218 +1859,228 @@ Example Output Structure:
     };
 
     return (
-        <div className="min-h-screen bg-[#08121f] text-white p-4">
-            <div className="max-w-full mx-auto">
-                <div className="mb-6 flex justify-between items-center">
-                    <ArrowLeft
-                        className="w-6 h-6 mr-4 cursor-pointer"
-                        onClick={() => router.back()}
-                    />
-                    {characterJson && (
-                        <ButtonV1New
-                            onClick={handleRefresh} width="w-1/6"
-                        >
-                            {isRefreshing ? "Refreshing..." : "Refresh"}
-                        </ButtonV1New>
-                    )}
+        <div className="relative">
+            {isRefreshing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 w-full h-full">
+                    <div className="p-4 rounded shadow">
+                        <p className="text-white text-xl text-center">
+                            Refreshing... This may take up to 2 minutes.
+                        </p>
+                    </div>
                 </div>
+            )}
+            <div className="min-h-screen bg-[#08121f] text-white p-4">
+                <div className="max-w-full mx-auto">
+                    <div className="mb-6 flex justify-between items-center">
+                        <ArrowLeft
+                            className="w-6 h-6 mr-4 cursor-pointer"
+                            onClick={() => router.back()}
+                        />
+                        {characterJson && (
+                            <ButtonV1New
+                                onClick={handleRefresh} width="w-1/6"
+                            >
+                                {isRefreshing ? "Refreshing..." : "Refresh"}
+                            </ButtonV1New>
+                        )}
+                    </div>
 
-                {!characterJson ? (
-                    <div className="space-y-5 max-w-full mx-auto items-center">
+                    {!characterJson ? (
+                        <div className="space-y-5 max-w-full mx-auto items-center">
 
-                        <Form onSubmit={handleSubmit}>
-                            {({ submit }) => (
-                                <div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="mx-4 space-y-5 border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4">
-                                            <div className="text-[#7E7CCF] font-ttfirs text-xl">
-                                                AGENT INFORMATION
-                                            </div>
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block text-sm">Agent Name</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Name your agent and make it unique to your brand</p>
-                                                <input
-                                                    type="text"
-                                                    name="name"
-                                                    value={formData.name}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    placeholder="Cool Tiger"
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block text-sm">Ticker</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add a unqiue ticker name for your agent, this will be used as your token in future</p>
-                                                <input
-                                                    type="text"
-                                                    name="ticker"
-                                                    value={formData.ticker}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    placeholder="Enter Ticker Name"
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block text-sm">Description</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Describe your AI agent, this information will be used for display purposes wherever your agent is listed</p>
-                                                <textarea
-                                                    name="description"
-                                                    value={formData.description}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700 h-32"
-                                                    placeholder="Get ready to roar with style!"
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block  text-sm">Choose Model</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Choose a model for your AI agents text-gen</p>
-                                                <select
-                                                    name="model"
-                                                    value={formData.model}
-                                                    onChange={handleSelectChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                >
-                                                    {models.map((model) => (
-                                                        <option
-                                                            key={model.name}
-                                                            value={model.name}
-                                                            disabled={!model.enabled}
-                                                        >
-                                                            {model.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block text-sm">Agent&apos;s Twitter Handle</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s twitter profile(if any), this will not be used for training purposes</p>
-                                                <input
-                                                    type="text"
-                                                    name="twitter"
-                                                    value={formData.twitter}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    placeholder="(optional)"
-                                                />
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block  text-sm">Agent&apos;s Telegram Handle</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s telegram profile(if any),  this will not be used for training purposes</p>
-                                                <input
-                                                    type="text"
-                                                    name="telegram"
-                                                    value={formData.telegram}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    placeholder="(optional)"
-                                                />
-                                            </div>
-
-                                            <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
-                                                <label className="block  text-sm">Agent&apos;s Website</label>
-                                                <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s website (if any),  this will not be used for training purposes </p>
-                                                <input
-                                                    type="url"
-                                                    name="website"
-                                                    value={formData.website}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    placeholder="(optional)"
-                                                />
-                                            </div>
-
-                                        </div>
-
-                                        <div className="mr-4 space-y-5">
-
-                                            <div className="border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4">
-                                                <div className="mb-4">
-                                                    <div className="text-[#7E7CCF] font-ttfirs text-xl">
-                                                        TRAIN YOUR AGENT
-                                                    </div>
-                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent&apos;sresponses.</div>
+                            <Form onSubmit={handleSubmit}>
+                                {({ submit }) => (
+                                    <div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="mx-4 space-y-5 border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4">
+                                                <div className="text-[#7E7CCF] font-ttfirs text-xl">
+                                                    AGENT INFORMATION
                                                 </div>
-                                                <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
-                                                    Maximum total upload size: 5 MB (including PDFs and images).
-                                                </span></label>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowTrainingOptions(true)}
-                                                    className="bg-blue-500 text-white px-4 py-2 rounded"
-                                                >
-                                                    + Add Training Data
-                                                </button>
-                                                {showTrainingOptions && (
-                                                    <div className="mt-2 space-y-2">
-                                                        <button
-                                                            onClick={() => handleAddTrainingData('pdf')}
-                                                            className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
-                                                        >
-                                                            Add PDF
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAddTrainingData('image')}
-                                                            className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
-                                                        >
-                                                            Add Image
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAddTrainingData('twitter')}
-                                                            className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
-                                                        >
-                                                            Add Twitter URL
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block text-sm">Agent Name</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Name your agent and make it unique to your brand</p>
+                                                    <input
+                                                        type="text"
+                                                        name="name"
+                                                        value={formData.name}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        placeholder="Cool Tiger"
+                                                        required
+                                                    />
+                                                </div>
 
-                                                {showPdfUpload && (
-                                                    <div className="relative mt-5">
-                                                        <button
-                                                            type="button"
-                                                            className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
-                                                            onClick={() => document.getElementById('fileInput')?.click()}
-                                                        >
-                                                            Upload PDF type Training Data
-                                                        </button>
-                                                        <input
-                                                            type="file"
-                                                            id="fileInput"
-                                                            accept=".pdf"
-                                                            onChange={(e) => handleFileUpload(e, 'pdf')}
-                                                            className="hidden"
-                                                        />
-                                                    </div>
-                                                )}
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block text-sm">Ticker</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add a unqiue ticker name for your agent, this will be used as your token in future</p>
+                                                    <input
+                                                        type="text"
+                                                        name="ticker"
+                                                        value={formData.ticker}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        placeholder="Enter Ticker Name"
+                                                        required
+                                                    />
+                                                </div>
 
-                                                {showImageUpload && (
-                                                    <div className="relative mt-4">
-                                                        <button
-                                                            type="button"
-                                                            className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
-                                                            onClick={() => document.getElementById('imageInput')?.click()}
-                                                        >
-                                                            Upload Image type Training Data
-                                                        </button>
-                                                        <input
-                                                            type="file"
-                                                            id="imageInput"
-                                                            accept="image/*"
-                                                            onChange={(e) => handleFileUpload(e, 'image')}
-                                                            className="hidden"
-                                                        />
-                                                    </div>
-                                                )}
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block text-sm">Description</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Describe your AI agent, this information will be used for display purposes wherever your agent is listed</p>
+                                                    <textarea
+                                                        name="description"
+                                                        value={formData.description}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700 h-32"
+                                                        placeholder="Get ready to roar with style!"
+                                                        required
+                                                    />
+                                                </div>
 
-                                                {/* Display uploaded files */}
-                                                {/* {formData.trainingPdfs.length > 0 && (
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block  text-sm">Choose Model</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Choose a model for your AI agents text-gen</p>
+                                                    <select
+                                                        name="model"
+                                                        value={formData.model}
+                                                        onChange={handleSelectChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                    >
+                                                        {models.map((model) => (
+                                                            <option
+                                                                key={model.name}
+                                                                value={model.name}
+                                                                disabled={!model.enabled}
+                                                            >
+                                                                {model.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block text-sm">Agent&apos;s Twitter Handle</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s twitter profile(if any), this will not be used for training purposes</p>
+                                                    <input
+                                                        type="text"
+                                                        name="twitter"
+                                                        value={formData.twitter}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        placeholder="(optional)"
+                                                    />
+                                                </div>
+
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block  text-sm">Agent&apos;s Telegram Handle</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s telegram profile(if any),  this will not be used for training purposes</p>
+                                                    <input
+                                                        type="text"
+                                                        name="telegram"
+                                                        value={formData.telegram}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        placeholder="(optional)"
+                                                    />
+                                                </div>
+
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
+                                                    <label className="block  text-sm">Agent&apos;s Website</label>
+                                                    <p className="text-xs text-[#B9B9B9] font-ttfirs italic mb-2">Add your agent&apos;s website (if any),  this will not be used for training purposes </p>
+                                                    <input
+                                                        type="url"
+                                                        name="website"
+                                                        value={formData.website}
+                                                        onChange={handleChange}
+                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        placeholder="(optional)"
+                                                    />
+                                                </div>
+
+                                            </div>
+
+                                            <div className="mr-4 space-y-5">
+
+                                                <div className="border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4">
+                                                    <div className="mb-4">
+                                                        <div className="text-[#7E7CCF] font-ttfirs text-xl">
+                                                            TRAIN YOUR AGENT
+                                                        </div>
+                                                        <div className="text-xs text-[#B9B9B9] font-ttfirs">Upload data or links to customize your agent&apos;sresponses.</div>
+                                                    </div>
+                                                    <label className="block mb-2 text-sm">Training Data <span className="text-xs text-gray-400 mt-2">
+                                                        Maximum total upload size: 5 MB (including PDFs and images).
+                                                    </span></label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowTrainingOptions(true)}
+                                                        className="bg-blue-500 text-white px-4 py-2 rounded"
+                                                    >
+                                                        + Add Training Data
+                                                    </button>
+                                                    {showTrainingOptions && (
+                                                        <div className="mt-2 space-y-2">
+                                                            <button
+                                                                onClick={() => handleAddTrainingData('pdf')}
+                                                                className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
+                                                            >
+                                                                Add PDF
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAddTrainingData('image')}
+                                                                className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
+                                                            >
+                                                                Add Image
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAddTrainingData('twitter')}
+                                                                className="block w-full bg-gray-700 text-white px-4 py-2 rounded"
+                                                            >
+                                                                Add Twitter URL
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    {showPdfUpload && (
+                                                        <div className="relative mt-5">
+                                                            <button
+                                                                type="button"
+                                                                className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
+                                                                onClick={() => document.getElementById('fileInput')?.click()}
+                                                            >
+                                                                Upload PDF type Training Data
+                                                            </button>
+                                                            <input
+                                                                type="file"
+                                                                id="fileInput"
+                                                                accept=".pdf"
+                                                                onChange={(e) => handleFileUpload(e, 'pdf')}
+                                                                className="hidden"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {showImageUpload && (
+                                                        <div className="relative mt-4">
+                                                            <button
+                                                                type="button"
+                                                                className="bg-blue-500 text-white py-2 px-4 rounded cursor-pointer hover:bg-blue-600"
+                                                                onClick={() => document.getElementById('imageInput')?.click()}
+                                                            >
+                                                                Upload Image type Training Data
+                                                            </button>
+                                                            <input
+                                                                type="file"
+                                                                id="imageInput"
+                                                                accept="image/*"
+                                                                onChange={(e) => handleFileUpload(e, 'image')}
+                                                                className="hidden"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Display uploaded files */}
+                                                    {/* {formData.trainingPdfs.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-sm font-medium">Uploaded Training PDFs:</p>
                                 <ul className="list-disc pl-5">
@@ -2048,25 +2091,25 @@ Example Output Structure:
                             </div>
                         )} */}
 
-                                                {formData.trainingPdfs.length > 0 && (
-                                                    <div className="mt-4">
-                                                        <p className="text-sm font-medium">Uploaded Training PDFs:</p>
-                                                        <ul className="list-disc pl-5">
-                                                            {formData.trainingPdfs.map((file, index) => (
-                                                                <li key={index} className="flex items-center text-sm">
-                                                                    {file.name}
-                                                                    <button
-                                                                        onClick={() => removeTrainingFile('pdf', index)}
-                                                                        className="ml-2 text-red-500 hover:text-red-700"
-                                                                    >
-                                                                        ✕
-                                                                    </button>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                )}
-                                                {/* 
+                                                    {formData.trainingPdfs.length > 0 && (
+                                                        <div className="mt-4">
+                                                            <p className="text-sm font-medium">Uploaded Training PDFs:</p>
+                                                            <ul className="list-disc pl-5">
+                                                                {formData.trainingPdfs.map((file, index) => (
+                                                                    <li key={index} className="flex items-center text-sm">
+                                                                        {file.name}
+                                                                        <button
+                                                                            onClick={() => removeTrainingFile('pdf', index)}
+                                                                            className="ml-2 text-red-500 hover:text-red-700"
+                                                                        >
+                                                                            ✕
+                                                                        </button>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    {/* 
                         {formData.trainingImages.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-sm font-medium">Uploaded Training Images:</p>
@@ -2077,27 +2120,27 @@ Example Output Structure:
                                 </ul>
                             </div>
                         )}*/}
-                                            </div>
-                                            {formData.trainingImages.length > 0 && (
-                                                <div className="mt-4">
-                                                    <p className="text-sm font-medium">Uploaded Training Images:</p>
-                                                    <ul className="list-disc pl-5">
-                                                        {formData.trainingImages.map((file, index) => (
-                                                            <li key={index} className="flex items-center text-sm">
-                                                                {file.name}
-                                                                <button
-                                                                    onClick={() => removeTrainingFile('image', index)}
-                                                                    className="ml-2 text-red-500 hover:text-red-700"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
                                                 </div>
-                                            )}
+                                                {formData.trainingImages.length > 0 && (
+                                                    <div className="mt-4">
+                                                        <p className="text-sm font-medium">Uploaded Training Images:</p>
+                                                        <ul className="list-disc pl-5">
+                                                            {formData.trainingImages.map((file, index) => (
+                                                                <li key={index} className="flex items-center text-sm">
+                                                                    {file.name}
+                                                                    <button
+                                                                        onClick={() => removeTrainingFile('image', index)}
+                                                                        className="ml-2 text-red-500 hover:text-red-700"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
 
-                                            {/* {formData.trainingUrls.map((url, index) => (
+                                                {/* {formData.trainingUrls.map((url, index) => (
                         <div key={index} className="mt-2">
                             <label className="block mb-2 text-sm">Twitter URL {index + 1} for training data</label>
                             <input
@@ -2109,25 +2152,25 @@ Example Output Structure:
                             />
                         </div>
                     ))} */}
-                                            {formData.trainingUrls.map((url, index) => (
-                                                <div key={index} className="flex items-center mt-2">
-                                                    <label className="block mb-2 text-sm">Upload Twitter URL {index + 1} for training data:</label>
-                                                    <input
-                                                        type="text"
-                                                        name="twitter"
-                                                        value={url}
-                                                        onChange={(e) => handleTwitterUrlChange(index, e.target.value)}
-                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                    />
-                                                    <button
-                                                        onClick={() => removeTrainingUrl(index)}
-                                                        className="ml-2 text-red-500 hover:text-red-700"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {/* <div>
+                                                {formData.trainingUrls.map((url, index) => (
+                                                    <div key={index} className="flex items-center mt-2">
+                                                        <label className="block mb-2 text-sm">Upload Twitter URL {index + 1} for training data:</label>
+                                                        <input
+                                                            type="text"
+                                                            name="twitter"
+                                                            value={url}
+                                                            onChange={(e) => handleTwitterUrlChange(index, e.target.value)}
+                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                        />
+                                                        <button
+                                                            onClick={() => removeTrainingUrl(index)}
+                                                            className="ml-2 text-red-500 hover:text-red-700"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {/* <div>
                         <label className="block mb-2 text-sm">Webpage URL</label>
                         <input
                             type="url"
@@ -2138,76 +2181,76 @@ Example Output Structure:
                             placeholder="(upload Link)"
                         />
                     </div> */}
-                                            <div className='border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4'>
-                                                <div className="mb-4">
-                                                    <div className="text-[#7E7CCF] font-ttfirs text-xl">
-                                                        ENHANCE YOUR AGENT&apos;s CAPABILITIES
-                                                    </div>
-                                                    <div className="text-xs text-[#B9B9B9] font-ttfirs">Choose optional features to supercharge your agent</div>
-                                                </div>
-
-                                                <div className='border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg'>
+                                                <div className='border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4'>
                                                     <div className="mb-4">
-                                                        <div className="text-[#7E7CCF] font-ttfirs text-lg">
-                                                            SOCIAL CONTENT ENGINE
+                                                        <div className="text-[#7E7CCF] font-ttfirs text-xl">
+                                                            ENHANCE YOUR AGENT&apos;s CAPABILITIES
                                                         </div>
-                                                        <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Upon providing your credentials of your twitter handle your provided training data will be utilized to regulalry post content</div>
-                                                    </div>
-                                                    <div className="bg-yellow-200 text-yellow-900 p-4 rounded mb-6">
-                                                        <p className="mb-2">
-                                                            ⚠️ <strong>Ensure the following before proceeding:</strong>
-                                                        </p>
-                                                        <ul className="list-disc list-inside">
-                                                            <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
-                                                            <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
-                                                        </ul>
+                                                        <div className="text-xs text-[#B9B9B9] font-ttfirs">Choose optional features to supercharge your agent</div>
                                                     </div>
 
-                                                    <div className="mb-1">
-                                                        <label className="block mb-2 text-sm">Twitter Username</label>
-                                                        <input
-                                                            type="text"
-                                                            name="username"
-                                                            onChange={handleTwitterCredentialsChange}
-                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                            placeholder="Enter Twitter Username"
-                                                            required
-                                                        />
+                                                    <div className='border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg'>
+                                                        <div className="mb-4">
+                                                            <div className="text-[#7E7CCF] font-ttfirs text-lg">
+                                                                SOCIAL CONTENT ENGINE
+                                                            </div>
+                                                            <div className="text-xs text-[#B9B9B9] font-ttfirs italic">Upon providing your credentials of your twitter handle your provided training data will be utilized to regulalry post content</div>
+                                                        </div>
+                                                        <div className="bg-yellow-200 text-yellow-900 p-4 rounded mb-6">
+                                                            <p className="mb-2">
+                                                                ⚠️ <strong>Ensure the following before proceeding:</strong>
+                                                            </p>
+                                                            <ul className="list-disc list-inside">
+                                                                <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
+                                                                <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
+                                                            </ul>
+                                                        </div>
+
+                                                        <div className="mb-1">
+                                                            <label className="block mb-2 text-sm">Twitter Username</label>
+                                                            <input
+                                                                type="text"
+                                                                name="username"
+                                                                onChange={handleTwitterCredentialsChange}
+                                                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                                placeholder="Enter Twitter Username"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div className="mb-1">
+                                                            <label className="block mb-2 text-sm">Twitter Email</label>
+                                                            <input
+                                                                type="email"
+                                                                name="email"
+                                                                onChange={handleTwitterCredentialsChange}
+                                                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                                placeholder="Enter Twitter Email"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block mb-2 text-sm">Twitter Password</label>
+                                                            <input
+                                                                type="password"
+                                                                name="password"
+                                                                onChange={handleTwitterCredentialsChange}
+                                                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                                placeholder="Enter Twitter Password"
+                                                                required
+                                                            />
+                                                        </div>
                                                     </div>
 
-                                                    <div className="mb-1">
-                                                        <label className="block mb-2 text-sm">Twitter Email</label>
-                                                        <input
-                                                            type="email"
-                                                            name="email"
-                                                            onChange={handleTwitterCredentialsChange}
-                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                            placeholder="Enter Twitter Email"
-                                                            required
-                                                        />
-                                                    </div>
-
-                                                    <div>
-                                                        <label className="block mb-2 text-sm">Twitter Password</label>
-                                                        <input
-                                                            type="password"
-                                                            name="password"
-                                                            onChange={handleTwitterCredentialsChange}
-                                                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                            placeholder="Enter Twitter Password"
-                                                            required
-                                                        />
-                                                    </div>
+                                                    {renderAgentSpecificFields()}
                                                 </div>
 
-                                                {renderAgentSpecificFields()}
                                             </div>
-
                                         </div>
-                                    </div>
 
 
-                                    {/* <button
+                                        {/* <button
                                         type="button"
                                         onClick={submit}
                                         disabled={isSubmitting}
@@ -2215,107 +2258,108 @@ Example Output Structure:
                                     >
                                         {isSubmitting ? 'PROCESSING...' : 'NEXT'}
                                     </button> */}
-                                    <div className="flex flex-col items-center justify-center mt-4">
-                                        <div className="text-xs text-center text-gray-400 mb-4">
-                                            TIP : Agent Ticker & Image cannot be changed after creation.
-                                        </div>
-                                        <div className="w-1/2">
-                                            <ButtonV2New isSubmitting={isSubmitting} onClick={submit} />
+                                        <div className="flex flex-col items-center justify-center mt-4">
+                                            <div className="text-xs text-center text-gray-400 mb-4">
+                                                TIP : Agent Ticker & Image cannot be changed after creation.
+                                            </div>
+                                            <div className="w-1/2">
+                                                <ButtonV2New isSubmitting={isSubmitting} onClick={submit} />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </Form>
-                    </div>
-                ) : (
-                    // <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                    //     <h2 className="text-xl font-semibold mb-6 text-white">Character JSON</h2>
-                    //     <div className="overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
-                    //         <JsonViewer
-                    //             value={characterJson}
-                    //             theme="dark"
-                    //         />
-                    //     </div>
-                    //     <div className="flex gap-4">
-                    //         <button
-                    //             onClick={() => handleConfirmCharacter(characterJson)}
-                    //             className="bg-green-500 px-4 py-2 rounded text-white font-semibold"
-                    //         >
-                    //             Confirm Character
-                    //         </button>
-                    //         <button
-                    //             onClick={handleLaunch}
-                    //             className="bg-blue-500 px-4 py-2 rounded text-white font-semibold"
-                    //         >
-                    //             Launch
-                    //         </button>
-                    //     </div>
-                    // </div>
-
-                    //                 <div className="flex flex-col md:flex-row gap-4 ">
-                    //                     {/* JSON Editor / Viewer */}
-                    //                     <div className="md:w-1/2 w-full overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
-                    //                         <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
-                    //                         <JsonViewer
-                    //                             value={maskedJsonData}
-                    //                             theme="dark"
-                    //                         />
-                    //                     </div>
-
-                    //                     {/* JSON Form */}
-                    //                     <div className="md:w-1/2 w-full bg-gray-900 p-6 rounded-lg text-sm">
-                    //                         <h2 className="text-xl font-semibold mb-4">Edit Character JSON</h2>
-                    //                         {/* 
-                    //     We'll create a separate function or inline code for 
-                    //     rendering a form that can traverse the JSON structure 
-                    //   */}
-                    //                         {renderJsonForm(maskedJsonData, setEditableJson)}
-
-
-                    //                     </div> 
-                    //                 </div>
-
-                    <div>
-                        <div className="flex flex-col md:flex-row gap-4">
-                            {/* JSON Editor / Viewer */}
-                            <div className="md:w-1/2 w-full overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
-                                <div className="flex flex-row justify-between">
-                                    <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
-                                    <button
-                                        onClick={downloadJson}
-                                        className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors mb-2"
-                                    >
-                                        Export JSON
-                                    </button>
-                                </div>
-                                <JsonViewer value={maskedJsonData} theme="dark" />
-                            </div>
-
-
-                            {/* JSON Form */}
-                            <div className="md:w-1/2 w-full bg-gray-900 p-6 rounded-lg text-sm">
-                                <h2 className="text-xl font-semibold mb-4">Edit Character JSON</h2>
-                                {renderJsonForm(maskedJsonData, setEditableJson)}
-                            </div>
+                                )}
+                            </Form>
                         </div>
+                    ) : (
+                        // <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                        //     <h2 className="text-xl font-semibold mb-6 text-white">Character JSON</h2>
+                        //     <div className="overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
+                        //         <JsonViewer
+                        //             value={characterJson}
+                        //             theme="dark"
+                        //         />
+                        //     </div>
+                        //     <div className="flex gap-4">
+                        //         <button
+                        //             onClick={() => handleConfirmCharacter(characterJson)}
+                        //             className="bg-green-500 px-4 py-2 rounded text-white font-semibold"
+                        //         >
+                        //             Confirm Character
+                        //         </button>
+                        //         <button
+                        //             onClick={handleLaunch}
+                        //             className="bg-blue-500 px-4 py-2 rounded text-white font-semibold"
+                        //         >
+                        //             Launch
+                        //         </button>
+                        //     </div>
+                        // </div>
+
+                        //                 <div className="flex flex-col md:flex-row gap-4 ">
+                        //                     {/* JSON Editor / Viewer */}
+                        //                     <div className="md:w-1/2 w-full overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
+                        //                         <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
+                        //                         <JsonViewer
+                        //                             value={maskedJsonData}
+                        //                             theme="dark"
+                        //                         />
+                        //                     </div>
+
+                        //                     {/* JSON Form */}
+                        //                     <div className="md:w-1/2 w-full bg-gray-900 p-6 rounded-lg text-sm">
+                        //                         <h2 className="text-xl font-semibold mb-4">Edit Character JSON</h2>
+                        //                         {/* 
+                        //     We'll create a separate function or inline code for 
+                        //     rendering a form that can traverse the JSON structure 
+                        //   */}
+                        //                         {renderJsonForm(maskedJsonData, setEditableJson)}
 
 
-                        <div className="flex justify-center gap-4 mt-4">
-                            <ButtonV1New
-                                onClick={() => handleConfirmCharacter(editableJson, true)}
-                            >
-                                Create Agent
-                            </ButtonV1New>
-                            <ButtonV1New
+                        //                     </div> 
+                        //                 </div>
+
+                        <div>
+                            <div className="flex flex-col md:flex-row gap-4">
+                                {/* JSON Editor / Viewer */}
+                                <div className="md:w-1/2 w-full overflow-x-auto bg-gray-800 p-6 rounded-lg text-sm">
+                                    <div className="flex flex-row justify-between">
+                                        <h2 className="text-xl font-semibold mb-4">Character JSON Viewer</h2>
+                                        <button
+                                            onClick={downloadJson}
+                                            className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors mb-2"
+                                        >
+                                            Export JSON
+                                        </button>
+                                    </div>
+                                    <JsonViewer value={maskedJsonData} theme="dark" />
+                                </div>
+
+
+                                {/* JSON Form */}
+                                <div className="md:w-1/2 w-full bg-gray-900 p-6 rounded-lg text-sm">
+                                    <h2 className="text-xl font-semibold mb-4">Edit Character JSON</h2>
+                                    {renderJsonForm(maskedJsonData, setEditableJson)}
+                                </div>
+                            </div>
+
+
+                            <div className="flex justify-center gap-4 mt-4">
+                                <ButtonV1New
+                                    onClick={() => handleConfirmCharacter(editableJson, true)}
+                                >
+                                    Create Agent
+                                </ButtonV1New>
+                                {/* <ButtonV1New
                                 onClick={handleLaunchButtonClick}
                             >
                                 Launch
-                            </ButtonV1New>
+                            </ButtonV1New> */}
+                            </div>
                         </div>
-                    </div>
 
-                )}
+                    )}
 
+                </div>
             </div>
         </div>
     );

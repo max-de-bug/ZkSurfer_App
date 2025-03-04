@@ -183,7 +183,6 @@ const TickerPopup: React.FC<TickerPopupProps> = ({ tickers, onSelect }) => (
     </div>
 );
 
-
 async function fetcher(url: any, apiKey: any, walletAddress: any) {
     const res = await fetch(`${url}?wallet_address=${walletAddress}`, {
         headers: {
@@ -231,6 +230,8 @@ const HomeContent: FC = () => {
     const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
     const [imageResultType, setImageResultType] = useState<string | null>(null);
 
+    const [showAgentOptions, setShowAgentOptions] = useState<string | null>(null);
+
     const [thoughtsMap, setThoughtsMap] = useState<Record<number, string | null>>({});
 
     const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
@@ -247,6 +248,8 @@ const HomeContent: FC = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(true);
     const [activeNavbarTicker, setActiveNavbarTicker] = useState<string | null>(null);
     const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
+
+    const popUpRef = useRef<HTMLDivElement | null>(null);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -307,6 +310,30 @@ const HomeContent: FC = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
+
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                popUpRef.current &&
+                !popUpRef.current.contains(event.target as Node)
+            ) {
+                // If we click outside the popup, close it
+                setShowAgentOptions(null);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    const handleEditAgent = (ticker: string) => {
+        // Example: push to dynamic route: /agents/edit/[ticker]
+        // You can change this to whichever path you prefer.
+        router.push(`/agents/edit/${ticker}`);
+    };
 
 
     const { data: tickersData } = useSWR(
@@ -3689,35 +3716,84 @@ const HomeContent: FC = () => {
                                         )}
                                     </div>
                                     {/* <div className="mb-4">
-                                <h3
-                                    className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-                                    onClick={toggleDropdown}
-                                >
-                                    Agents
-                                    {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
-                                </h3>
-                                {isDropdownOpen && (
-                                    <div
-                                        className="space-y-2 overflow-y-auto"
-                                        style={{ maxHeight: '20rem' }}
-                                    >
-                                        {tickersData.map((item: { ticker: string; status: boolean }, index: number) => (
-                                            <div
-                                                key={index}
-                                                className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2"
-                                                onClick={() => toggleTickerStatus(item.ticker, item.status)}
-                                            >
-                                                <span
-                                                    className={`inline-block w-3 h-3 rounded-full ${item.status ? 'bg-green-500' : 'bg-red-500'
-                                                        }`}
-                                                ></span>
-                                                <span>{item.ticker}</span>
-                                            </div>
-                                        ))}
+                                        <h3
+                                            className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
+                                            onClick={toggleDropdown}
+                                        >
+                                            Agents
+                                            {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
+                                        </h3>
 
-                                    </div>
-                                )}
-                            </div> */}
+                                        {isDropdownOpen && (
+                                            <div className="space-y-2 overflow-y-auto" style={{ maxHeight: '20rem' }}>
+                                                {mergedTickers.length > 0 ? (
+                                                    mergedTickers.map(({ ticker, status }) => (
+                                                        <div
+                                                            key={ticker}
+                                                            className={`
+              relative group
+              cursor-pointer hover:bg-gray-700 p-2 rounded
+              flex items-center justify-between
+              ${status === null ? 'cursor-not-allowed' : ''}
+            `}
+                                                        >
+     
+                                                            <div
+                                                                className="flex items-center space-x-2"
+                                                                onClick={() => toggleTickerStatus(ticker, status)}
+                                                            >
+                                                                <span
+                                                                    className={`
+                  inline-block w-3 h-3 rounded-full
+                  ${status === null ? 'bg-gray-500' : status ? 'bg-green-500' : 'bg-red-500'}
+                `}
+                                                                />
+                                                                <span>{ticker}</span>
+                                                            </div>
+
+
+                                                            <div className="relative flex items-center">
+                                                                <button
+                                                                    type="button"
+                                                                    className="p-1 rounded-full hover:bg-gray-800"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // stop row onClick
+                                                                        // Toggle this agent’s pop-up:
+                                                                        setShowAgentOptions((prev) => (prev === ticker ? null : ticker));
+                                                                    }}
+                                                                >
+                                                                    <HiDotsVertical />
+                                                                </button>
+
+
+                                                                {showAgentOptions === ticker && (
+                                                                    <div
+                                                                        ref={popUpRef}
+                                                                        className="absolute right-0 mt-2 w-28 bg-[#171D3D] rounded shadow-lg z-50"
+                                                                    >
+                                                                        <button
+                                                                            className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+                                                                            onClick={() => {
+                                                                                setShowAgentOptions(null);
+                                                                                handleEditAgent(ticker);
+                                                                            }}
+                                                                        >
+                                                                            Edit Agent
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">
+                                                        No agents created yet
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div> */}
+
                                 </div>
                             </div>
 
