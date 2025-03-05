@@ -956,13 +956,10 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         setError('');
         setSuccess(false);
 
-        // const updatedJson = {
-        //     ...finalJson,
-        //     modelProvider:
-        //         finalJson.modelProvider && finalJson.modelProvider.trim()
-        //             ? finalJson.modelProvider
-        //             : "en_US-male-medium",
-        // };
+        const updatedJson = {
+            ...finalJson,
+            plugins: [],
+        };
 
 
         try {
@@ -975,7 +972,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 body: JSON.stringify({
                     wallet_address: publicKey,
                     ticker: formData.ticker,
-                    characteristics: finalJson
+                    characteristics: updatedJson
                 })
             });
 
@@ -1603,7 +1600,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                                 TWITTER_USERNAME: username,
                                 TWITTER_PASSWORD: password,
                                 TWITTER_EMAIL: email,
-                                TWITTER_2FA: twofa,
+                                TWITTER_2FA_SECRET: twofa,
                             };
                             setCharacterJson(parsedJson);
                             setEditableJson(parsedJson);

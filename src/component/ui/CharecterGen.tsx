@@ -701,7 +701,7 @@ Generate a character.json file based on the user-provided data following the str
             TWITTER_USERNAME: formData.username,
             TWITTER_PASSWORD: formData.password,
             TWITTER_EMAIL: formData.email,
-            TWITTER_2FA: formData.twofa,
+            TWITTER_2FA_SECRET: formData.twofa,
           };
           setCharacterJson(parsedJson);
         } else {
