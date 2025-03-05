@@ -675,7 +675,6 @@ const HomeContent: FC = () => {
     ];
 
     const handleMemeImageGeneration = async (imageData: string, prompt: string) => {
-        console.log('pig')
         try {
             // Format the image into a data URL if it isn't already.
             let formattedImage = imageData;
@@ -2494,37 +2493,41 @@ const HomeContent: FC = () => {
 
                 // Once streaming is complete, process the final event.
                 if (finalEvent) {
+                    // First, update your API messages with the name and description.
+                    setApiMessages(prev => [
+                        ...prev,
+                        { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
+                    ]);
+
                     if (isMemeGen) {
+                        // Wait for the name/description processing to complete.
+                        await handleMemeImageGeneration(finalEvent.content, promptText);
+
+                        // Now that the processing is over, add the image to the display.
                         const assistantMessage = {
                             role: 'assistant',
                             content: finalEvent.content,
                             type: 'image',
-                            command: isMemeGen ? 'create-agent' : 'image-gen'
+                            command: 'create-agent'
                         } as Message;
                         setDisplayMessages(prev => [...prev, assistantMessage]);
-                        await handleMemeImageGeneration(finalEvent.content, promptText);
                         setProcessingCommand(true);
                         setShowCreateAgentModal(true);
-                        setApiMessages(prev => [
-                            ...prev,
-                            { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
-                        ]);
                     } else {
+                        // If not meme generation, you can display the image immediately
+                        // or add additional processing if needed.
                         const assistantMessage = {
                             role: 'assistant',
                             content: finalEvent.content,
                             type: 'image',
-                            command: isMemeGen ? 'create-agent' : 'image-gen'
+                            command: 'image-gen'
                         } as Message;
                         setDisplayMessages(prev => [...prev, assistantMessage]);
-                        setApiMessages(prev => [
-                            ...prev,
-                            { role: 'assistant', content: finalEvent.prompt || finalEvent.content }
-                        ]);
                     }
                 } else {
                     console.warn("No final event received from the stream.");
                 }
+
             } catch (error) {
                 console.error('Error:', error);
             } finally {
