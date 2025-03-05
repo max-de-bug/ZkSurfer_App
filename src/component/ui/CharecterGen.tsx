@@ -310,7 +310,7 @@ const CharacterGenForm = () => {
       return;
     }
 
-    if (!formData.email || !formData.password || !formData.username) {
+    if (!formData.email || !formData.password || !formData.username || !formData.twofa) {
       setError('All fields are required');
       setLoading(false);
       return;
@@ -405,6 +405,7 @@ const CharacterGenForm = () => {
         
           Name: The character's name.
           Clients: A list of clients (if any).
+          Plugins: []
           ModelProvider: The model provider (e.g., "zkagi").
           Settings:
           Secrets: Any secrets related to the character.
@@ -445,6 +446,7 @@ const CharacterGenForm = () => {
 
 Name: The character's name.
 Clients: A list of clients (if any).
+Plugins:[]
 ModelProvider: The model provider (e.g., "zkagi").
 Settings:
 Secrets: Any secrets related to the character.
@@ -471,6 +473,7 @@ Example Input:
 User-provided data:
 - Name: John Doe
 - Clients: TWITTER
+- Plugins: []
 - ModelProvider: zkagi
 - Settings:
   - Secrets: {}
@@ -522,6 +525,7 @@ Example Output:
 {
   "name": "John Doe",
   "clients": ["TWITTER"],
+  "plugins":[],
   "modelProvider": "zkagi",
   "settings": {
     "secrets": {},
@@ -689,11 +693,15 @@ Generate a character.json file based on the user-provided data following the str
         //   };
         if (jsonMatch && jsonMatch[1]) {
           const parsedJson = JSON.parse(jsonMatch[1]);
-          parsedJson.clients = ["TWITTER"];
+          parsedJson.clients = ["twitter"];
+          parsedJson.modelProvider = "zkagi";
+          parsedJson.plugins = [];
+          parsedJson.settings.voice.model = "en_US-hfc_male-medium";
           parsedJson.settings.secrets = {
             TWITTER_USERNAME: formData.username,
             TWITTER_PASSWORD: formData.password,
-            TWITTER_EMAIL: formData.email
+            TWITTER_EMAIL: formData.email,
+            TWITTER_2FA: formData.twofa,
           };
           setCharacterJson(parsedJson);
         } else {
@@ -955,6 +963,17 @@ Generate a character.json file based on the user-provided data following the str
                 type="password"
                 name="password"
                 value={formData.password}
+                onChange={handleChange}
+                className="w-full bg-[#24284E] border-[#BDA0FF]"
+                placeholder="Enter your password"
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Twitter 2FA Secret </label>
+              <Input
+                type="twofa"
+                name="twofa"
+                value={formData.twofa}
                 onChange={handleChange}
                 className="w-full bg-[#24284E] border-[#BDA0FF]"
                 placeholder="Enter your password"

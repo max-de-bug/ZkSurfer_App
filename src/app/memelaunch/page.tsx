@@ -159,6 +159,7 @@ function renderJsonForm(
     return (
         <div className="space-y-4">
             {Object.keys(data).map((key) => {
+
                 const isUneditableField = ["name", "modelProvider", "settings"].includes(key);
                 const isStyleKey = key === "style";
                 const isMessageExampleKey = key === "messageExamples";
@@ -255,7 +256,7 @@ function renderJsonForm(
                                                 <input
                                                     type="text"
                                                     className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-                                                    value={example.content.text || ""}
+                                                    value={example.content?.text || ""}
                                                     onChange={(e) => {
                                                         const updatedExample = {
                                                             ...example,
@@ -459,7 +460,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
     const MAX_FILE_SIZE_MB = 5;
     const wallet = useAnchorWallet();
     const { memeData, resetMemeData } = useMemeStore();
-    const { username, email, password, setTwitterCredentials } = useTwitterAuthStore();
+    const { username, email, password, twofa, setTwitterCredentials } = useTwitterAuthStore();
     const [showTrainingOptions, setShowTrainingOptions] = useState(false);
     const { selectedTicker, tickerInfo, setSelectedMemeTicker } = useTickerStore();
     //const searchParams = useSearchParams();
@@ -955,13 +956,14 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         setError('');
         setSuccess(false);
 
-        const updatedJson = {
-            ...finalJson,
-            modelProvider:
-                finalJson.modelProvider && finalJson.modelProvider.trim()
-                    ? finalJson.modelProvider
-                    : "en_US-male-medium",
-        };
+        // const updatedJson = {
+        //     ...finalJson,
+        //     modelProvider:
+        //         finalJson.modelProvider && finalJson.modelProvider.trim()
+        //             ? finalJson.modelProvider
+        //             : "en_US-male-medium",
+        // };
+
 
         try {
             const saveResponse = await fetch('https://zynapse.zkagi.ai/characters', {
@@ -973,7 +975,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 body: JSON.stringify({
                     wallet_address: publicKey,
                     ticker: formData.ticker,
-                    characteristics: updatedJson
+                    characteristics: finalJson
                 })
             });
 
@@ -1329,38 +1331,38 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
             if (agentType === 'micro-agent') {
                 if (formData.trade && formData.trade.trim() !== '') {
-                  if (formData.tradeMode === 'automation') {
-                    const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        telegramId: formData.trade,
-                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                      }),
-                    });
-                    if (!telegramResponse.ok) {
-                      throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                    if (formData.tradeMode === 'automation') {
+                        const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                telegramId: formData.trade,
+                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                            }),
+                        });
+                        if (!telegramResponse.ok) {
+                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                        }
+                        toast.success('Telegram wallet setup successful!');
+                    } else if (formData.tradeMode === 'authentication') {
+                        const telegramResponse = await fetch('http://34.67.134.209/swap', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                telegramId: formData.trade,
+                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                            }),
+                        });
+                        if (!telegramResponse.ok) {
+                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                        }
+                        toast.success('Telegram wallet setup successful!');
                     }
-                    toast.success('Telegram wallet setup successful!');
-                  } else if (formData.tradeMode === 'authentication') {
-                    const telegramResponse = await fetch('http://34.67.134.209/swap', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        telegramId: formData.trade,
-                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                      }),
-                    });
-                    if (!telegramResponse.ok) {
-                      throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-                    }
-                    toast.success('Telegram wallet setup successful!');
-                  }
                 } else {
-                  console.log('No Telegram ID provided; skipping swap call.');
+                    console.log('No Telegram ID provided; skipping swap call.');
                 }
-              }
-              
+            }
+
 
             // Store ticker info
             const tickerObject = {
@@ -1449,6 +1451,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
  Clients: A list of clients (if any).
 
+ Plugins: [],
+
  ModelProvider: The model provider (e.g., "zkagi").
 
  Settings:
@@ -1511,6 +1515,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
  {
    "name": "${formData.ticker}",
    "clients": [],  Populate using user data
+   "plugins":[],
    "modelProvider": "",  Populate using user data
    "settings": {
      "secrets": {},  Populate using user data
@@ -1522,6 +1527,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
    "lore": [],  Populate using user data
    "knowledge": [],  Populate using user data
    "messageExamples": [
+   [
      {
        "user": "{{user1}}",
        "content": {
@@ -1534,6 +1540,21 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
          "text": ""  Populate using user data
        }
      }
+                        ],
+                          [
+     {
+       "user": "{{user1}}",
+       "content": {
+         "text": ""  Populate using user data
+       }
+     },
+     {
+       "user": "${formData.ticker}",
+       "content": {
+         "text": ""  Populate using user data
+       }
+     }
+                        ]
    ],
    "postExamples": [],  Populate using user data
    "topics": [],  Populate using user data
@@ -1574,11 +1595,15 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                     if (jsonMatch && jsonMatch[1]) {
                         try {
                             const parsedJson = JSON.parse(jsonMatch[1]);
-                            parsedJson.clients = ["TWITTER"];
+                            parsedJson.clients = ["twitter"];
+                            parsedJson.modelProvider = "zkagi";
+                            parsedJson.plugins = [];
+                            parsedJson.settings.voice.model = "en_US-hfc_male-medium";
                             parsedJson.settings.secrets = {
                                 TWITTER_USERNAME: username,
                                 TWITTER_PASSWORD: password,
-                                TWITTER_EMAIL: email
+                                TWITTER_EMAIL: email,
+                                TWITTER_2FA: twofa,
                             };
                             setCharacterJson(parsedJson);
                             setEditableJson(parsedJson);
@@ -1650,6 +1675,8 @@ Name: The character's name.
 
 Clients: A list of clients (if any).
 
+Plugins: []
+
 ModelProvider: The model provider (e.g., "zkagi").
 
 Settings:
@@ -1713,6 +1740,7 @@ Example Output Structure:
 {
   "name": "${formData.ticker}",
   "clients": [], // Populate using user data
+  "plugins":[],
   "modelProvider": "", // Populate using user data
   "settings": {
     "secrets": {}, // Populate using user data
@@ -1808,6 +1836,10 @@ Example Output Structure:
                             secrets: currentSecrets,
                         };
                         parsedJson.clients = currentClients;
+
+                        parsedJson.modelProvider = "zkagi";
+                        parsedJson.plugins = [];
+                        parsedJson.settings.voice.model = "en_US-hfc_male-medium";
 
                         // Update the UI with the parsed JSON
                         setCharacterJson(parsedJson);
@@ -2194,7 +2226,6 @@ Example Output Structure:
                                                                 ⚠️ <strong>Ensure the following before proceeding:</strong>
                                                             </p>
                                                             <ul className="list-disc list-inside">
-                                                                <li>Uncheck the <strong>2-Factor Authentication</strong> options in your Twitter account.</li>
                                                                 <li>Disable <strong>Google/Social Sign-In</strong> if enabled. Use your email and password for login.</li>
                                                             </ul>
                                                         </div>
@@ -2228,6 +2259,25 @@ Example Output Structure:
                                                             <input
                                                                 type="password"
                                                                 name="password"
+                                                                onChange={handleTwitterCredentialsChange}
+                                                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                                                placeholder="Enter Twitter Password"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <h1 className="text-xs border my-2 p-2 bg-yellow-200 text-yellow-900 rounded-lg ">
+                                                                <strong className="italic font-bold text-xs">HOW TO ACCESS 2FA SECRET </strong>
+                                                                Log into your twitter handle &gt; Go to settings and account access &gt; Security &gt;
+                                                                <strong>2-Factor Authentication</strong> &gt; Check the Authentication App Checkbox &gt;
+                                                                Click get started &gt; Click can't scan code &gt; COPY and Paste the code in 2FA section.
+                                                            </h1>
+
+                                                            <label className="block mb-2 text-sm">Twitter 2FA Secret</label>
+                                                            <input
+                                                                type="twofa"
+                                                                name="twofa"
                                                                 onChange={handleTwitterCredentialsChange}
                                                                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
                                                                 placeholder="Enter Twitter Password"

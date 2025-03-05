@@ -6,6 +6,7 @@ interface FormState {
         email: string;
         password: string;
         username: string;
+        twofa: string;
     };
     error: string;
     success: boolean;
@@ -15,7 +16,7 @@ interface FormState {
 }
 
 export const useFormStore = create<FormState>((set) => ({
-    formData: { email: '', password: '', username: '' },
+    formData: { email: '', password: '', username: '', twofa: '' },
     error: '',
     success: false,
     setFormData: (data) => set((state) => ({ formData: { ...state.formData, ...data } })),

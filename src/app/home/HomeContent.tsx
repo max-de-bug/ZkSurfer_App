@@ -3684,7 +3684,7 @@ const HomeContent: FC = () => {
                                         </Link>
 
                                     </div>
-                                    <div className="mb-4">
+                                    <div className="mb-2">
                                         <h3
                                             className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
                                             onClick={toggleDropdown}
@@ -3694,8 +3694,7 @@ const HomeContent: FC = () => {
                                         </h3>
                                         {isDropdownOpen && (
                                             <div
-                                                className="space-y-2 overflow-y-auto"
-                                                style={{ maxHeight: '20rem' }}
+                                                className="flex-grow overflow-y-auto mb-[4px] max-h-[calc(70vh-200px)] scrollbar-track-gray-700 scrollbar-thumb-gray-500"
                                             >
                                                 {mergedTickers.length > 0 ? (
                                                     mergedTickers.map(({ ticker, status }) => (
