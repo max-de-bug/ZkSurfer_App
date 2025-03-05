@@ -569,7 +569,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                         <div className="flex items-center justify-end space-x-2 border p-1 rounded-lg">
                             <button
                                 onClick={() => handleTradeModeChange('automation')}
-                                className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'automation'
+                                className={`px-2 py-1 rounded-md transition-colors text-xs ${tradeMode === 'automation'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-700 text-gray-300'
                                     }`}
@@ -578,7 +578,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                             </button>
                             <button
                                 onClick={() => handleTradeModeChange('authentication')}
-                                className={`px-4 py-1 rounded-lg transition-colors ${tradeMode === 'authentication'
+                                className={`px-2 py-1 rounded-md transition-colors text-xs ${tradeMode === 'authentication'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-700 text-gray-300'
                                     }`}
@@ -609,7 +609,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                     <div className="mt-4">
                         <label className="block mb-2 text-sm">
                             Telegram ID{" "}
-                            <span className="text-xs text-gray-400 italic text-xs">
+                            <span className="text-xs text-gray-400 italic">
                                 (Click{" "}
                                 <a
                                     href="https://t.me/UserBotInfoBot?start=anything"
@@ -1327,47 +1327,40 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             }
 
 
-            if (agentType === 'micro-agent' && formData.tradeMode === 'automation') {
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209:3000/swap',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
+            if (agentType === 'micro-agent') {
+                if (formData.trade && formData.trade.trim() !== '') {
+                  if (formData.tradeMode === 'automation') {
+                    const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        telegramId: formData.trade,
+                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                      }),
+                    });
+                    if (!telegramResponse.ok) {
+                      throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
                     }
-                );
-
-                if (!telegramResponse.ok) {
-                    throw new Error(
-                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-                    );
-                }
-
-                toast.success('Telegram wallet setup successful!');
-            } else if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209/swap',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
+                    toast.success('Telegram wallet setup successful!');
+                  } else if (formData.tradeMode === 'authentication') {
+                    const telegramResponse = await fetch('http://34.67.134.209/swap', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        telegramId: formData.trade,
+                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                      }),
+                    });
+                    if (!telegramResponse.ok) {
+                      throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
                     }
-                );
-
-                if (!telegramResponse.ok) {
-                    throw new Error(
-                        `Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`
-                    );
+                    toast.success('Telegram wallet setup successful!');
+                  }
+                } else {
+                  console.log('No Telegram ID provided; skipping swap call.');
                 }
-
-                toast.success('Telegram wallet setup successful!');
-            }
+              }
+              
 
             // Store ticker info
             const tickerObject = {
