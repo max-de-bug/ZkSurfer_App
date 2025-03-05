@@ -2268,7 +2268,7 @@ Example Output Structure:
                                                                 <strong className="italic font-bold text-xs">HOW TO ACCESS 2FA SECRET </strong>
                                                                 Log into your twitter handle &gt; Go to settings and account access &gt; Security &gt;
                                                                 <strong>2-Factor Authentication</strong> &gt; Check the Authentication App Checkbox &gt;
-                                                                Click get started &gt; Click can't scan code &gt; COPY and Paste the code in 2FA section.
+                                                                Click get started &gt; Click can&apos;t scan code &gt; COPY and Paste the code in 2FA section.
                                                             </h1>
 
                                                             <label className="block mb-2 text-sm">Twitter 2FA Secret</label>
