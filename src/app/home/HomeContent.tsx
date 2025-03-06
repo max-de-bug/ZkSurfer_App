@@ -312,6 +312,41 @@ const HomeContent: FC = () => {
     }, [displayMessages, isLoading]);
 
 
+    // Returns the target language code if the browser language is one of the supported ones.
+    function getUserTargetLanguage() {
+        const lang = navigator.language?.toLowerCase();
+        if (lang.startsWith('ko')) return 'ko';
+        if (lang.startsWith('zh')) return 'zh';
+        if (lang.startsWith('vi')) return 'vi';
+        if (lang.startsWith('tr')) return 'tr';
+        return null; // No translation needed (default: English)
+    }
+
+
+    // Calls the translation API endpoint to translate text into the target language.
+    async function translateText(text: any, targetLang: any) {
+        try {
+            const response = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, targetLang }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data.translation; // Expected to return the translated text.
+            } else {
+                console.error('Translation API returned an error.');
+                return text; // Fallback: return original text.
+            }
+        } catch (error) {
+            console.error('Translation error:', error);
+            return text;
+        }
+    }
+
+
+
+
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (
@@ -2493,6 +2528,29 @@ const HomeContent: FC = () => {
 
                 // Once streaming is complete, process the final event.
                 if (finalEvent) {
+
+                    let assistantContent = finalEvent.content; // original assistant response
+
+                    // --- Begin Translation Integration ---
+                    const targetLang = getUserTargetLanguage();
+                    if (targetLang) {
+                        // If the user’s browser indicates one of the supported languages,
+                        // call the translation helper.
+                        const translatedText = await translateText(finalEvent.content, targetLang);
+
+                        // You can display both the original and translated version.
+                        // For example, wrap them in a container:
+                        assistantContent = (
+                            <div>
+                                <div>{finalEvent.content}</div>
+                                <div className="mt-2 text-blue-400 text-sm">
+                                    [{targetLang.toUpperCase()}] {translatedText}
+                                </div>
+                            </div>
+                        );
+                    }
+                    // --- End Translation Integration ---
+
                     // First, update your API messages with the name and description.
                     setApiMessages(prev => [
                         ...prev,
