@@ -59,7 +59,6 @@ import withSerwist from "@serwist/next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Add your i18n configuration here
   i18n: {
     locales: ["en", "ko", "zh", "vi", "tr"],
     defaultLocale: "en",
@@ -99,6 +98,18 @@ const nextConfig = {
     esmExternals: "loose",
   },
   transpilePackages: ["@3land/listings-sdk", "node-fetch", "solana-agent-kit"],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Prevent webpack from bundling native .node files. These should be loaded by Node.js at runtime.
+      config.externals.push(({ request }, callback) => {
+        if (request && request.endsWith(".node")) {
+          return callback(null, "commonjs " + request);
+        }
+        callback();
+      });
+    }
+    return config;
+  },
 };
 
 const serwistConfig = withSerwist({
@@ -106,7 +117,7 @@ const serwistConfig = withSerwist({
   swDest: "public/sw.js",
 });
 
-// Merge both configs
+// Merge both configurations and export
 export default {
   ...nextConfig,
   ...serwistConfig,

@@ -1,46 +1,29 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { pipeline } from '@xenova/transformers';
+import { NextResponse } from 'next/server';
 
-// Define an interface for the expected translation output.
-interface TranslationOutput {
-    translation_text: string;
-}
-
-// Define modelNames with explicit keys.
-const modelNames: { [key in 'ko' | 'zh' | 'vi' | 'tr']: string } = {
-    ko: 'Helsinki-NLP/opus-mt-en-ko',
-    zh: 'Helsinki-NLP/opus-mt-en-zh',
-    vi: 'Helsinki-NLP/opus-mt-en-vi',
-    tr: 'Helsinki-NLP/opus-mt-en-tr',
-};
-
-export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse
-) {
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-    }
-
-    // Cast the body to the expected shape.
-    const { text, targetLang } = req.body as { text: string; targetLang: keyof typeof modelNames };
-    const modelName = modelNames[targetLang];
-
-    if (!text || !modelName) {
-        res.status(400).json({ error: 'Missing text or unsupported language' });
-        return;
-    }
-
+export async function POST(request: Request) {
     try {
-        // Initialize the translation pipeline for the chosen model.
-        const translator = await pipeline('translation', modelName);
-        // Cast the result as an array of TranslationOutput.
-        const result = (await translator(text)) as TranslationOutput[];
+        const { pipeline } = await import('@xenova/transformers');
+        const { text, targetLang } = await request.json() as { text: string; targetLang: 'ko' | 'zh' | 'vi' | 'tr' };
 
-        res.status(200).json({ translation: result[0].translation_text });
+        const modelNames: { [key in 'ko' | 'zh' | 'vi' | 'tr']: string } = {
+            ko: 'Helsinki-NLP/opus-mt-en-ko',
+            zh: 'Helsinki-NLP/opus-mt-en-zh',
+            vi: 'Helsinki-NLP/opus-mt-en-vi',
+            tr: 'Helsinki-NLP/opus-mt-en-tr',
+        };
+
+        const modelName = modelNames[targetLang];
+
+        if (!text || !modelName) {
+            return NextResponse.json({ error: 'Missing text or unsupported language' }, { status: 400 });
+        }
+
+        const translator = await pipeline('translation', modelName);
+        const result = await translator(text) as { translation_text: string }[];
+
+        return NextResponse.json({ translation: result[0].translation_text });
     } catch (error) {
         console.error('Translation error:', error);
-        res.status(500).json({ error: 'Translation failed' });
+        return NextResponse.json({ error: 'Translation failed' }, { status: 500 });
     }
 }
