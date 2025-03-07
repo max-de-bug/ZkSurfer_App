@@ -1201,8 +1201,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
             if (launchSuccessful) {
                 // Redirect to home page only if launch is successful
-                toast.success('Agent created successfully')
                 router.push('/');
+                toast.success('Agent created successfully!')
             } else {
                 toast.error('Launch failed. Please try again.');
             }
