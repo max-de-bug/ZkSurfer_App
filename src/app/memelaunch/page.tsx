@@ -1201,6 +1201,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
             if (launchSuccessful) {
                 // Redirect to home page only if launch is successful
+                toast.success('Agent created successfully')
                 router.push('/');
             } else {
                 toast.error('Launch failed. Please try again.');
@@ -1303,7 +1304,12 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                 body: JSON.stringify(apiPayload)
             });
 
-            if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
+            if (!response.ok) {
+                const errorMsg = `API call failed: ${response.statusText}`;
+                toast.error(errorMsg);
+                throw new Error(errorMsg);
+            }
+
 
             const result = await response.json();
             toast.success(`Coin "${formData.name}" data has been successfully added!`);
@@ -2314,7 +2320,7 @@ Example Output Structure:
                                                         <div>
                                                             <h1 className="text-xs border my-2 p-2 bg-yellow-200 text-yellow-900 rounded-lg ">
                                                                 <strong className="italic font-bold text-xs">HOW TO ACCESS 2FA SECRET </strong>
-                                                                <br/>
+                                                                <br />
                                                                 Log into your twitter handle &gt; Go to settings and account access &gt; Security &gt;
                                                                 <strong>2-Factor Authentication</strong> &gt; Check the Authentication App Checkbox &gt;
                                                                 Click get started &gt; Click can&apos;t scan code &gt; COPY and Paste the code in 2FA section.
