@@ -956,9 +956,15 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         setError('');
         setSuccess(false);
 
+        function generateRoleplayContent(ticker: any) {
+            return `Roleplaying as ${ticker}: Prepare for an engaging experience where every interaction is filled with creativity and excitement!`;
+        }
+
+
         const updatedJson = {
             ...finalJson,
             plugins: [],
+            system: generateRoleplayContent(finalJson.name)
         };
 
 
@@ -1824,6 +1830,27 @@ Example Output Structure:
                     try {
                         const parsedJson = JSON.parse(cleanJson);
 
+
+                        if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                            // Force each item to become a plain string
+                            parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                                // If item looks like { content: { text: "some text" } }, extract it:
+                                if (
+                                    item &&
+                                    typeof item === "object" &&
+                                    item.content &&
+                                    typeof item.content.text === "string"
+                                ) {
+                                    return item.content.text;
+                                }
+                                // If it's already a string, keep it:
+                                if (typeof item === "string") {
+                                    return item;
+                                }
+                                // Otherwise, fallback to a stringified version:
+                                return JSON.stringify(item);
+                            });
+                        }
                         // Preserve existing secrets and clients
                         const currentSecrets = editableJson?.settings?.secrets || {};
                         const currentClients = editableJson?.clients || [];
@@ -1858,6 +1885,27 @@ Example Output Structure:
 
                 const currentSecrets = editableJson?.settings?.secrets || {};
                 const currentClients = editableJson?.clients || [];
+
+                if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                    // Force each item to become a plain string
+                    parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                        // If item looks like { content: { text: "some text" } }, extract it:
+                        if (
+                            item &&
+                            typeof item === "object" &&
+                            item.content &&
+                            typeof item.content.text === "string"
+                        ) {
+                            return item.content.text;
+                        }
+                        // If it's already a string, keep it:
+                        if (typeof item === "string") {
+                            return item;
+                        }
+                        // Otherwise, fallback to a stringified version:
+                        return JSON.stringify(item);
+                    });
+                }
 
                 parsedJson.settings = {
                     ...parsedJson.settings,
@@ -2266,9 +2314,12 @@ Example Output Structure:
                                                         <div>
                                                             <h1 className="text-xs border my-2 p-2 bg-yellow-200 text-yellow-900 rounded-lg ">
                                                                 <strong className="italic font-bold text-xs">HOW TO ACCESS 2FA SECRET </strong>
+                                                                <br/>
                                                                 Log into your twitter handle &gt; Go to settings and account access &gt; Security &gt;
                                                                 <strong>2-Factor Authentication</strong> &gt; Check the Authentication App Checkbox &gt;
                                                                 Click get started &gt; Click can&apos;t scan code &gt; COPY and Paste the code in 2FA section.
+                                                                <br />
+                                                                Before running, ensure you click on <strong>Next</strong>, then open <strong>Google Authenticator app</strong> and add a new setup key, paste the above copied in the key input field then add it. This will display a 6 character password on authenticator add that on twitter field, and your authenticator setup is complete.
                                                             </h1>
 
                                                             <label className="block mb-2 text-sm">Twitter 2FA Secret</label>
@@ -2277,7 +2328,7 @@ Example Output Structure:
                                                                 name="twofa"
                                                                 onChange={handleTwitterCredentialsChange}
                                                                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                                placeholder="Enter Twitter Password"
+                                                                placeholder="Enter Twitter 2FA Secret"
                                                                 required
                                                             />
                                                         </div>
