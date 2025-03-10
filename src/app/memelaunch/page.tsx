@@ -1312,7 +1312,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
 
             const result = await response.json();
-            toast.success(`Coin "${formData.name}" data has been successfully added!`);
+            toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
             // Handle Telegram setup if needed (remains the same)
             if (agentType === 'super-agent' && formData.trade) {
@@ -1857,6 +1857,18 @@ Example Output Structure:
                                 return JSON.stringify(item);
                             });
                         }
+
+                        if (parsedJson.messageExamples && parsedJson.messageExamples) {
+                            // If messageExamples itself isn't an array, wrap it in one.
+                            if (!Array.isArray(parsedJson.messageExamples)) {
+                                parsedJson.messageExamples = [parsedJson.messageExamples];
+                            }
+                            // Now ensure each item is an array.
+                            parsedJson.messageExamples = parsedJson.messageExamples.map((item: any) => {
+                                return Array.isArray(item) ? item : [item];
+                            });
+                        }
+
                         // Preserve existing secrets and clients
                         const currentSecrets = editableJson?.settings?.secrets || {};
                         const currentClients = editableJson?.clients || [];

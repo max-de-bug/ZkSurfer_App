@@ -3705,7 +3705,7 @@ const HomeContent: FC = () => {
                                                             onClick={() => toggleTickerStatus(ticker, status)}
                                                         >
                                                             <span
-                                                                className={`inline-block w-3 h-3 rounded-full ${status === null ? 'bg-gray-500' : status ? 'bg-green-500' : 'bg-red-500'
+                                                                className={`inline-block w-3 h-3 rounded-full ${status === null ? 'bg-gray-500' : status === true ? 'bg-green-500' : 'bg-red-500'
                                                                     }`}
                                                             ></span>
                                                             <span>{ticker}</span>
@@ -3714,6 +3714,8 @@ const HomeContent: FC = () => {
                                                 ) : (
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )}
+
+
                                             </div>
                                         )}
                                     </div>
@@ -3833,7 +3835,7 @@ const HomeContent: FC = () => {
 
                     {/* Chat messages */}
                     <div className=' flex flex-col justify-between w-full'>
-                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[650px] ">
+                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[630px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
