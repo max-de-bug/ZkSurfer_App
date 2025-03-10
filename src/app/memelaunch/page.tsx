@@ -89,7 +89,7 @@ function parseValue(value: string) {
 //     return jsonData;
 // }
 
-function maskSecrets(jsonData) {
+function maskSecrets(jsonData: any) {
     if (!jsonData) return jsonData;
   
     // Mask secrets as before.
@@ -107,7 +107,7 @@ function maskSecrets(jsonData) {
   
 
 
-function normalizeMessageExamples(jsonData) {
+function normalizeMessageExamples(jsonData:any) {
     if (!jsonData) return jsonData;
     const currentExampleCount = jsonData.messageExamples ? jsonData.messageExamples.length : 0;
     
