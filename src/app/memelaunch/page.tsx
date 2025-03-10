@@ -72,23 +72,78 @@ function parseValue(value: string) {
     return value;
 }
 
-function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> } } | null) {
-    if (jsonData?.settings?.secrets) {
-        const maskedSecrets = { ...jsonData.settings.secrets };
-        Object.keys(maskedSecrets).forEach((key) => {
-            maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
-        });
-        return {
-            ...jsonData,
-            settings: {
-                ...jsonData.settings,
-                secrets: maskedSecrets,
-            },
-        };
-    }
-    return jsonData;
-}
+// function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> } } | null) {
+//     if (jsonData?.settings?.secrets) {
+//         const maskedSecrets = { ...jsonData.settings.secrets };
+//         Object.keys(maskedSecrets).forEach((key) => {
+//             maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+//         });
+//         return {
+//             ...jsonData,
+//             settings: {
+//                 ...jsonData.settings,
+//                 secrets: maskedSecrets,
+//             },
+//         };
+//     }
+//     return jsonData;
+// }
 
+function maskSecrets(jsonData) {
+    if (!jsonData) return jsonData;
+  
+    // Mask secrets as before.
+    if (jsonData.settings && jsonData.settings.secrets) {
+      const maskedSecrets = { ...jsonData.settings.secrets };
+      Object.keys(maskedSecrets).forEach((key) => {
+        maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+      });
+      jsonData.settings.secrets = maskedSecrets;
+    }
+  
+    // Normalize messageExamples
+    return normalizeMessageExamples(jsonData);
+  }
+  
+
+
+function normalizeMessageExamples(jsonData) {
+    if (!jsonData) return jsonData;
+    const currentExampleCount = jsonData.messageExamples ? jsonData.messageExamples.length : 0;
+    
+    let examples = jsonData.messageExamples;
+    
+    // If missing or empty, initialize with a default group of 2 objects.
+    if (!examples || examples.length === 0) {
+      return {
+        ...jsonData,
+        messageExamples: [
+          [
+            { user: 'User', content: { text: "" } },
+            { user:jsonData.name, content: { text: "" } }
+          ]
+        ]
+      };
+    }
+    
+    // If the first element is not an array, assume it's a flat array.
+    if (!Array.isArray(examples[0])) {
+      const normalized = [];
+      for (let i = 0; i < examples.length; i += 2) {
+        const group = examples.slice(i, i + 2);
+        // If the last group has only one element, add a default one.
+        if (group.length === 1) {
+          group.push({ user: "$JPIG", content: { text: "" } });
+        }
+        normalized.push(group);
+      }
+      return { ...jsonData, messageExamples: normalized };
+    }
+    
+    // Otherwise, already normalized.
+    return jsonData;
+  }
+  
 
 /**
  * A recursive function to render a form for any JSON data structure.
@@ -200,94 +255,354 @@ function renderJsonForm(
                 }
 
                 // Message examples
+                // if (isMessageExampleKey) {
+                //     return (
+                //         <div
+                //             key={key}
+                //             className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
+                //         >
+                //             <div className="flex items-center justify-between">
+                //                 <div className="block text-sm font-semibold text-gray-200">{key}</div>
+                //                 {/* Add a new block for user and content */}
+                //                 <button
+                //                     type="button"
+                //                     className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
+                //                     onClick={() => {
+                //                         const newExample = {
+                //                             user: "",
+                //                             content: { text: "" },
+                //                         };
+                //                         const newArray = Array.isArray(data[key])
+                //                             ? [newExample, ...data[key]]
+                //                             : [newExample];
+                //                         onChange({ ...data, [key]: newArray });
+                //                     }}
+                //                 >
+                //                     +
+                //                 </button>
+                //             </div>
+
+                //             <div className="space-y-2">
+                //                 {data[key].map((example: any, idx: number) => (
+                //                     <div
+                //                         key={idx}
+                //                         className="p-3 flex items-center gap-4 rounded border border-gray-700 bg-gray-800"
+                //                     >
+                //                         <div className="flex-1 space-y-2">
+                //                             <div>
+                //                                 <label className="block mb-2 text-sm">User</label>
+                //                                 <input
+                //                                     type="text"
+                //                                     className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
+                //                                     value={example.user || ""}
+                //                                     onChange={(e) => {
+                //                                         const updatedExample = {
+                //                                             ...example,
+                //                                             user: e.target.value,
+                //                                         };
+                //                                         const newArray = [...data[key]];
+                //                                         newArray[idx] = updatedExample;
+                //                                         onChange({ ...data, [key]: newArray });
+                //                                     }}
+                //                                 />
+                //                             </div>
+                //                             <div>
+                //                                 <label className="block mb-2 text-sm">Content Text</label>
+                //                                 <input
+                //                                     type="text"
+                //                                     className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
+                //                                     value={example.content?.text || ""}
+                //                                     onChange={(e) => {
+                //                                         const updatedExample = {
+                //                                             ...example,
+                //                                             content: { text: e.target.value },
+                //                                         };
+                //                                         const newArray = [...data[key]];
+                //                                         newArray[idx] = updatedExample;
+                //                                         onChange({ ...data, [key]: newArray });
+                //                                     }}
+                //                                 />
+                //                             </div>
+                //                         </div>
+                //                         {/* Remove the whole example */}
+                //                         <button
+                //                             type="button"
+                //                             className="px-2 py-1 text-red-400 hover:text-red-500 border border-red-500 rounded"
+                //                             onClick={() => {
+                //                                 const newArray = data[key].filter(
+                //                                     (_: any, i: number) => i !== idx
+                //                                 );
+                //                                 onChange({ ...data, [key]: newArray });
+                //                             }}
+                //                         >
+                //                             -
+                //                         </button>
+                //                     </div>
+                //                 ))}
+                //             </div>
+                //         </div>
+                //     );
+                // }
+
+                // if (isMessageExampleKey) {
+                //     // Grab the array from data
+                //     const examples = Array.isArray(data[key]) ? data[key] : [];
+
+                //     // Chunk the array into groups of 2
+                //     const chunked = [];
+                //     for (let i = 0; i < examples.length; i += 2) {
+                //       chunked.push(examples.slice(i, i + 2));
+                //     }
+
+                //     return (
+                //       <div key={key} className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2">
+                //         <div className="flex items-center justify-between">
+                //           <div className="block text-sm font-semibold text-gray-200">{key}</div>
+                //           <button
+                //             type="button"
+                //             className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
+                //             onClick={() => {
+                //               // Add two new objects to the end of the array:
+                //               // one for the user, one for the agent
+                //               const updatedArray = [...examples];
+                //               updatedArray.push(
+                //                 { user: "User", content: { text: "" } },
+                //                 { user: "$JPIG", content: { text: "" } }
+                //               );
+                //               onChange({ ...data, [key]: updatedArray });
+                //             }}
+                //           >
+                //             + New Group
+                //           </button>
+                //         </div>
+
+                //         {/* Now display each chunk of two objects in a single container */}
+                //         <div className="space-y-4">
+                //           {chunked.map((pair, pairIndex) => {
+                //             const userObj = pair[0] || { user: "", content: { text: "" } };
+                //             const agentObj = pair[1] || { user: "$JPIG", content: { text: "" } };
+
+                //             return (
+                //               <div key={pairIndex} className="border border-white p-2 mb-2">
+                //                 {/* USER ENTRY */}
+                //                 <div className="mb-2">
+                //                   <div className="text-sm font-semibold text-gray-200">User Entry</div>
+                //                   <div className="p-2 border border-gray-600 bg-gray-700">
+                //                     <label className="block mb-2 text-sm">User</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={userObj.user}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2; // user is the first in the pair
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           user: e.target.value
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                     <label className="block mb-2 text-sm">Content Text</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={userObj.content?.text || ""}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2;
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           content: { text: e.target.value }
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                   </div>
+                //                 </div>
+
+                //                 {/* AGENT ENTRY */}
+                //                 <div>
+                //                   <div className="text-sm font-semibold text-gray-200">Agent Entry</div>
+                //                   <div className="p-2 border border-gray-600 bg-gray-700">
+                //                     <label className="block mb-2 text-sm">User</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={agentObj.user}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2 + 1; // agent is second in the pair
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           user: e.target.value
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                     <label className="block mb-2 text-sm">Content Text</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={agentObj.content?.text || ""}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2 + 1;
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           content: { text: e.target.value }
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                   </div>
+                //                 </div>
+                //               </div>
+                //             );
+                //           })}
+                //         </div>
+                //       </div>
+                //     );
+                //   }    
                 if (isMessageExampleKey) {
+                    // Get the raw examples from data[key]
+                    const rawExamples = Array.isArray(data[key]) ? data[key] : [];
+
+                    // Check if rawExamples is a flat array (of objects) or already an array of groups.
+                    let groups = [];
+                    if (rawExamples.length > 0 && !Array.isArray(rawExamples[0])) {
+                        // It's a flat array—chunk it into groups of 2.
+                        for (let i = 0; i < rawExamples.length; i += 2) {
+                            groups.push(rawExamples.slice(i, i + 2));
+                        }
+                    } else {
+                        // Already grouped.
+                        groups = rawExamples;
+                    }
+
                     return (
-                        <div
-                            key={key}
-                            className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-                        >
+                        <div key={key} className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="block text-sm font-semibold text-gray-200">{key}</div>
-                                {/* Add a new block for user and content */}
                                 <button
                                     type="button"
                                     className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
                                     onClick={() => {
-                                        const newExample = {
-                                            user: "",
-                                            content: { text: "" },
-                                        };
-                                        const newArray = Array.isArray(data[key])
-                                            ? [newExample, ...data[key]]
-                                            : [newExample];
-                                        onChange({ ...data, [key]: newArray });
+                                        // Create a new group (an array with two objects)
+                                        const newGroup = [
+                                            { user: "User", content: { text: "" } },
+                                            { user: "$JPIG", content: { text: "" } }
+                                        ];
+                                        // Append the new group to the current groups
+                                        const updatedGroups = [...groups, newGroup];
+                                        onChange({ ...data, [key]: updatedGroups });
                                     }}
                                 >
                                     +
                                 </button>
                             </div>
 
-                            <div className="space-y-2">
-                                {data[key].map((example: any, idx: number) => (
-                                    <div
-                                        key={idx}
-                                        className="p-3 flex items-center gap-4 rounded border border-gray-700 bg-gray-800"
-                                    >
-                                        <div className="flex-1 space-y-2">
-                                            <div>
-                                                <label className="block mb-2 text-sm">User</label>
-                                                <input
-                                                    type="text"
-                                                    className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-                                                    value={example.user || ""}
-                                                    onChange={(e) => {
-                                                        const updatedExample = {
-                                                            ...example,
-                                                            user: e.target.value,
-                                                        };
-                                                        const newArray = [...data[key]];
-                                                        newArray[idx] = updatedExample;
-                                                        onChange({ ...data, [key]: newArray });
-                                                    }}
-                                                />
+                            <div className="space-y-4">
+                                {groups.map((group, groupIndex) => {
+                                    const userObj = group[0] || { user: "", content: { text: "" } };
+                                    const agentObj = group[1] || { user: "$JPIG", content: { text: "" } };
+
+                                    return (
+                                        <div key={groupIndex} className="border border-white p-2 mb-2 grid grid-cols-8 rounded-lg">
+                                            <div className="col-span-7">
+
+                                                {/* USER ENTRY */}
+                                                <div className="mb-2">
+                                                    <div className="text-sm font-semibold text-gray-200 mb-1">User Entry</div>
+                                                    <div className="p-2 border border-gray-600 bg-gray-700">
+                                                        <label className="block mb-2 text-sm">User</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={userObj.user}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][0] = {
+                                                                    ...updatedGroups[groupIndex][0],
+                                                                    user: e.target.value
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                        <label className="block mb-2 text-sm">Content Text</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={userObj.content?.text || ""}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][0] = {
+                                                                    ...updatedGroups[groupIndex][0],
+                                                                    content: { text: e.target.value }
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* AGENT ENTRY */}
+                                                <div>
+                                                    <div className="text-sm font-semibold text-gray-200 mb-1">Agent Entry</div>
+                                                    <div className="p-2 border border-gray-600 bg-gray-700">
+                                                        <label className="block mb-2 text-sm">User</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={agentObj.user}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][1] = {
+                                                                    ...updatedGroups[groupIndex][1],
+                                                                    user: e.target.value
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                        <label className="block mb-2 text-sm">Content Text</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={agentObj.content?.text || ""}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][1] = {
+                                                                    ...updatedGroups[groupIndex][1],
+                                                                    content: { text: e.target.value }
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block mb-2 text-sm">Content Text</label>
-                                                <input
-                                                    type="text"
-                                                    className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-                                                    value={example.content?.text || ""}
-                                                    onChange={(e) => {
-                                                        const updatedExample = {
-                                                            ...example,
-                                                            content: { text: e.target.value },
-                                                        };
-                                                        const newArray = [...data[key]];
-                                                        newArray[idx] = updatedExample;
-                                                        onChange({ ...data, [key]: newArray });
-                                                    }}
-                                                />
-                                            </div>
+                                            {/* Remove group button */}
+                                            <div className="flex justify-center items-center ml-2">
+    <button
+        type="button"
+        className="w-8 h-8 flex items-center justify-center text-red-300 hover:text-red-400 border border-red-500 rounded bg-gray-900"
+        onClick={() => {
+            // Remove the group at groupIndex
+            const updatedGroups = groups.filter((_, index) => index !== groupIndex);
+            onChange({ ...data, [key]: updatedGroups });
+        }}
+    >
+        -
+    </button>
+</div>
                                         </div>
-                                        {/* Remove the whole example */}
-                                        <button
-                                            type="button"
-                                            className="px-2 py-1 text-red-400 hover:text-red-500 border border-red-500 rounded"
-                                            onClick={() => {
-                                                const newArray = data[key].filter(
-                                                    (_: any, i: number) => i !== idx
-                                                );
-                                                onChange({ ...data, [key]: newArray });
-                                            }}
-                                        >
-                                            -
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     );
                 }
+
 
                 // if (isMessageExampleKey) {
                 //     return (
@@ -724,8 +1039,16 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setTwitterCredentials({ [name]: value });
+        let sanitizedValue = value;
+
+        if (name === 'username') {
+            // Remove a single leading '@' if present
+            sanitizedValue = sanitizedValue.replace(/^@/, '');
+        }
+
+        setTwitterCredentials({ [name]: sanitizedValue });
     };
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -1604,6 +1927,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                     if (jsonMatch && jsonMatch[1]) {
                         try {
                             const parsedJson = JSON.parse(jsonMatch[1]);
+                            const normalizedJson = normalizeMessageExamples(parsedJson);
+
                             parsedJson.clients = ["twitter"];
                             parsedJson.modelProvider = "zkagi";
                             parsedJson.plugins = [];
@@ -1837,10 +2162,35 @@ Example Output Structure:
                         const parsedJson = JSON.parse(cleanJson);
 
 
+                        // if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                        //     // Force each item to become a plain string
+                        //     parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                        //         // If item looks like { content: { text: "some text" } }, extract it:
+                        //         if (
+                        //             item &&
+                        //             typeof item === "object" &&
+                        //             item.content &&
+                        //             typeof item.content.text === "string"
+                        //         ) {
+                        //             return item.content.text;
+                        //         }
+                        //         // If it's already a string, keep it:
+                        //         if (typeof item === "string") {
+                        //             return item;
+                        //         }
+                        //         // Otherwise, fallback to a stringified version:
+                        //         return JSON.stringify(item);
+                        //     });
+                        // }
+
                         if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
-                            // Force each item to become a plain string
                             parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
-                                // If item looks like { content: { text: "some text" } }, extract it:
+                                // Case 1: If already a string, just use it
+                                if (typeof item === "string") {
+                                    return item;
+                                }
+
+                                // Case 2: If it's an object with item.content.text
                                 if (
                                     item &&
                                     typeof item === "object" &&
@@ -1849,25 +2199,33 @@ Example Output Structure:
                                 ) {
                                     return item.content.text;
                                 }
-                                // If it's already a string, keep it:
-                                if (typeof item === "string") {
-                                    return item;
-                                }
-                                // Otherwise, fallback to a stringified version:
+
+                                // Case 3: Fallback – JSON-stringify anything else
                                 return JSON.stringify(item);
                             });
                         }
 
-                        if (parsedJson.messageExamples && parsedJson.messageExamples) {
-                            // If messageExamples itself isn't an array, wrap it in one.
-                            if (!Array.isArray(parsedJson.messageExamples)) {
-                                parsedJson.messageExamples = [parsedJson.messageExamples];
+
+                        // if (parsedJson.messageExamples && parsedJson.messageExamples) {
+                        //     // If messageExamples itself isn't an array, wrap it in one.
+                        //     if (!Array.isArray(parsedJson.messageExamples)) {
+                        //         parsedJson.messageExamples = [parsedJson.messageExamples];
+                        //     }
+                        //     // Now ensure each item is an array.
+                        //     parsedJson.messageExamples = parsedJson.messageExamples.map((item: any) => {
+                        //         return Array.isArray(item) ? item : [item];
+                        //     });
+                        // }
+
+                        if (parsedJson.messageExamples && Array.isArray(parsedJson.messageExamples)) {
+                            const groupedMessageExamples = [];
+                            for (let i = 0; i < parsedJson.messageExamples.length; i += 2) {
+                                // Slice every two messages into an inner array
+                                groupedMessageExamples.push(parsedJson.messageExamples.slice(i, i + 2));
                             }
-                            // Now ensure each item is an array.
-                            parsedJson.messageExamples = parsedJson.messageExamples.map((item: any) => {
-                                return Array.isArray(item) ? item : [item];
-                            });
+                            parsedJson.messageExamples = groupedMessageExamples;
                         }
+
 
                         // Preserve existing secrets and clients
                         const currentSecrets = editableJson?.settings?.secrets || {};
