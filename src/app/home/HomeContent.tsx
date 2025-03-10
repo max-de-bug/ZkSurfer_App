@@ -381,9 +381,10 @@ const HomeContent: FC = () => {
     if (walletAddress) {
         mergedTickers = tickers.map((ticker) => {
             const tickerData = (tickersData || []).find((item: any) => item.ticker === ticker);
+            console.log('tickerData', tickerData)
             return {
                 ticker,
-                status: tickerData ? tickerData.status === 'true' : null, // `null` if no character
+                status: tickerData?.status,
             };
         });
     }
@@ -3696,7 +3697,7 @@ const HomeContent: FC = () => {
                                             <div
                                                 className="flex-grow overflow-y-auto mb-[4px] max-h-[calc(70vh-200px)] scrollbar-track-gray-700 scrollbar-thumb-gray-500"
                                             >
-                                                {mergedTickers.length > 0 ? (
+                                                {/* {mergedTickers.length > 0 ? (
                                                     mergedTickers.map(({ ticker, status }) => (
                                                         <div
                                                             key={ticker}
@@ -3713,9 +3714,33 @@ const HomeContent: FC = () => {
                                                     ))
                                                 ) : (
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
+                                                )} */}
+
+                                                {mergedTickers.length > 0 ? (
+                                                    mergedTickers.map(({ ticker, status }) => {
+                                                        console.log("mergedTickers", mergedTickers);
+                                                        return (
+                                                            <div
+                                                                key={ticker}
+                                                                className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
+                                                                    }`}
+                                                                onClick={() => toggleTickerStatus(ticker, status)}
+                                                            >
+                                                                <span
+                                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
+                                                                        ? 'bg-gray-500'
+                                                                        : status === true
+                                                                            ? 'bg-green-500'
+                                                                            : 'bg-red-500'
+                                                                        }`}
+                                                                ></span>
+                                                                <span>{ticker}</span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )}
-
-
                                             </div>
                                         )}
                                     </div>
