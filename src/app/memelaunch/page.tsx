@@ -89,61 +89,76 @@ function parseValue(value: string) {
 //     return jsonData;
 // }
 
+// function maskSecrets(jsonData: any) {
+//     if (!jsonData) return jsonData;
+
+//     // Mask secrets as before.
+//     if (jsonData.settings && jsonData.settings.secrets) {
+//       const maskedSecrets = { ...jsonData.settings.secrets };
+//       Object.keys(maskedSecrets).forEach((key) => {
+//         maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+//       });
+//       jsonData.settings.secrets = maskedSecrets;
+//     }
+
+//     // Normalize messageExamples
+//     return normalizeMessageExamples(jsonData);
+//   }
+
+
 function maskSecrets(jsonData: any) {
     if (!jsonData) return jsonData;
-  
-    // Mask secrets as before.
-    if (jsonData.settings && jsonData.settings.secrets) {
-      const maskedSecrets = { ...jsonData.settings.secrets };
-      Object.keys(maskedSecrets).forEach((key) => {
-        maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
-      });
-      jsonData.settings.secrets = maskedSecrets;
+    // Create a deep copy to avoid mutating the original object.
+    const dataCopy = JSON.parse(JSON.stringify(jsonData));
+
+    if (dataCopy.settings && dataCopy.settings.secrets) {
+        const maskedSecrets = { ...dataCopy.settings.secrets };
+        Object.keys(maskedSecrets).forEach((key) => {
+            maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+        });
+        dataCopy.settings.secrets = maskedSecrets;
     }
-  
-    // Normalize messageExamples
-    return normalizeMessageExamples(jsonData);
-  }
-  
 
+    return normalizeMessageExamples(dataCopy);
+}
 
-function normalizeMessageExamples(jsonData:any) {
+function normalizeMessageExamples(jsonData: any) {
     if (!jsonData) return jsonData;
     const currentExampleCount = jsonData.messageExamples ? jsonData.messageExamples.length : 0;
-    
+
     let examples = jsonData.messageExamples;
-    
+
     // If missing or empty, initialize with a default group of 2 objects.
     if (!examples || examples.length === 0) {
-      return {
-        ...jsonData,
-        messageExamples: [
-          [
-            { user: 'User', content: { text: "" } },
-            { user:jsonData.name, content: { text: "" } }
-          ]
-        ]
-      };
+        return {
+            ...jsonData,
+            messageExamples: [
+                [
+                    { user: 'User', content: { text: "" } },
+                    { user: jsonData.name, content: { text: "" } }
+                ]
+            ]
+        };
     }
-    
+
     // If the first element is not an array, assume it's a flat array.
     if (!Array.isArray(examples[0])) {
-      const normalized = [];
-      for (let i = 0; i < examples.length; i += 2) {
-        const group = examples.slice(i, i + 2);
-        // If the last group has only one element, add a default one.
-        if (group.length === 1) {
-          group.push({ user: "$JPIG", content: { text: "" } });
+        const normalized = [];
+        for (let i = 0; i < examples.length; i += 2) {
+            const group = examples.slice(i, i + 2);
+            // If the last group has only one element, add a default one.
+            if (group.length === 1) {
+                group.push({ user: "$JPIG", content: { text: "" } });
+            }
+            normalized.push(group);
         }
-        normalized.push(group);
-      }
-      return { ...jsonData, messageExamples: normalized };
+        return { ...jsonData, messageExamples: normalized };
     }
-    
+
     // Otherwise, already normalized.
     return jsonData;
-  }
-  
+}
+
 
 /**
  * A recursive function to render a form for any JSON data structure.
@@ -583,18 +598,18 @@ function renderJsonForm(
                                             </div>
                                             {/* Remove group button */}
                                             <div className="flex justify-center items-center ml-2">
-    <button
-        type="button"
-        className="w-8 h-8 flex items-center justify-center text-red-300 hover:text-red-400 border border-red-500 rounded bg-gray-900"
-        onClick={() => {
-            // Remove the group at groupIndex
-            const updatedGroups = groups.filter((_, index) => index !== groupIndex);
-            onChange({ ...data, [key]: updatedGroups });
-        }}
-    >
-        -
-    </button>
-</div>
+                                                <button
+                                                    type="button"
+                                                    className="w-8 h-8 flex items-center justify-center text-red-300 hover:text-red-400 border border-red-500 rounded bg-gray-900"
+                                                    onClick={() => {
+                                                        // Remove the group at groupIndex
+                                                        const updatedGroups = groups.filter((_, index) => index !== groupIndex);
+                                                        onChange({ ...data, [key]: updatedGroups });
+                                                    }}
+                                                >
+                                                    -
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -696,29 +711,45 @@ function renderJsonForm(
                 const isSecretsField = path.includes("settings") && path.includes("secrets");
 
                 // Mask secrets values
+                // if (isSecretsField) {
+                //     return (
+                //         <div
+                //             key={key}
+                //             className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
+                //         >
+                //             <div className="block text-sm font-semibold text-gray-200">
+                //                 {key} (Masked)
+                //             </div>
+                //             {/* <input
+                //                 type="text"
+                //                 className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none"
+                //                 value={"*".repeat(String(data[key]).length)} // Masked value
+                //                 readOnly
+                //             /> */}
+                //             <textarea
+                //                 className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none overflow-hidden"
+                //                 style={{
+                //                     overflowWrap: "break-word",
+                //                     wordWrap: "break-word",
+                //                     whiteSpace: "pre-wrap",
+                //                 }}
+                //                 value={"*".repeat(String(data[key]).length)} // Masked value
+                //                 readOnly
+                //             />
+                //         </div>
+                //     );
+                // }
+
                 if (isSecretsField) {
                     return (
-                        <div
-                            key={key}
-                            className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-                        >
-                            <div className="block text-sm font-semibold text-gray-200">
+                        <div key={key} className="p-3 bg-gray-800 rounded">
+                            <div className="text-sm font-semibold text-gray-200">
                                 {key} (Masked)
                             </div>
-                            {/* <input
-                                type="text"
-                                className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none"
-                                value={"*".repeat(String(data[key]).length)} // Masked value
-                                readOnly
-                            /> */}
+                            {/* Read-only masked text area */}
                             <textarea
-                                className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none overflow-hidden"
-                                style={{
-                                    overflowWrap: "break-word",
-                                    wordWrap: "break-word",
-                                    whiteSpace: "pre-wrap",
-                                }}
-                                value={"*".repeat(String(data[key]).length)} // Masked value
+                                className="w-full bg-gray-700"
+                                value={"*".repeat(String(data[key]).length)}
                                 readOnly
                             />
                         </div>
@@ -2205,17 +2236,6 @@ Example Output Structure:
                             });
                         }
 
-
-                        // if (parsedJson.messageExamples && parsedJson.messageExamples) {
-                        //     // If messageExamples itself isn't an array, wrap it in one.
-                        //     if (!Array.isArray(parsedJson.messageExamples)) {
-                        //         parsedJson.messageExamples = [parsedJson.messageExamples];
-                        //     }
-                        //     // Now ensure each item is an array.
-                        //     parsedJson.messageExamples = parsedJson.messageExamples.map((item: any) => {
-                        //         return Array.isArray(item) ? item : [item];
-                        //     });
-                        // }
 
                         if (parsedJson.messageExamples && Array.isArray(parsedJson.messageExamples)) {
                             const groupedMessageExamples = [];
