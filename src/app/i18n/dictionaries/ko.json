@@ -1,0 +1,40 @@
+
+{
+    "home": {
+      "title": "우리 사이트에 오신 것을 환영합니다",
+      "description": "이것은 우리의 놀라운 웹사이트입니다"
+    },
+    "about": {
+      "title": "회사 소개",
+      "description": "우리 회사에 대해 더 알아보세요"
+    },
+    "docs": {
+      "needHelp": "도움이 필요하신가요?",
+      "checkDocs": "문서를 확인하세요"
+    },
+    "sidebar": {
+      "home": "ZkTerminal",
+      "marketplace": "AI 코인 마켓플레이스",
+      "explore": "AI 에이전트 탐색",
+      "apiKeys": "API 키",
+      "agents": {
+        "title": "에이전트",
+        "noAgents": "생성된 에이전트가 없습니다"
+      },
+      "toggleSidebar": "사이드바 전환",
+      "editProfile": "프로필 편집"
+    },
+     "inputPlaceholder":"메시지 ZkTerminal",
+     "commands": [
+      {
+        "label": "에이전트 생성",
+        "command": "/create-agent: ",
+        "description": "'/create-agent:' 명령어를 사용하려면 클릭하십시오. 사용자 정의 지시 사항을 입력하고 엔터 키를 누르거나 제출 버튼을 클릭하여 실행할 입력 프롬프트를 전송해야 합니다."
+      },
+      {
+        "label": "NFT 민팅",
+        "command": "/image-gen of ",
+        "description": "'/image-gen of' 명령어를 사용하려면 클릭하십시오. 사용자 정의 지시 사항을 입력하고 엔터 키를 누르거나 제출 버튼을 클릭하여 실행할 입력 프롬프트를 전송해야 합니다."
+      }
+    ]
+  }

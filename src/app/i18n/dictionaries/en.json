@@ -1,0 +1,42 @@
+{
+    "home": {
+      "title": "Welcome to our site",
+      "description": "This is our amazing website"
+    },
+    "about": {
+      "title": "About Us",
+      "description": "Learn more about our company"
+    },
+    "docs": {
+   "needHelp": "Need Help?",
+    "checkDocs": "Check our docs"
+  },
+  "sidebar": {
+    "home": "ZkTerminal",
+    "marketplace": "AI Coin Marketplace",
+    "explore": "Explore AI Agents",
+    "apiKeys": "API Keys",
+    "agents": {
+      "title": "Agents",
+      "noAgents": "No agents created yet"
+    },
+    "toggleSidebar": "Toggle Sidebar",
+    "editProfile": "Edit Profile"
+  },
+  "inputPlaceholder":"Message ZkTerminal",
+  "commands": [
+    {
+      "label": "Create Agent",
+      "command": "/create-agent: ",
+      "description": "Click to use the /create-agent: command. Enter your custom instruction and press enter or click submit to execute.",
+      "type": "create-agent"
+    },
+    {
+      "label": "Mint NFT",
+      "command": "/image-gen of ",
+      "description": "Click to use the /image-gen of command. Enter your custom instruction and press enter or click submit to execute.",
+      "type": "image-gen"
+    }
+  ]
+
+  }

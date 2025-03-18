@@ -1,0 +1,42 @@
+{
+    "home": {
+      "title": "Wamkelekile kwisiza sethu",
+      "description": "Lena yisayithi yethu emangalisayo"
+    },
+    "about": {
+      "title": "Malunga nathi",
+      "description": "Funda ngakumbi malunga nenkampani yethu"
+    },
+    "docs": {
+      "needHelp": "Ufuna uncedo?",
+      "checkDocs": "Jonga amaxwebhu ethu"
+    },
+    "sidebar": {
+      "home": "ZkTerminal",
+      "marketplace": "Imarike ye-AI Coin",
+      "explore": "Hlola ama-AI Agents",
+      "apiKeys": "Izikhiye ze-API",
+      "agents": {
+        "title": "Amajenti",
+        "noAgents": "Akukho majenti adaliweyo okwangoku"
+      },
+      "toggleSidebar": "Tshintsha i-Sidebar",
+      "editProfile": "Hlela iphrofayili"
+    },
+    "inputPlaceholder": "Umyalezo kwi-ZkTerminal",
+    "commands": [
+      {
+        "label": "Yenza Ijenti",
+        "command": "/create-agent: ",
+        "description": "Cofa ukuze usebenzise umyalelo /create-agent:. Faka imiyalelo yakho eyenzelwe ngokwezifiso ucofe enter okanye ucofe ukuthumela ukuze wenze.",
+        "type": "create-agent"
+      },
+      {
+        "label": "Yenza iNFT",
+        "command": "/image-gen of ",
+        "description": "Cofa ukuze usebenzise umyalelo /image-gen of. Faka imiyalelo yakho eyenzelwe ngokwezifiso ucofe enter okanye ucofe ukuthumela ukuze wenze.",
+        "type": "image-gen"
+      }
+    ]
+  }
+  

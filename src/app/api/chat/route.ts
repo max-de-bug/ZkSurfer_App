@@ -104,33 +104,85 @@ async function verifyProof(proof: string) {
     return result;
 }
 
+// async function generate_image(prompt: string, seed?: number) {
+//     console.log('Generating image...', { prompt, seed });
+//     const fetchWithTimeout = new Promise((resolve, reject) => {
+//         const timeout = setTimeout(() => {
+//             reject(new Error('Request timed out after 120 seconds'));
+//         }, 120000);
+
+//         fetch('https://zynapse.zkagi.ai/generate-image', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'api-key': `${process.env.API_KEY}`
+//             },
+//             body: JSON.stringify({
+//                 prompt,
+//                 width: 512,
+//                 height: 512,
+//                 add_sampling_metadata: true,
+//                 num_steps: 20,
+//                 start_step: 0,
+//                 guidance: 4,
+//                 seed: seed ?? -1,
+//                 id_weight: 1.0,
+//                 neg_prompt: "bad quality, worst quality, text, signature, watermark, extra limbs",
+//                 true_cfg: 1.0,
+//                 timestep_to_start_cfg: 1,
+//                 max_sequence_length: 128
+//             }),
+//         })
+//             .then(response => {
+//                 clearTimeout(timeout);
+//                 if (!response.ok) {
+//                     throw new Error(`Failed to generate image: ${response.statusText}`);
+//                 }
+//                 return response.json();
+//             })
+//             .then(result => resolve(result))
+//             .catch(err => reject(err));
+//     });
+
+//     try {
+//         const result: any = await fetchWithTimeout;
+//         console.log('result', result);
+//         return {
+//             image: result.image,
+//             seed: result.seed // Include seed in return value
+//         };
+//     } catch (error) {
+//         console.error(error);
+//         throw error;
+//     }
+// }
+
 async function generate_image(prompt: string, seed?: number) {
     console.log('Generating image...', { prompt, seed });
+
+    // Ensure the API URL is defined.
+    const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
+    if (!landwolfUrl) {
+        throw new Error("NEXT_PUBLIC_LANDWOLF is not defined in environment variables");
+    }
+
     const fetchWithTimeout = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             reject(new Error('Request timed out after 120 seconds'));
         }, 120000);
 
-        fetch('https://zynapse.zkagi.ai/generate-image', {
+        fetch(landwolfUrl, {
             method: 'POST',
             headers: {
+                Accept: 'application/json',
                 'Content-Type': 'application/json',
-                'api-key': `${process.env.API_KEY}`
             },
             body: JSON.stringify({
                 prompt,
                 width: 512,
                 height: 512,
-                add_sampling_metadata: true,
                 num_steps: 20,
-                start_step: 0,
                 guidance: 4,
-                seed: seed ?? -1,
-                id_weight: 1.0,
-                neg_prompt: "bad quality, worst quality, text, signature, watermark, extra limbs",
-                true_cfg: 1.0,
-                timestep_to_start_cfg: 1,
-                max_sequence_length: 128
             }),
         })
             .then(response => {
@@ -138,6 +190,7 @@ async function generate_image(prompt: string, seed?: number) {
                 if (!response.ok) {
                     throw new Error(`Failed to generate image: ${response.statusText}`);
                 }
+                console.log('result text', response.json());
                 return response.json();
             })
             .then(result => resolve(result))

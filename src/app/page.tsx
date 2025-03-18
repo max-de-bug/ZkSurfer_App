@@ -1,9 +1,7 @@
-import type { NextPage } from 'next';
-import Onboarding from '@/component/Onboarding';
-import HomeContent from './home/HomeContent';
+import { redirect } from 'next/navigation';
 
-const Home: NextPage = () => {
-  return <HomeContent />;
-};
-
-export default Home;
+export default function RootPage() {
+  redirect('/en');
+  // This is just a fallback and will never be rendered
+  return null;
+}

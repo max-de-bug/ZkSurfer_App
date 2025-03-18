@@ -1,0 +1,42 @@
+{
+    "home": {
+      "title": "Chào mừng bạn đến với trang web của chúng tôi",
+      "description": "Đây là trang web tuyệt vời của chúng tôi"
+    },
+    "about": {
+      "title": "Về chúng tôi",
+      "description": "Tìm hiểu thêm về công ty chúng tôi"
+    },
+    "docs": {
+      "needHelp": "Cần giúp đỡ?",
+      "checkDocs": "Xem tài liệu của chúng tôi"
+    },
+    "sidebar": {
+      "home": "ZkTerminal",
+      "marketplace": "Chợ đồng tiền AI",
+      "explore": "Khám phá các tác nhân AI",
+      "apiKeys": "Khóa API",
+      "agents": {
+        "title": "Tác nhân",
+        "noAgents": "Chưa có tác nhân nào được tạo"
+      },
+      "toggleSidebar": "Chuyển đổi thanh bên",
+      "editProfile": "Chỉnh sửa hồ sơ"
+    },
+    "inputPlaceholder": "Nhắn tin ZkTerminal",
+    "commands": [
+      {
+        "label": "Tạo Tác Nhân",
+        "command": "/create-agent: ",
+        "description": "Nhấp để sử dụng lệnh /create-agent:. Nhập hướng dẫn tùy chỉnh của bạn và nhấn enter hoặc nhấp gửi để thực hiện.",
+        "type": "create-agent"
+      },
+      {
+        "label": "Đúc NFT",
+        "command": "/image-gen of ",
+        "description": "Nhấp để sử dụng lệnh /image-gen of. Nhập hướng dẫn tùy chỉnh của bạn và nhấn enter hoặc nhấp gửi để thực hiện.",
+        "type": "image-gen"
+      }
+    ]
+  }
+  

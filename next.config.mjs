@@ -59,10 +59,11 @@ import withSerwist from "@serwist/next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  i18n: {
-    locales: ["en", "ko", "zh", "vi", "tr"],
-    defaultLocale: "en",
-  },
+  // i18n: {
+  //   locales: ["en", "ko"],
+  //   defaultLocale: "en",
+  //   localeDetection: true,
+  // },
   env: {
     NEXT_PUBLIC_BASE_URL: "https://zynapse.zkagi.ai",
     API_KEY: "zk-123321",
@@ -118,7 +119,9 @@ const serwistConfig = withSerwist({
 });
 
 // Merge both configurations and export
-export default {
+const config = {
   ...nextConfig,
   ...serwistConfig,
 };
+
+export default config;

@@ -47,11 +47,16 @@ import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
 import { useWhitelistStore } from '@/stores/use-whitelist-store';
 import { FcAudioFile } from 'react-icons/fc';
-
+import { Dictionary } from '@/app/i18n/types';
+import { useDictionary } from '@/app/i18n/context';
 
 interface GeneratedTweet {
     tweet: string;
     id?: number;
+}
+
+interface HomeContentProps {
+    dictionary?: Dictionary;
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
@@ -207,8 +212,10 @@ const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
 
 
 
-const HomeContent: FC = () => {
+const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
+    console.log('dictionary', dictionary)
     const wallet = useWallet();
+    // const dictionary = useDictionary();
     const { connected } = useWallet();
     const { data: session, status } = useSession();
     const [files, setFiles] = useState<FileObject[]>([]);
@@ -315,13 +322,19 @@ const HomeContent: FC = () => {
     // Returns the target language code if the browser language is one of the supported ones.
     function getUserTargetLanguage() {
         const lang = navigator.language?.toLowerCase();
+        console.log("Detected browser language:", lang);
         if (lang.startsWith('ko')) return 'ko';
         if (lang.startsWith('zh')) return 'zh';
         if (lang.startsWith('vi')) return 'vi';
         if (lang.startsWith('tr')) return 'tr';
+        if (lang.startsWith('ru')) return 'ru';
         return null; // No translation needed (default: English)
     }
 
+    useEffect(() => {
+        const lang = getUserTargetLanguage();
+        console.log("getUserTargetLanguage returned:", lang);
+    }, []);
 
     // Calls the translation API endpoint to translate text into the target language.
     async function translateText(text: any, targetLang: any) {
@@ -343,8 +356,6 @@ const HomeContent: FC = () => {
             return text;
         }
     }
-
-
 
 
     useEffect(() => {
@@ -3701,7 +3712,7 @@ const HomeContent: FC = () => {
                                                     width={15}
                                                     height={15}
                                                 />
-                                                ZkTerminal
+                                                {dictionary?.sidebar.home}
                                             </div>
                                         </Link>
                                         <Link href="/marketplace" passHref >
@@ -3713,7 +3724,7 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                AI Coin Marketplace
+                                                {dictionary?.sidebar.marketplace}
                                             </div>
                                         </Link>
                                         <Link href="/explore" passHref >
@@ -3725,7 +3736,7 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                Explore AI Agents
+                                                {dictionary?.sidebar.explore}
                                             </div>
                                         </Link>
                                         <Link href="/api-key" passHref >
@@ -3737,7 +3748,7 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                API Keys
+                                                {dictionary?.sidebar.apiKeys}
                                             </div>
                                         </Link>
 
@@ -3747,7 +3758,7 @@ const HomeContent: FC = () => {
                                             className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
                                             onClick={toggleDropdown}
                                         >
-                                            Agents
+                                            {dictionary?.sidebar.agents.title}
                                             {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
                                         </h3>
                                         {isDropdownOpen && (
@@ -3770,7 +3781,7 @@ const HomeContent: FC = () => {
                                                         </div>
                                                     ))
                                                 ) : (
-                                                    <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic"> {dictionary?.sidebar.agents.noAgents}</div>
                                                 )}
                                             </div>
                                         )}
@@ -3866,7 +3877,7 @@ const HomeContent: FC = () => {
                                 <div className="p-3 flex-shrink-0 mb-2">
                                     <div className="flex flex-row gap-2 p-[1px] rounded-lg bg-gradient-to-r from-[#FFFFFF] via-[#6AD7FF] via-35% to-[#FFFFFF]">
                                         <div className="flex flex-row gap-5 bg-[#08131f] p-3 rounded-lg w-full">
-                                            <div>
+                                            <div className="flex justify-center items-center">
                                                 <Image
                                                     src="images/Group.svg"
                                                     alt="Docs"
@@ -3876,9 +3887,9 @@ const HomeContent: FC = () => {
                                             </div>
                                             <div>
                                                 <div className="font-ttfirs bg-gradient-to-b from-[#2AF698] to-[#5BBFCD] text-transparent bg-clip-text text-sm">
-                                                    Need Help?
+                                                    {dictionary?.docs.needHelp}
                                                 </div>
-                                                <div className="text-xs font-ttfirs">Check our docs</div>
+                                                <div className="text-xs font-ttfirs">{dictionary?.docs.checkDocs}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -3895,7 +3906,7 @@ const HomeContent: FC = () => {
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
-                                        {sampleCommands.map((cmd, index) => (
+                                        {/* {sampleCommands.map((cmd, index) => (
                                             <div
                                                 key={index}
                                                 className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
@@ -3908,7 +3919,14 @@ const HomeContent: FC = () => {
                                                         : `Click to use the ${cmd.command} command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.`}
                                                 </p>
                                             </div>
+                                        ))} */}
+                                        {dictionary?.commands.map((cmd, index) => (
+                                            <div  className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
+                                                <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
+                                                <p className="text-sm text-gray-300 text-center">{cmd.description}</p>
+                                            </div>
                                         ))}
+
                                     </div>
                                 </div>
                             ) : (
@@ -4208,7 +4226,7 @@ const HomeContent: FC = () => {
                                                         handleSubmit(e); // Pass the event to handleSubmit
                                                     }
                                                 }}
-                                                placeholder="Message ZkTerminal"
+                                                placeholder={dictionary?.inputPlaceholder}
                                                 className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
                                                 style={{
                                                     lineHeight: '1.5',
