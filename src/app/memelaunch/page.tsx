@@ -1144,6 +1144,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             const existingFiles = type === 'pdf' ? formData.trainingPdfs : formData.trainingImages;
 
             const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
+
+            console.log('totalSize', totalSize)
             if (totalSize > MAX_FILE_SIZE_MB) {
                 toast.error('Total uploaded file size exceeds 5 MB.');
                 return;
@@ -1630,6 +1632,8 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                         return content.items.map((item: any) => item.str).join(' ');
                     });
                     const texts = await Promise.all(textPromises);
+                    const fullText = texts.join('\n');
+                    console.log('PDF length', fullText.length)
                     return texts.join('\n');
                 })
             );
@@ -1669,32 +1673,61 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
             // Handle Telegram setup if needed (remains the same)
+            // Handle Telegram setup if needed
             if (agentType === 'super-agent' && formData.trade) {
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209/swap',
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-api-key': 'swap123',
-                        },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
-                    }
-                );
+                const telegramResponse = await fetch('http://34.67.134.209/swap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': 'swap123',
+                    },
+                    body: JSON.stringify({
+                        telegramId: formData.trade,
+                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                    }),
+                });
 
                 if (!telegramResponse.ok) {
-                    throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                    const errorData = await telegramResponse.json();
+                    if (
+                        telegramResponse.status === 500 &&
+                        errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+                    ) {
+                        toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+                    } else {
+                        throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                    }
+                } else {
+                    toast.success('Telegram wallet setup successful!');
                 }
-                toast.success('Telegram wallet setup successful!');
             }
-
 
             if (agentType === 'micro-agent') {
                 if (formData.trade && formData.trade.trim() !== '') {
                     if (formData.tradeMode === 'automation') {
+                        const telegramResponse = await fetch('http://34.67.134.209/swap', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-api-key': 'swap123' },
+                            body: JSON.stringify({
+                                telegramId: formData.trade,
+                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                            }),
+                        });
+
+                        if (!telegramResponse.ok) {
+                            const errorData = await telegramResponse.json();
+                            if (
+                                telegramResponse.status === 500 &&
+                                errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+                            ) {
+                                toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+                            } else {
+                                throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                            }
+                        } else {
+                            toast.success('Telegram wallet setup successful!');
+                        }
+                    } else if (formData.tradeMode === 'authentication') {
                         const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1703,29 +1736,25 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
                                 outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
                             }),
                         });
+
                         if (!telegramResponse.ok) {
-                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                            const errorData = await telegramResponse.json();
+                            if (
+                                telegramResponse.status === 500 &&
+                                errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+                            ) {
+                                toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+                            } else {
+                                throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+                            }
+                        } else {
+                            toast.success('Telegram wallet setup successful!');
                         }
-                        toast.success('Telegram wallet setup successful!');
-                    } else if (formData.tradeMode === 'authentication') {
-                        const telegramResponse = await fetch('http://34.67.134.209/swap', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                telegramId: formData.trade,
-                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                            }),
-                        });
-                        if (!telegramResponse.ok) {
-                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-                        }
-                        toast.success('Telegram wallet setup successful!');
                     }
                 } else {
                     console.log('No Telegram ID provided; skipping swap call.');
                 }
             }
-
 
             // Store ticker info
             const tickerObject = {
