@@ -1320,6 +1320,7 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         const updatedJson = {
             ...finalJson,
             plugins: [],
+            modelProvider: "zkagi",
             system: generateRoleplayContent(finalJson.name)
         };
 
@@ -2244,23 +2245,23 @@ Example Output Structure:
                         // }
 
                         if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
-                            parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                            parsedJson.postExamples = parsedJson.postExamples.map((item: { text: any; content: { text: any; }; }) => {
                                 // Case 1: If already a string, just use it
                                 if (typeof item === "string") {
                                     return item;
                                 }
 
-                                // Case 2: If it's an object with item.content.text
-                                if (
-                                    item &&
-                                    typeof item === "object" &&
-                                    item.content &&
-                                    typeof item.content.text === "string"
-                                ) {
+                                // Case 2: If it's an object with a direct "text" property of type string
+                                if (item && typeof item === "object" && typeof item.text === "string") {
+                                    return item.text;
+                                }
+
+                                // Case 3: If it's an object with item.content.text of type string
+                                if (item && typeof item === "object" && item.content && typeof item.content.text === "string") {
                                     return item.content.text;
                                 }
 
-                                // Case 3: Fallback – JSON-stringify anything else
+                                // Case 4: Fallback – JSON-stringify anything else
                                 return JSON.stringify(item);
                             });
                         }

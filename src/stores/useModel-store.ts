@@ -6,6 +6,6 @@ interface ModelState {
 }
 
 export const useModelStore = create<ModelState>((set) => ({
-    selectedModel: 'DeepSeek',
+    selectedModel: 'Mistral',
     setSelectedModel: (model) => set({ selectedModel: model }),
 }));
