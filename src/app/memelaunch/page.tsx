@@ -1312,6 +1312,13 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
         setError('');
         setSuccess(false);
 
+        const rawSecrets = {
+            TWITTER_USERNAME: username,
+            TWITTER_PASSWORD: password,
+            TWITTER_EMAIL: email,
+            TWITTER_2FA_SECRET: twofa,
+        };
+
         function generateRoleplayContent(ticker: any) {
             return `Roleplaying as ${ticker}: Prepare for an engaging experience where every interaction is filled with creativity and excitement!`;
         }
@@ -1321,7 +1328,11 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
             ...finalJson,
             plugins: [],
             modelProvider: "zkagi",
-            system: generateRoleplayContent(finalJson.name)
+            system: generateRoleplayContent(finalJson.name),
+            settings: {
+                ...finalJson.settings,
+                secrets: rawSecrets,
+            },
         };
 
 
