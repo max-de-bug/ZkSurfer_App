@@ -374,6 +374,13 @@ import { CoinCard } from '@/component/ui/CoinCard';
 import { Coin, ApiCoin, ApiResponse } from '@/types/marketplaceTypes';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Input } from '@/components/ui/input';
+import { Dictionary } from '@/app/i18n/types';
+
+
+export interface MarketplacePageProps {
+    dictionary: Dictionary;
+}
+
 
 const ITEMS_PER_PAGE = 9;
 
@@ -385,7 +392,7 @@ const SkeletonCard: FC = () => (
     </div>
 );
 
-const MarketplacePage: FC = () => {
+const MarketplacePage: FC<MarketplacePageProps> = ({ dictionary }) => {
     const wallet = useWallet();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);

@@ -18,6 +18,13 @@ import ButtonV2New from '@/component/ui/buttonV2New';
 import { useSearchParams } from 'next/navigation';
 import { useModelStore } from '@/stores/useModel-store';
 import { z } from "zod";
+import { Dictionary } from '@/app/i18n/types';
+
+export interface MemeLaunchPageProps {
+    dictionary: Dictionary;
+}
+
+
 
 interface FormDataType {
     name: string;
@@ -464,7 +471,7 @@ const SearchParamsWrapper = ({ children }: { children: (searchParams: URLSearchP
 };
 
 
-const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams }) => {
+const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URLSearchParams; dictionary: any }) => {
     const router = useRouter();
     const MAX_FILE_SIZE_MB = 5;
     const wallet = useAnchorWallet();
@@ -2442,11 +2449,12 @@ Example Output Structure:
     );
 };
 
-const MemeLaunchPage = () => {
+
+const MemeLaunchPage = ({ dictionary }: MemeLaunchPageProps) => {
     return (
         <Suspense fallback={<div>Loading...</div>}>
             <SearchParamsWrapper>
-                {(searchParams) => <MemeLaunchPageContent searchParams={searchParams} />}
+                {(searchParams) => <MemeLaunchPageContent searchParams={searchParams} dictionary={dictionary} />}
             </SearchParamsWrapper>
         </Suspense>
     );

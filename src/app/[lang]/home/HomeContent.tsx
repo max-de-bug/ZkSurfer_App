@@ -7,7 +7,7 @@ import { HiDotsVertical } from 'react-icons/hi';
 import { TbLayoutSidebarLeftCollapseFilled } from "react-icons/tb";
 import { HiOutlinePencilSquare } from "react-icons/hi2";
 import Image from 'next/image';
-import createNft from '../../component/MintNFT';
+import CreateNft from '@/component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
 import ResultBlock from '@/component/ui/ResultBlock';
@@ -43,19 +43,20 @@ import ReactMarkdown from 'react-markdown';
 import { CreateAgentModal } from '@/component/ui/AgentModal';
 import { useModelStore } from '@/stores/useModel-store';
 import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
-import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
+import ConnectWalletModal from '@/component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
 import { useWhitelistStore } from '@/stores/use-whitelist-store';
 import { FcAudioFile } from 'react-icons/fc';
 import { Dictionary } from '@/app/i18n/types';
 import { useDictionary } from '@/app/i18n/context';
+import { useParams } from 'next/navigation';
 
 interface GeneratedTweet {
     tweet: string;
     id?: number;
 }
 
-interface HomeContentProps {
+export interface HomeContentProps {
     dictionary?: Dictionary;
 }
 
@@ -213,6 +214,8 @@ const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
 
 
 const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
+    const params = useParams();
+    const lang = params.lang;
     const wallet = useWallet();
     const { connected } = useWallet();
     const { data: session, status } = useSession();
@@ -318,40 +321,40 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
 
     // Returns the target language code if the browser language is one of the supported ones.
-    function getUserTargetLanguage() {
-        const lang = navigator.language?.toLowerCase();
-        if (lang.startsWith('ko')) return 'ko';
-        if (lang.startsWith('zh')) return 'zh';
-        if (lang.startsWith('vi')) return 'vi';
-        if (lang.startsWith('tr')) return 'tr';
-        if (lang.startsWith('ru')) return 'ru';
-        return null; // No translation needed (default: English)
-    }
+    // function getUserTargetLanguage() {
+    //     const lang = navigator.language?.toLowerCase();
+    //     if (lang.startsWith('ko')) return 'ko';
+    //     if (lang.startsWith('zh')) return 'zh';
+    //     if (lang.startsWith('vi')) return 'vi';
+    //     if (lang.startsWith('tr')) return 'tr';
+    //     if (lang.startsWith('ru')) return 'ru';
+    //     return null; // No translation needed (default: English)
+    // }
 
-    useEffect(() => {
-        const lang = getUserTargetLanguage();
-    }, []);
+    // useEffect(() => {
+    //     const lang = getUserTargetLanguage();
+    // }, []);
 
     // Calls the translation API endpoint to translate text into the target language.
-    async function translateText(text: any, targetLang: any) {
-        try {
-            const response = await fetch('/api/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, targetLang }),
-            });
-            if (response.ok) {
-                const data = await response.json();
-                return data.translation; // Expected to return the translated text.
-            } else {
-                console.error('Translation API returned an error.');
-                return text; // Fallback: return original text.
-            }
-        } catch (error) {
-            console.error('Translation error:', error);
-            return text;
-        }
-    }
+    // async function translateText(text: any, targetLang: any) {
+    //     try {
+    //         const response = await fetch('/api/translate', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ text, targetLang }),
+    //         });
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             return data.translation; // Expected to return the translated text.
+    //         } else {
+    //             console.error('Translation API returned an error.');
+    //             return text; // Fallback: return original text.
+    //         }
+    //     } catch (error) {
+    //         console.error('Translation error:', error);
+    //         return text;
+    //     }
+    // }
 
 
     useEffect(() => {
@@ -2526,24 +2529,24 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                     let assistantContent = finalEvent.content; // original assistant response
 
-                    // --- Begin Translation Integration ---
-                    const targetLang = getUserTargetLanguage();
-                    if (targetLang) {
-                        // If the user’s browser indicates one of the supported languages,
-                        // call the translation helper.
-                        const translatedText = await translateText(finalEvent.content, targetLang);
+                    // // --- Begin Translation Integration ---
+                    // const targetLang = getUserTargetLanguage();
+                    // if (targetLang) {
+                    //     // If the user’s browser indicates one of the supported languages,
+                    //     // call the translation helper.
+                    //     const translatedText = await translateText(finalEvent.content, targetLang);
 
-                        // You can display both the original and translated version.
-                        // For example, wrap them in a container:
-                        assistantContent = (
-                            <div>
-                                <div>{finalEvent.content}</div>
-                                <div className="mt-2 text-blue-400 text-sm">
-                                    [{targetLang.toUpperCase()}] {translatedText}
-                                </div>
-                            </div>
-                        );
-                    }
+                    //     // You can display both the original and translated version.
+                    //     // For example, wrap them in a container:
+                    //     assistantContent = (
+                    //         <div>
+                    //             <div>{finalEvent.content}</div>
+                    //             <div className="mt-2 text-blue-400 text-sm">
+                    //                 [{targetLang.toUpperCase()}] {translatedText}
+                    //             </div>
+                    //         </div>
+                    //     );
+                    // }
                     // --- End Translation Integration ---
 
                     // First, update your API messages with the name and description.
@@ -3722,7 +3725,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                 {dictionary?.sidebar.explore}
                                             </div>
                                         </Link>
-                                        <Link href="/api-key" passHref >
+                                        <Link href={`/${lang}/api-key`}>
                                             <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
                                                 <Image
                                                     src="images/lock.svg"
