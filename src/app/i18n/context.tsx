@@ -1,4 +1,3 @@
-// src/app/i18n/context.tsx
 'use client';
 
 import React, { createContext, useContext } from 'react';

@@ -213,9 +213,7 @@ const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
 
 
 const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
-    console.log('dictionary', dictionary)
     const wallet = useWallet();
-    // const dictionary = useDictionary();
     const { connected } = useWallet();
     const { data: session, status } = useSession();
     const [files, setFiles] = useState<FileObject[]>([]);
@@ -322,7 +320,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     // Returns the target language code if the browser language is one of the supported ones.
     function getUserTargetLanguage() {
         const lang = navigator.language?.toLowerCase();
-        console.log("Detected browser language:", lang);
         if (lang.startsWith('ko')) return 'ko';
         if (lang.startsWith('zh')) return 'zh';
         if (lang.startsWith('vi')) return 'vi';
@@ -333,7 +330,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     useEffect(() => {
         const lang = getUserTargetLanguage();
-        console.log("getUserTargetLanguage returned:", lang);
     }, []);
 
     // Calls the translation API endpoint to translate text into the target language.
@@ -590,10 +586,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     );
                     if (!response.ok) throw new Error('Failed to fetch tickers');
                     const data = await response.json();
-                    console.log('data', data)
                     setTickers(data.tickers);
                     setAvailableTickers(data.tickers);
-                    console.log('Updated availableTickers:', useTickerStore.getState().availableTickers);
 
                     // 2. Fetch info for each ticker
                     // const infoMap = new Map();
@@ -704,17 +698,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         }
     };
 
-
-
-
-    // Function to format base64 image properly
-    const formatBase64Image = (base64String: string): string => {
-        if (!base64String.startsWith('data:image/')) {
-            return `data:image/png;base64,${base64String}`;
-        }
-        return base64String;
-    };
-
     const availableUGCOptions = [
         { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
         { name: 'Ponke', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
@@ -724,9 +707,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         try {
             // Format the image into a data URL if it isn't already.
             let formattedImage = imageData;
-            if (!imageData.startsWith('data:image/')) {
-                formattedImage = `data:image/png;base64,${imageData}`;
-            }
+            // if (!imageData.startsWith('data:image/')) {
+            //     formattedImage = `data:image/png;base64,${imageData}`;
+            // }
             // Compress the image as needed.
             const compressedImage = await compressImage(formattedImage);
 
@@ -901,7 +884,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         }
         // Close CommandPopup if anything is typed after "/"
         else if (value.startsWith('/')) {
-            console.log(`Detected command input: ${value.split(' ')[0]}`);
             setShowCommandPopup(false);
         } else {
             setShowCommandPopup(false);
@@ -1844,6 +1826,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     // If the response is an image (e.g., JPEG or PNG)
                     const blob = await response.blob();
                     const imageUrl = URL.createObjectURL(blob);
+                    console.log('blib image url', imageUrl)
 
                     const successMessage: Message = {
                         role: 'assistant',
@@ -1868,7 +1851,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             <div>
                                 <p>Generated {selectedOption} Content:</p>
                                 <img
-                                    src={`data:image/png;base64,${result.image}`}
+                                    // src={`data:image/png;base64,${result.image}`}
+                                    src={`${result.image}`}
                                     alt={`${selectedOption} generated content`}
                                     className="w-full rounded-lg"
                                 />
@@ -3295,7 +3279,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
         // Handle string content (user commands & assistant messages)
         if (typeof message.content === 'string') {
-            console.log('testing success')
             // User commands processing
             if (message.role === 'user') {
                 let displayedContent = message.content;
@@ -3921,7 +3904,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             </div>
                                         ))} */}
                                         {dictionary?.commands.map((cmd, index) => (
-                                            <div  className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
+                                            <div className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
                                                 <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
                                                 <p className="text-sm text-gray-300 text-center">{cmd.description}</p>
                                             </div>
@@ -4052,7 +4035,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         </div>
                                                         {message.role === 'assistant' &&
 
-                                                            (typeof message.content === 'string' && message.content.startsWith('/')) ? (
+                                                            (typeof message.content === 'string' && message.content.startsWith('data:image')) ? (
                                                             <ResultBlock
                                                                 content={message.content}
                                                                 type="image"
@@ -4083,7 +4066,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                 {renderMessageContent(message)}
                                                             </div>
                                                         )}
-
                                                     </div>
                                                 </div>
                                             </div>

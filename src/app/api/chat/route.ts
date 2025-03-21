@@ -157,21 +157,92 @@ async function verifyProof(proof: string) {
 //     }
 // }
 
-async function generate_image(prompt: string, seed?: number) {
+
+// export async function generate_image(prompt: string, seed?: number) {
+//     console.log('Generating image...', { prompt, seed });
+
+//     const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
+//     if (!landwolfUrl) {
+//         throw new Error("NEXT_PUBLIC_LANDWOLF is not defined in environment variables");
+//     }
+
+//     try {
+//         // Create an AbortController for the timeout.
+//         const controller = new AbortController();
+//         const timeout = setTimeout(() => controller.abort(), 120000);
+
+//         // Make the fetch call with the provided prompt.
+//         const response = await fetch(landwolfUrl, {
+//             method: 'POST',
+//             headers: {
+//                 Accept: 'application/json',
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 prompt,
+//                 width: 512,
+//                 height: 512,
+//                 num_steps: 20,
+//                 guidance: 4,
+//             }),
+//             signal: controller.signal,
+//         });
+
+//         clearTimeout(timeout);
+
+//         if (!response.ok) {
+//             throw new Error(`Failed to generate image: ${response.statusText}`);
+//         }
+
+//         console.log('result text', response);
+
+//         // Check the Content-Type of the response.
+//         const contentType = response.headers.get('Content-Type');
+
+//         if (contentType?.includes('image/')) {
+//             // If the response is an image (e.g., JPEG or PNG)
+//             const blob = await response.blob();
+//             const arrayBuffer = await blob.arrayBuffer();
+//             const buffer = Buffer.from(arrayBuffer);
+
+//             return new NextResponse(buffer, {
+//                 status: 200,
+//                 headers: {
+//                     'Content-Type': contentType,
+//                 },
+//             });
+//         } else if (contentType?.includes('application/json')) {
+//             // If the response is JSON
+//             const result = await response.json();
+//             return NextResponse.json(result, { status: 200 });
+//         } else {
+//             // Unsupported response type
+//             return NextResponse.json(
+//                 { error: 'Unsupported response type' },
+//                 { status: 500 }
+//             );
+//         }
+//     } catch (error) {
+//         console.error(error);
+//         throw error;
+//     }
+// }
+
+export async function generate_image(prompt: string, seed?: number) {
     console.log('Generating image...', { prompt, seed });
 
-    // Ensure the API URL is defined.
     const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
     if (!landwolfUrl) {
         throw new Error("NEXT_PUBLIC_LANDWOLF is not defined in environment variables");
     }
 
-    const fetchWithTimeout = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            reject(new Error('Request timed out after 120 seconds'));
-        }, 120000);
+    try {
+        // Create an AbortController for the timeout.
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000);
 
-        fetch(landwolfUrl, {
+        // Make the fetch call with the provided prompt.
+        const response = await fetch(landwolfUrl, {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -184,26 +255,36 @@ async function generate_image(prompt: string, seed?: number) {
                 num_steps: 20,
                 guidance: 4,
             }),
-        })
-            .then(response => {
-                clearTimeout(timeout);
-                if (!response.ok) {
-                    throw new Error(`Failed to generate image: ${response.statusText}`);
-                }
-                console.log('result text', response.json());
-                return response.json();
-            })
-            .then(result => resolve(result))
-            .catch(err => reject(err));
-    });
+            signal: controller.signal,
+        });
 
-    try {
-        const result: any = await fetchWithTimeout;
-        console.log('result', result);
-        return {
-            image: result.image,
-            seed: result.seed // Include seed in return value
-        };
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+            throw new Error(`Failed to generate image: ${response.statusText}`);
+        }
+
+        // Check the Content-Type of the response.
+        const contentType = response.headers.get('Content-Type');
+
+        if (contentType?.includes('image/')) {
+            // Convert image to base64 string to send to frontend
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Image = buffer.toString('base64');
+
+            return {
+                image: `data:${contentType};base64,${base64Image}`,
+                contentType
+            };
+        } else if (contentType?.includes('application/json')) {
+            // If response is JSON, just return it
+            const result = await response.json();
+            return result;
+        } else {
+            throw new Error('Unsupported response type');
+        }
     } catch (error) {
         console.error(error);
         throw error;
@@ -258,9 +339,71 @@ export async function POST(request: Request) {
         //     });
         // }
 
+        // if (directCommand) {
+        //     // Call your image-generation service.
+        //     const generatedImage = await generate_image(directCommand.prompt, directCommand.seed);
+
+        //     console.log('generatedImage', generatedImage)
+
+        //     const contentType = generatedImage.headers.get('Content-Type');
+
+        //     if (contentType?.includes('image/')) {
+        //         // If the response is an image (e.g., JPEG or PNG)
+        //         const blob = await generatedImage.blob();
+        //         const imageUrl = URL.createObjectURL(blob);
+
+        //         console.log('imageUrl', imageUrl)
+        //     }
+
+        //     // Generate and verify proof.
+        //     const proof = await generateProof(directCommand.prompt);
+        //     await verifyProof(proof);
+
+        //     const encoder = new TextEncoder();
+
+        //     const stream = new ReadableStream({
+        //         async start(controller) {
+        //             // For example, send a progress update (you can send multiple progress events if available).
+        //             const progressEvent = JSON.stringify({ progress: 50 }); // 50% complete, for instance.
+        //             controller.enqueue(encoder.encode(`data: ${progressEvent}\n\n`));
+
+        //             // Optionally, you might wait a bit or send additional updates here...
+
+        //             // Now send the final payload.
+        //             const finalPayload = JSON.stringify({
+        //                 content: imageUrl,
+        //                 type: 'img',
+        //                 prompt: directCommand.prompt,
+        //                 seed: generatedImage,
+        //                 proof,
+        //             });
+        //             controller.enqueue(encoder.encode(`data: ${finalPayload}\n\n`));
+        //             controller.close();
+        //         },
+        //     });
+
+        //     return new Response(stream, {
+        //         headers: { "Content-Type": "text/event-stream" }
+        //     });
+        // }
+
         if (directCommand) {
             // Call your image-generation service.
             const generatedImage = await generate_image(directCommand.prompt, directCommand.seed);
+
+            console.log('generatedImage', generatedImage)
+
+            // const contentType = generatedImage.headers.get('Content-Type');
+
+            // // Declare imageUrl outside the if block.
+            // let imageUrl = '';
+
+            // if (contentType?.includes('image/')) {
+            //     // If the response is an image (e.g., JPEG or PNG)
+            //     const blob = await generatedImage.blob();
+            //     imageUrl = URL.createObjectURL(blob);
+            //     console.log('imageUrl', imageUrl);
+            // }
 
             // Generate and verify proof.
             const proof = await generateProof(directCommand.prompt);
@@ -270,18 +413,16 @@ export async function POST(request: Request) {
 
             const stream = new ReadableStream({
                 async start(controller) {
-                    // For example, send a progress update (you can send multiple progress events if available).
-                    const progressEvent = JSON.stringify({ progress: 50 }); // 50% complete, for instance.
+                    // Send a progress update.
+                    const progressEvent = JSON.stringify({ progress: 50 });
                     controller.enqueue(encoder.encode(`data: ${progressEvent}\n\n`));
-
-                    // Optionally, you might wait a bit or send additional updates here...
 
                     // Now send the final payload.
                     const finalPayload = JSON.stringify({
                         content: generatedImage.image,
                         type: 'img',
                         prompt: directCommand.prompt,
-                        seed: generatedImage.seed,
+                        seed: generatedImage,
                         proof,
                     });
                     controller.enqueue(encoder.encode(`data: ${finalPayload}\n\n`));

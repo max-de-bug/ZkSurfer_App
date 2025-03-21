@@ -17,6 +17,7 @@ import ButtonV1New from '@/component/ui/buttonV1New';
 import ButtonV2New from '@/component/ui/buttonV2New';
 import { useSearchParams } from 'next/navigation';
 import { useModelStore } from '@/stores/useModel-store';
+import { z } from "zod";
 
 interface FormDataType {
     name: string;
@@ -88,6 +89,14 @@ function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> }
     }
     return jsonData;
 }
+
+// Zod schema for Twitter credentials
+const twitterSchema = z.object({
+    username: z.string().nonempty({ message: "Twitter username is required" }),
+    email: z.string().email({ message: "Please enter a valid Twitter email" }),
+    password: z.string().nonempty({ message: "Twitter password is required" }),
+    twofa: z.string().length(16, { message: "Not valid 2fa enter 16 characters 2fa" }),
+});
 
 
 /**
@@ -724,8 +733,27 @@ const MemeLaunchPageContent = ({ searchParams }: { searchParams: URLSearchParams
 
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+
+        // Validate the field using the corresponding schema
+        try {
+            if (name === "username") {
+                twitterSchema.shape.username.parse(value);
+            } else if (name === "email") {
+                twitterSchema.shape.email.parse(value);
+            } else if (name === "password") {
+                twitterSchema.shape.password.parse(value);
+            } else if (name === "twofa") {
+                twitterSchema.shape.twofa.parse(value);
+            }
+        } catch (error: any) {
+            toast.error(error.message);
+        }
+
+        // Update the Twitter credentials in state as before
         setTwitterCredentials({ [name]: value });
     };
+
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;

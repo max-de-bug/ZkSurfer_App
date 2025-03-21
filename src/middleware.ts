@@ -117,10 +117,7 @@ function getPreferredLocale(request: NextRequest): string {
 
   // Look for any supported locale in the user's preferences
   for (const lang of languages) {
-    // Check if any of our supported locales match the beginning of the language code
-    // e.g., 'ko-KR' should match 'ko'
     console.log(`Checking language: ${lang.language}`);
-
     for (const locale of locales) {
       console.log(`Comparing with locale: ${locale}`);
       if (lang.language.toLowerCase().startsWith(locale.toLowerCase())) {
@@ -130,7 +127,6 @@ function getPreferredLocale(request: NextRequest): string {
     }
   }
 
-  // If no match is found, return default locale
   console.log(`❌ No locale match found in Accept-Language, using default: ${defaultLocale}`);
   return defaultLocale;
 }
@@ -142,7 +138,7 @@ export function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Check if pathname has a locale prefix
+  // Check if pathname already has a locale prefix
   const pathnameHasLocale = locales.some(
     locale => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -150,21 +146,21 @@ export function middleware(request: NextRequest) {
   console.log('Pathname has locale prefix:', pathnameHasLocale);
   console.log('Supported locales:', locales);
 
-  // If pathname doesn't have locale, redirect
   if (!pathnameHasLocale) {
     console.log('No locale in pathname, determining preferred locale...');
-
-    // Determine the locale to use
     const preferredLocale = getPreferredLocale(request);
     console.log('Selected preferred locale:', preferredLocale);
 
-    // Create new URL with locale prefix
     const newUrl = new URL(request.url);
-    newUrl.pathname = `/${preferredLocale}${pathname === '/' ? '' : pathname}`;
+
+    // Special case for API key pages: append locale instead of prepending.
+    if (pathname.startsWith('/api-key')) {
+      newUrl.pathname = `${pathname}/${preferredLocale}`;
+    } else {
+      newUrl.pathname = `/${preferredLocale}${pathname === '/' ? '' : pathname}`;
+    }
 
     console.log(`Redirecting to: ${newUrl.toString()}`);
-
-    // Return redirect response
     console.log('--------- MIDDLEWARE EXECUTION END ---------\n');
     return NextResponse.redirect(newUrl);
   }
@@ -174,12 +170,10 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Make sure to include ALL paths (including root) in the matcher
+// Matcher remains the same to exclude specific static assets etc.
 export const config = {
   matcher: [
-    // Match the root path
     '/',
-    // Match all paths that don't start with excluded prefixes
     '/((?!api|_next/static|_next/image|favicon.ico|images|fonts).*)'
   ]
 };
