@@ -1437,6 +1437,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
             if (shouldRedirect) {
                 router.push('/');
+                toast.success('Agent created successfully!')
             }
 
         } catch (err) {
@@ -1705,53 +1706,53 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     //     }
     // };
 
-     const compressImage = (
+    const compressImage = (
         base64Image: string,
         maxWidth: number = 800,
         quality: number = 0.7
-      ): Promise<string> => {
+    ): Promise<string> => {
         return new Promise((resolve, reject) => {
-          // Create an image to load the base64 string
-          const img = new Image();
-          img.src = base64Image;
-      
-          img.onload = () => {
-            // Create a canvas element
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-      
-            // Calculate new dimensions while maintaining aspect ratio
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-      
-            // Set canvas dimensions
-            canvas.width = width;
-            canvas.height = height;
-      
-            // Draw the image on the canvas
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              reject(new Error('Could not get canvas context'));
-              return;
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-      
-            // Convert canvas to compressed base64 image
-            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-      
-            resolve(compressedBase64);
-          };
-      
-          img.onerror = (error) => {
-            reject(error);
-          };
+            // Create an image to load the base64 string
+            const img = new Image();
+            img.src = base64Image;
+
+            img.onload = () => {
+                // Create a canvas element
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Calculate new dimensions while maintaining aspect ratio
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = height;
+
+                // Draw the image on the canvas
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Could not get canvas context'));
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convert canvas to compressed base64 image
+                const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+
+                resolve(compressedBase64);
+            };
+
+            img.onerror = (error) => {
+                reject(error);
+            };
         });
-      };
-    
-      
+    };
+
+
 
     // const compressImage = (base64Image, maxWidth = 800, quality = 0.7) => {
     //     return new Promise((resolve, reject) => {
@@ -2510,27 +2511,38 @@ Example Output Structure:
                         //     });
                         // }
 
-                        if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
-                            parsedJson.postExamples = parsedJson.postExamples.map((item: { text: any; content: { text: any; }; }) => {
-                                // Case 1: If already a string, just use it
+                        if (parsedJson.postExamples) {
+                            // Ensure postExamples is always treated as an array.
+                            const postExamplesArray = Array.isArray(parsedJson.postExamples)
+                                ? parsedJson.postExamples
+                                : [parsedJson.postExamples];
+
+                            parsedJson.postExamples = postExamplesArray.map((item: any) => {
+                                // Case 1: If the item is already a string, return it.
                                 if (typeof item === "string") {
                                     return item;
                                 }
 
-                                // Case 2: If it's an object with a direct "text" property of type string
+                                // Case 2: If the item has a direct "text" property.
                                 if (item && typeof item === "object" && typeof item.text === "string") {
                                     return item.text;
                                 }
 
-                                // Case 3: If it's an object with item.content.text of type string
-                                if (item && typeof item === "object" && item.content && typeof item.content.text === "string") {
+                                // Case 3: If the item has a nested content.text property.
+                                if (
+                                    item &&
+                                    typeof item === "object" &&
+                                    item.content &&
+                                    typeof item.content.text === "string"
+                                ) {
                                     return item.content.text;
                                 }
 
-                                // Case 4: Fallback – JSON-stringify anything else
+                                // Case 4: Fallback – convert anything else to a string.
                                 return JSON.stringify(item);
                             });
                         }
+
 
 
                         if (parsedJson.messageExamples && Array.isArray(parsedJson.messageExamples)) {
