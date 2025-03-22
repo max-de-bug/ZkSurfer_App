@@ -2489,46 +2489,25 @@ Example Output Structure:
                     try {
                         const parsedJson = JSON.parse(cleanJson);
 
-
-                        // if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
-                        //     // Force each item to become a plain string
-                        //     parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
-                        //         // If item looks like { content: { text: "some text" } }, extract it:
-                        //         if (
-                        //             item &&
-                        //             typeof item === "object" &&
-                        //             item.content &&
-                        //             typeof item.content.text === "string"
-                        //         ) {
-                        //             return item.content.text;
-                        //         }
-                        //         // If it's already a string, keep it:
-                        //         if (typeof item === "string") {
-                        //             return item;
-                        //         }
-                        //         // Otherwise, fallback to a stringified version:
-                        //         return JSON.stringify(item);
-                        //     });
-                        // }
-
                         if (parsedJson.postExamples) {
-                            // Ensure postExamples is always treated as an array.
-                            const postExamplesArray = Array.isArray(parsedJson.postExamples)
+                            // Ensure postExamples is an array.
+                            const examples = Array.isArray(parsedJson.postExamples)
                                 ? parsedJson.postExamples
                                 : [parsedJson.postExamples];
 
-                            parsedJson.postExamples = postExamplesArray.map((item: any) => {
-                                // Case 1: If the item is already a string, return it.
+                            // Map every entry to a string: check for a direct "text" or nested "content.text"
+                            parsedJson.postExamples = examples.map((item: any) => {
                                 if (typeof item === "string") {
                                     return item;
                                 }
-
-                                // Case 2: If the item has a direct "text" property.
-                                if (item && typeof item === "object" && typeof item.text === "string") {
-                                    return item.text;
+                                if (item && typeof item === "object") {
+                                    if (typeof item.text === "string") {
+                                        return item.text;
+                                    }
+                                    if (item.content && typeof item.content.text === "string") {
+                                        return item.content.text;
+                                    }
                                 }
-
-                                // Case 3: If the item has a nested content.text property.
                                 if (
                                     item &&
                                     typeof item === "object" &&
@@ -2537,12 +2516,10 @@ Example Output Structure:
                                 ) {
                                     return item.content.text;
                                 }
-
-                                // Case 4: Fallback – convert anything else to a string.
-                                return JSON.stringify(item);
+                                // Fallback: convert anything else to a string.
+                                return String(item);
                             });
                         }
-
 
 
                         if (parsedJson.messageExamples && Array.isArray(parsedJson.messageExamples)) {
