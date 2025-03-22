@@ -51,6 +51,7 @@ import { Dictionary } from '@/app/i18n/types';
 import { useDictionary } from '@/app/i18n/context';
 import { useParams } from 'next/navigation';
 import compressImageMint from '../../../lib/compressImage';
+import { FaMusic } from 'react-icons/fa';
 
 interface GeneratedTweet {
     tweet: string;
@@ -62,7 +63,7 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -1687,6 +1688,91 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         setImageResultType(resultType);
 
         const fullMessage = inputMessage.trim();
+
+        if (fullMessage.startsWith('/generate-voice-clone')) {
+            // Find an audio file among the uploaded files.
+            const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
+            if (!audioFile) {
+                toast.error("Please upload an audio file for voice cloning.");
+                return;
+            }
+            // Extract the text after removing the command prefix.
+            const genText = fullMessage.replace('/generate-voice-clone', '').trim();
+            if (!genText) {
+                toast.error("Please provide text for voice cloning after the command.");
+                return;
+            }
+
+            // Display the user message with command text and a music icon.
+            const userDisplayMessage: Message = {
+                role: 'user',
+                content: (
+                    <div className="flex flex-col items-center space-x-2">
+                        <span>Generate a voice clone with following text: {genText}</span>
+                        {/* <FaMusic size={20} className="text-white" /> */}
+                    </div>
+                ),
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, userDisplayMessage]);
+            setInputMessage('');
+            setFiles([]);
+            setIsLoading(true)
+
+
+            // Build FormData with the required payload parameters.
+            const formData = new FormData();
+            formData.append('ref_audio', audioFile.file); // Pass the audio file as binary.
+            formData.append('ref_text', '');             // Send empty value.
+            formData.append('gen_text', genText);         // The text for the voice clone.
+            formData.append('model', 'F5-TTS');           // Set model (or leave empty if desired).
+            formData.append('remove_silence', 'false');   // Boolean value as string.
+            formData.append('cross_fade_duration', '0.15'); // Number as string.
+            formData.append('nfe_step', '32');            // Integer as string.
+            formData.append('speed', '1');                // Number as string.
+
+            try {
+                // Trigger the API call.
+                const response = await fetch('http://103.231.86.182:3006/tts', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to generate voice clone.');
+                }
+
+                // Read the returned audio as a blob.
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+
+                // Build a success message that shows an audio player and download link.
+                const successMessage: Message = {
+                    role: 'assistant',
+                    content: (
+                        <div>
+                            <audio controls src={audioUrl} className="w-full" />
+                            <a
+                                href={audioUrl}
+                                download="voice_clone.wav"
+                                className="text-blue-500 underline block mt-2"
+                            >
+                                Download Voice Clone
+                            </a>
+                        </div>
+                    ),
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, successMessage]);
+                setIsLoading(false)
+            } catch (error: any) {
+                console.error("Error in generate-voice-clone:", error);
+                toast.error("Error generating voice clone. Please try again.");
+            }
+
+            return;
+        }
+
 
         if (fullMessage.startsWith('/img-to-video')) {
             const userInput = fullMessage.replace('/img-to-video', '').trim();
