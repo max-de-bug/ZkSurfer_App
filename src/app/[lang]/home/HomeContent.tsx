@@ -50,6 +50,7 @@ import { FcAudioFile } from 'react-icons/fc';
 import { Dictionary } from '@/app/i18n/types';
 import { useDictionary } from '@/app/i18n/context';
 import { useParams } from 'next/navigation';
+import compressImageMint from '../../../lib/compressImage';
 
 interface GeneratedTweet {
     tweet: string;
@@ -3138,14 +3139,17 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
+        let compressedBase64 = base64Image;
+
         try {
+            compressedBase64 = await compressImageMint(base64Image, 800, 0.7);
             const response = await fetch("/api/mint-nft", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    base64Image,
+                    base64Image: compressedBase64,
                     name: "NFT", // Or any name you want to use
                     recipient: wallet.publicKey ? wallet.publicKey.toString() : "",
                 }),

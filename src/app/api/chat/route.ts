@@ -105,7 +105,6 @@ async function verifyProof(proof: string) {
 }
 
 async function generate_image(prompt: string, seed?: number) {
-    console.log('Generating image...', { prompt, seed });
 
     const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
     if (!landwolfUrl) {
@@ -208,7 +207,7 @@ export async function POST(request: Request) {
                         content: generatedImage.image,
                         type: 'img',
                         prompt: directCommand.prompt,
-                        seed: generatedImage,
+                        seed: 'null',
                         proof,
                     });
                     controller.enqueue(encoder.encode(`data: ${finalPayload}\n\n`));

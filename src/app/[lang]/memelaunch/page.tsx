@@ -1164,26 +1164,76 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         return files.reduce((total, file) => total + file.size, 0) / (1024 * 1024); // Convert bytes to MB
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'pdf' | 'image') => {
+    // const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'pdf' | 'image') => {
+    //     const files = e.target.files;
+    //     if (files && files.length > 0) {
+    //         const newFile = files[0];
+    //         const existingFiles = type === 'pdf' ? formData.trainingPdfs : formData.trainingImages;
+
+    //         const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
+
+    //         console.log('totalSize', totalSize)
+    //         if (totalSize > MAX_FILE_SIZE_MB) {
+    //             toast.error('Total uploaded file size exceeds 5 MB.');
+    //             return;
+    //         }
+
+    //         setFormData((prev) => ({
+    //             ...prev,
+    //             [type === 'pdf' ? 'trainingPdfs' : 'trainingImages']: [
+    //                 ...prev[type === 'pdf' ? 'trainingPdfs' : 'trainingImages'],
+    //                 newFile
+    //             ]
+    //         }));
+    //     }
+    // };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'pdf' | 'image') => {
         const files = e.target.files;
-        if (files && files.length > 0) {
+        if (!files || files.length === 0) return;
+        if (type === 'pdf') {
             const newFile = files[0];
-            const existingFiles = type === 'pdf' ? formData.trainingPdfs : formData.trainingImages;
-
+            const existingFiles = formData.trainingPdfs;
             const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
-
-            console.log('totalSize', totalSize)
             if (totalSize > MAX_FILE_SIZE_MB) {
                 toast.error('Total uploaded file size exceeds 5 MB.');
                 return;
             }
-
+            try {
+                const arrayBuffer = await newFile.arrayBuffer();
+                const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+                const textPromises = Array.from({ length: pdf.numPages }, async (_, i) => {
+                    const page = await pdf.getPage(i + 1);
+                    const content = await page.getTextContent();
+                    return content.items.map((item: any) => item.str).join(' ');
+                });
+                const texts = await Promise.all(textPromises);
+                const fullText = texts.join('\n');
+                if (fullText.length > 50000) {
+                    toast.error('Not more than 50,000 characters allowed in a PDF.');
+                    return;
+                }
+                // Optionally store the extracted text with the file (e.g. in a new state)
+                setFormData((prev) => ({
+                    ...prev,
+                    trainingPdfs: [...prev.trainingPdfs, newFile],
+                    // You might store the extracted text too:
+                    // pdfTexts: [...prev.pdfTexts, fullText]
+                }));
+            } catch (error) {
+                toast.error('Error processing PDF file.');
+            }
+        } else if (type === 'image') {
+            const newFile = files[0];
+            const existingFiles = formData.trainingImages;
+            const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
+            if (totalSize > MAX_FILE_SIZE_MB) {
+                toast.error('Total uploaded file size exceeds 5 MB.');
+                return;
+            }
             setFormData((prev) => ({
                 ...prev,
-                [type === 'pdf' ? 'trainingPdfs' : 'trainingImages']: [
-                    ...prev[type === 'pdf' ? 'trainingPdfs' : 'trainingImages'],
-                    newFile
-                ]
+                trainingImages: [...prev.trainingImages, newFile],
             }));
         }
     };
@@ -1655,9 +1705,107 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     //     }
     // };
 
+     const compressImage = (
+        base64Image: string,
+        maxWidth: number = 800,
+        quality: number = 0.7
+      ): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          // Create an image to load the base64 string
+          const img = new Image();
+          img.src = base64Image;
+      
+          img.onload = () => {
+            // Create a canvas element
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+      
+            // Calculate new dimensions while maintaining aspect ratio
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+      
+            // Set canvas dimensions
+            canvas.width = width;
+            canvas.height = height;
+      
+            // Draw the image on the canvas
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Could not get canvas context'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+      
+            // Convert canvas to compressed base64 image
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+      
+            resolve(compressedBase64);
+          };
+      
+          img.onerror = (error) => {
+            reject(error);
+          };
+        });
+      };
+    
+      
+
+    // const compressImage = (base64Image, maxWidth = 800, quality = 0.7) => {
+    //     return new Promise((resolve, reject) => {
+    //         // Create an image to load the base64 string
+    //         const img = new Image();
+    //         img.src = base64Image;
+
+    //         img.onload = () => {
+    //             // Create a canvas element
+    //             const canvas = document.createElement('canvas');
+    //             let width = img.width;
+    //             let height = img.height;
+
+    //             // Calculate new dimensions while maintaining aspect ratio
+    //             if (width > maxWidth) {
+    //                 height = Math.round((height * maxWidth) / width);
+    //                 width = maxWidth;
+    //             }
+
+    //             // Set canvas dimensions
+    //             canvas.width = width;
+    //             canvas.height = height;
+
+    //             // Draw the image on the canvas
+    //             const ctx = canvas.getContext('2d');
+    //             ctx.drawImage(img, 0, 0, width, height);
+
+    //             // Convert canvas to compressed base64 image
+    //             const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+
+    //             resolve(compressedBase64);
+    //         };
+
+    //         img.onerror = error => {
+    //             reject(error);
+    //         };
+    //     });
+    // };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         setIsSubmitting(true);
         let twitterData: any[] | null = [];
+
+        let compressedImageBase64 = formData.imageBase64;
+        if (formData.imageBase64) {
+            try {
+                compressedImageBase64 = await compressImage(formData.imageBase64, 800, 0.7);
+                console.log("Image compressed successfully");
+            } catch (error) {
+                console.error("Error compressing image:", error);
+                // Continue with original image if compression fails
+            }
+        }
 
         try {
             // First part remains the same until the character generation request
@@ -1671,12 +1819,15 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                         return content.items.map((item: any) => item.str).join(' ');
                     });
                     const texts = await Promise.all(textPromises);
-                    const fullText = texts.join('\n');
-                    console.log('PDF length', fullText.length)
                     return texts.join('\n');
                 })
             );
-
+            const combinedPdfText = pdfTexts.join('\n');
+            if (combinedPdfText.length > 50000) {
+                toast.error('Total PDF text exceeds 50,000 characters. Please remove some PDFs.');
+                setFormData((prev) => ({ ...prev, trainingPdfs: [] }));
+                return;
+            }
 
             // --- SWAP API CALL ---
             // Check if the agent type requires a swap (i.e. super-agent or micro-agent with a provided Telegram ID)
@@ -1732,7 +1883,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                     training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
                 },
                 wallet_address: formData.walletAddress,
-                image_base64: formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+                image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+                // formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
                 seed: formData.seed,
                 user_prompt: formData.prompt,
             };
