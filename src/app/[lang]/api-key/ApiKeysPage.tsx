@@ -4,7 +4,7 @@ import { RiDeleteBin5Fill, RiAddCircleFill } from "react-icons/ri";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
 import ButtonV1New from "@/component/ui/buttonV1";
-import {toast} from 'sonner';
+import { toast } from 'sonner';
 
 const API_KEYS_URL = "https://zynapse.zkagi.ai/get-api-keys-by-wallet";
 const DELETE_API_KEY_URL = "https://zynapse.zkagi.ai/delete-api-key";
@@ -12,7 +12,12 @@ const BALANCE_API_URL = "https://zynapse.zkagi.ai/check-balance";
 const CREATE_API_KEY_URL = "https://zynapse.zkagi.ai/generate-api-key";
 const API_KEY = "zk-123321";
 
-export default function ApiKeysPage() {
+interface ApiKeysPageProps {
+    dictionary: any;
+}
+
+
+export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
     const { publicKey } = useWallet();
     const router = useRouter();
     const [apiKeys, setApiKeys] = useState<string[]>([]);
@@ -142,7 +147,7 @@ export default function ApiKeysPage() {
 
             const generateKeyData = await response.json();
             if (generateKeyData.api_key) {
-                setApiKeys((prevKeys) => [...prevKeys, generateKeyData.api_key]); 
+                setApiKeys((prevKeys) => [...prevKeys, generateKeyData.api_key]);
             }
             toast.success("API Key added successfully!");
         } catch (error) {

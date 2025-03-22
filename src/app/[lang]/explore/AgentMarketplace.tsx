@@ -179,6 +179,11 @@ import { Search, ArrowLeft } from 'lucide-react';
 import { CoinCard } from '@/component/ui/CoinCard';
 import { Coin, ApiCoin, ApiResponse } from '@/types/marketplaceTypes';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { Dictionary } from '@/app/i18n/types';
+
+export interface ExploreAgentsPageProps {
+    dictionary: Dictionary;
+}
 
 const ITEMS_PER_PAGE = 9; // 3 rows of 3 cards each
 
@@ -190,7 +195,7 @@ const SkeletonCard: FC = () => (
     </div>
 );
 
-const ExploreAgentsPage: FC = () => {
+const ExploreAgentsPage: FC<ExploreAgentsPageProps> = ({ dictionary }) => {
     const wallet = useWallet();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [allCoins, setAllCoins] = useState<Coin[]>([]);

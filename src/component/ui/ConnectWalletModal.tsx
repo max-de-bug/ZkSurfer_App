@@ -31,3 +31,4 @@ const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({ onClose }) => {
 };
 
 export default ConnectWalletModal;
+

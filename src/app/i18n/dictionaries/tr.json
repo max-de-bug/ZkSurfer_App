@@ -1,0 +1,42 @@
+{
+    "home": {
+      "title": "Sitemize hoş geldiniz",
+      "description": "Bu, harika web sitemiz"
+    },
+    "about": {
+      "title": "Hakkımızda",
+      "description": "Şirketimiz hakkında daha fazla bilgi edinin"
+    },
+    "docs": {
+      "needHelp": "Yardıma mı ihtiyacınız var?",
+      "checkDocs": "Belgelerimize göz atın"
+    },
+    "sidebar": {
+      "home": "ZkTerminal",
+      "marketplace": "AI Coin Pazaryeri",
+      "explore": "AI Ajanlarını Keşfedin",
+      "apiKeys": "API Anahtarları",
+      "agents": {
+        "title": "Ajanlar",
+        "noAgents": "Henüz ajan oluşturulmadı"
+      },
+      "toggleSidebar": "Yan Menüyü Değiştir",
+      "editProfile": "Profili Düzenle"
+    },
+    "inputPlaceholder": "ZkTerminal'e Mesaj",
+    "commands": [
+      {
+        "label": "Ajan Oluştur",
+        "command": "/create-agent: ",
+        "description": "Tıklayarak /create-agent: komutunu kullanın. Özel talimatınızı girin ve yürütmek için enter'a basın veya gönder'e tıklayın.",
+        "type": "create-agent"
+      },
+      {
+        "label": "NFT Bas",
+        "command": "/image-gen of ",
+        "description": "Tıklayarak /image-gen of komutunu kullanın. Özel talimatınızı girin ve yürütmek için enter'a basın veya gönder'e tıklayın.",
+        "type": "image-gen"
+      }
+    ]
+  }
+  

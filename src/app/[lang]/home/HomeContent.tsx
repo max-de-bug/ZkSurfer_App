@@ -7,7 +7,7 @@ import { HiDotsVertical } from 'react-icons/hi';
 import { TbLayoutSidebarLeftCollapseFilled } from "react-icons/tb";
 import { HiOutlinePencilSquare } from "react-icons/hi2";
 import Image from 'next/image';
-import createNft from '../../component/MintNFT';
+import CreateNft from '@/component/MintNFT';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSession } from 'next-auth/react';
 import ResultBlock from '@/component/ui/ResultBlock';
@@ -43,15 +43,22 @@ import ReactMarkdown from 'react-markdown';
 import { CreateAgentModal } from '@/component/ui/AgentModal';
 import { useModelStore } from '@/stores/useModel-store';
 import ApiKeyBlock from '@/component/ui/ApiKeyBlock';
-import ConnectWalletModal from '../../component/ui/ConnectWalletModal';
+import ConnectWalletModal from '@/component/ui/ConnectWalletModal';
 import PresaleBanner from '@/component/ui/PreSaleBanner';
 import { useWhitelistStore } from '@/stores/use-whitelist-store';
 import { FcAudioFile } from 'react-icons/fc';
-
+import { Dictionary } from '@/app/i18n/types';
+import { useDictionary } from '@/app/i18n/context';
+import { useParams } from 'next/navigation';
+import compressImageMint from '../../../lib/compressImage';
 
 interface GeneratedTweet {
     tweet: string;
     id?: number;
+}
+
+export interface HomeContentProps {
+    dictionary?: Dictionary;
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
@@ -207,7 +214,9 @@ const TOGGLE_API_URL = 'https://zynapse.zkagi.ai/characters/toggle-status';
 
 
 
-const HomeContent: FC = () => {
+const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
+    const params = useParams();
+    const lang = params.lang;
     const wallet = useWallet();
     const { connected } = useWallet();
     const { data: session, status } = useSession();
@@ -312,6 +321,43 @@ const HomeContent: FC = () => {
     }, [displayMessages, isLoading]);
 
 
+    // Returns the target language code if the browser language is one of the supported ones.
+    // function getUserTargetLanguage() {
+    //     const lang = navigator.language?.toLowerCase();
+    //     if (lang.startsWith('ko')) return 'ko';
+    //     if (lang.startsWith('zh')) return 'zh';
+    //     if (lang.startsWith('vi')) return 'vi';
+    //     if (lang.startsWith('tr')) return 'tr';
+    //     if (lang.startsWith('ru')) return 'ru';
+    //     return null; // No translation needed (default: English)
+    // }
+
+    // useEffect(() => {
+    //     const lang = getUserTargetLanguage();
+    // }, []);
+
+    // Calls the translation API endpoint to translate text into the target language.
+    // async function translateText(text: any, targetLang: any) {
+    //     try {
+    //         const response = await fetch('/api/translate', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ text, targetLang }),
+    //         });
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             return data.translation; // Expected to return the translated text.
+    //         } else {
+    //             console.error('Translation API returned an error.');
+    //             return text; // Fallback: return original text.
+    //         }
+    //     } catch (error) {
+    //         console.error('Translation error:', error);
+    //         return text;
+    //     }
+    // }
+
+
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (
@@ -381,7 +427,6 @@ const HomeContent: FC = () => {
     if (walletAddress) {
         mergedTickers = tickers.map((ticker) => {
             const tickerData = (tickersData || []).find((item: any) => item.ticker === ticker);
-            console.log('tickerData', tickerData)
             return {
                 ticker,
                 status: tickerData?.status,
@@ -545,10 +590,8 @@ const HomeContent: FC = () => {
                     );
                     if (!response.ok) throw new Error('Failed to fetch tickers');
                     const data = await response.json();
-                    console.log('data', data)
                     setTickers(data.tickers);
                     setAvailableTickers(data.tickers);
-                    console.log('Updated availableTickers:', useTickerStore.getState().availableTickers);
 
                     // 2. Fetch info for each ticker
                     // const infoMap = new Map();
@@ -659,17 +702,6 @@ const HomeContent: FC = () => {
         }
     };
 
-
-
-
-    // Function to format base64 image properly
-    const formatBase64Image = (base64String: string): string => {
-        if (!base64String.startsWith('data:image/')) {
-            return `data:image/png;base64,${base64String}`;
-        }
-        return base64String;
-    };
-
     const availableUGCOptions = [
         { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
         { name: 'Ponke', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
@@ -679,9 +711,9 @@ const HomeContent: FC = () => {
         try {
             // Format the image into a data URL if it isn't already.
             let formattedImage = imageData;
-            if (!imageData.startsWith('data:image/')) {
-                formattedImage = `data:image/png;base64,${imageData}`;
-            }
+            // if (!imageData.startsWith('data:image/')) {
+            //     formattedImage = `data:image/png;base64,${imageData}`;
+            // }
             // Compress the image as needed.
             const compressedImage = await compressImage(formattedImage);
 
@@ -856,7 +888,6 @@ const HomeContent: FC = () => {
         }
         // Close CommandPopup if anything is typed after "/"
         else if (value.startsWith('/')) {
-            console.log(`Detected command input: ${value.split(' ')[0]}`);
             setShowCommandPopup(false);
         } else {
             setShowCommandPopup(false);
@@ -1799,6 +1830,7 @@ const HomeContent: FC = () => {
                     // If the response is an image (e.g., JPEG or PNG)
                     const blob = await response.blob();
                     const imageUrl = URL.createObjectURL(blob);
+                    console.log('blib image url', imageUrl)
 
                     const successMessage: Message = {
                         role: 'assistant',
@@ -1823,7 +1855,8 @@ const HomeContent: FC = () => {
                             <div>
                                 <p>Generated {selectedOption} Content:</p>
                                 <img
-                                    src={`data:image/png;base64,${result.image}`}
+                                    // src={`data:image/png;base64,${result.image}`}
+                                    src={`${result.image}`}
                                     alt={`${selectedOption} generated content`}
                                     className="w-full rounded-lg"
                                 />
@@ -2494,6 +2527,29 @@ const HomeContent: FC = () => {
 
                 // Once streaming is complete, process the final event.
                 if (finalEvent) {
+
+                    let assistantContent = finalEvent.content; // original assistant response
+
+                    // // --- Begin Translation Integration ---
+                    // const targetLang = getUserTargetLanguage();
+                    // if (targetLang) {
+                    //     // If the user’s browser indicates one of the supported languages,
+                    //     // call the translation helper.
+                    //     const translatedText = await translateText(finalEvent.content, targetLang);
+
+                    //     // You can display both the original and translated version.
+                    //     // For example, wrap them in a container:
+                    //     assistantContent = (
+                    //         <div>
+                    //             <div>{finalEvent.content}</div>
+                    //             <div className="mt-2 text-blue-400 text-sm">
+                    //                 [{targetLang.toUpperCase()}] {translatedText}
+                    //             </div>
+                    //         </div>
+                    //     );
+                    // }
+                    // --- End Translation Integration ---
+
                     // First, update your API messages with the name and description.
                     setApiMessages(prev => [
                         ...prev,
@@ -3083,14 +3139,17 @@ const HomeContent: FC = () => {
 
     const handleMintNFT = async (base64Image: string) => {
         setLoading(true);
+        let compressedBase64 = base64Image;
+
         try {
+            compressedBase64 = await compressImageMint(base64Image, 800, 0.7);
             const response = await fetch("/api/mint-nft", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    base64Image,
+                    base64Image: compressedBase64,
                     name: "NFT", // Or any name you want to use
                     recipient: wallet.publicKey ? wallet.publicKey.toString() : "",
                 }),
@@ -3227,7 +3286,6 @@ const HomeContent: FC = () => {
 
         // Handle string content (user commands & assistant messages)
         if (typeof message.content === 'string') {
-            console.log('testing success')
             // User commands processing
             if (message.role === 'user') {
                 let displayedContent = message.content;
@@ -3644,7 +3702,7 @@ const HomeContent: FC = () => {
                                                     width={15}
                                                     height={15}
                                                 />
-                                                ZkTerminal
+                                                {dictionary?.sidebar.home}
                                             </div>
                                         </Link>
                                         <Link href="/marketplace" passHref >
@@ -3656,7 +3714,7 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                AI Coin Marketplace
+                                                {dictionary?.sidebar.marketplace}
                                             </div>
                                         </Link>
                                         <Link href="/explore" passHref >
@@ -3668,10 +3726,10 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                Explore AI Agents
+                                                {dictionary?.sidebar.explore}
                                             </div>
                                         </Link>
-                                        <Link href="/api-key" passHref >
+                                        <Link href={`/${lang}/api-key`}>
                                             <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer">
                                                 <Image
                                                     src="images/lock.svg"
@@ -3680,7 +3738,7 @@ const HomeContent: FC = () => {
                                                     height={15}
                                                     className="my-2"
                                                 />
-                                                API Keys
+                                                {dictionary?.sidebar.apiKeys}
                                             </div>
                                         </Link>
 
@@ -3690,7 +3748,7 @@ const HomeContent: FC = () => {
                                             className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
                                             onClick={toggleDropdown}
                                         >
-                                            Agents
+                                            {dictionary?.sidebar.agents.title}
                                             {isDropdownOpen ? <FaChevronDown /> : <FaChevronUp />}
                                         </h3>
                                         {isDropdownOpen && (
@@ -3718,7 +3776,6 @@ const HomeContent: FC = () => {
 
                                                 {mergedTickers.length > 0 ? (
                                                     mergedTickers.map(({ ticker, status }) => {
-                                                        console.log("mergedTickers", mergedTickers);
                                                         return (
                                                             <div
                                                                 key={ticker}
@@ -3835,7 +3892,7 @@ const HomeContent: FC = () => {
                                 <div className="p-3 flex-shrink-0 mb-2">
                                     <div className="flex flex-row gap-2 p-[1px] rounded-lg bg-gradient-to-r from-[#FFFFFF] via-[#6AD7FF] via-35% to-[#FFFFFF]">
                                         <div className="flex flex-row gap-5 bg-[#08131f] p-3 rounded-lg w-full">
-                                            <div>
+                                            <div className="flex justify-center items-center">
                                                 <Image
                                                     src="images/Group.svg"
                                                     alt="Docs"
@@ -3845,9 +3902,9 @@ const HomeContent: FC = () => {
                                             </div>
                                             <div>
                                                 <div className="font-ttfirs bg-gradient-to-b from-[#2AF698] to-[#5BBFCD] text-transparent bg-clip-text text-sm">
-                                                    Need Help?
+                                                    {dictionary?.docs.needHelp}
                                                 </div>
-                                                <div className="text-xs font-ttfirs">Check our docs</div>
+                                                <div className="text-xs font-ttfirs">{dictionary?.docs.checkDocs}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -3864,7 +3921,7 @@ const HomeContent: FC = () => {
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
-                                        {sampleCommands.map((cmd, index) => (
+                                        {/* {sampleCommands.map((cmd, index) => (
                                             <div
                                                 key={index}
                                                 className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
@@ -3877,7 +3934,14 @@ const HomeContent: FC = () => {
                                                         : `Click to use the ${cmd.command} command. You need to enter your custom instruction and press enter or click submit to send your input prompt for execution.`}
                                                 </p>
                                             </div>
+                                        ))} */}
+                                        {dictionary?.commands.map((cmd, index) => (
+                                            <div className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
+                                                <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
+                                                <p className="text-sm text-gray-300 text-center">{cmd.description}</p>
+                                            </div>
                                         ))}
+
                                     </div>
                                 </div>
                             ) : (
@@ -4003,7 +4067,7 @@ const HomeContent: FC = () => {
                                                         </div>
                                                         {message.role === 'assistant' &&
 
-                                                            (typeof message.content === 'string' && message.content.startsWith('/')) ? (
+                                                            (typeof message.content === 'string' && message.content.startsWith('data:image')) ? (
                                                             <ResultBlock
                                                                 content={message.content}
                                                                 type="image"
@@ -4034,7 +4098,6 @@ const HomeContent: FC = () => {
                                                                 {renderMessageContent(message)}
                                                             </div>
                                                         )}
-
                                                     </div>
                                                 </div>
                                             </div>
@@ -4177,7 +4240,7 @@ const HomeContent: FC = () => {
                                                         handleSubmit(e); // Pass the event to handleSubmit
                                                     }
                                                 }}
-                                                placeholder="Message ZkTerminal"
+                                                placeholder={dictionary?.inputPlaceholder}
                                                 className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
                                                 style={{
                                                     lineHeight: '1.5',

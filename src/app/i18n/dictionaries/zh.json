@@ -1,0 +1,42 @@
+{
+    "home": {
+      "title": "欢迎来到我们的网站",
+      "description": "这是我们精彩的网站"
+    },
+    "about": {
+      "title": "关于我们",
+      "description": "了解更多关于我们公司的信息"
+    },
+    "docs": {
+      "needHelp": "需要帮助吗？",
+      "checkDocs": "查看我们的文档"
+    },
+    "sidebar": {
+      "home": "ZkTerminal",
+      "marketplace": "AI币市集",
+      "explore": "探索AI代理",
+      "apiKeys": "API密钥",
+      "agents": {
+        "title": "代理",
+        "noAgents": "尚未创建任何代理"
+      },
+      "toggleSidebar": "切换侧边栏",
+      "editProfile": "编辑个人资料"
+    },
+    "inputPlaceholder": "给ZkTerminal发送消息",
+    "commands": [
+      {
+        "label": "创建代理",
+        "command": "/create-agent: ",
+        "description": "点击使用 /create-agent: 命令。输入您的自定义指令，然后按回车或点击提交以执行。",
+        "type": "create-agent"
+      },
+      {
+        "label": "铸造NFT",
+        "command": "/image-gen of ",
+        "description": "点击使用 /image-gen of 命令。输入您的自定义指令，然后按回车或点击提交以执行。",
+        "type": "image-gen"
+      }
+    ]
+  }
+  
