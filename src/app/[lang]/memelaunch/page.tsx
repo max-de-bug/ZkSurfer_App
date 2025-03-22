@@ -80,20 +80,90 @@ function parseValue(value: string) {
     return value;
 }
 
-function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> } } | null) {
-    if (jsonData?.settings?.secrets) {
-        const maskedSecrets = { ...jsonData.settings.secrets };
+// function maskSecrets(jsonData: { settings?: { secrets?: Record<string, string> } } | null) {
+//     if (jsonData?.settings?.secrets) {
+//         const maskedSecrets = { ...jsonData.settings.secrets };
+//         Object.keys(maskedSecrets).forEach((key) => {
+//             maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+//         });
+//         return {
+//             ...jsonData,
+//             settings: {
+//                 ...jsonData.settings,
+//                 secrets: maskedSecrets,
+//             },
+//         };
+//     }
+//     return jsonData;
+// }
+
+// function maskSecrets(jsonData: any) {
+//     if (!jsonData) return jsonData;
+
+//     // Mask secrets as before.
+//     if (jsonData.settings && jsonData.settings.secrets) {
+//       const maskedSecrets = { ...jsonData.settings.secrets };
+//       Object.keys(maskedSecrets).forEach((key) => {
+//         maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
+//       });
+//       jsonData.settings.secrets = maskedSecrets;
+//     }
+
+//     // Normalize messageExamples
+//     return normalizeMessageExamples(jsonData);
+//   }
+
+
+function maskSecrets(jsonData: any) {
+    if (!jsonData) return jsonData;
+    // Create a deep copy to avoid mutating the original object.
+    const dataCopy = JSON.parse(JSON.stringify(jsonData));
+
+    if (dataCopy.settings && dataCopy.settings.secrets) {
+        const maskedSecrets = { ...dataCopy.settings.secrets };
         Object.keys(maskedSecrets).forEach((key) => {
             maskedSecrets[key] = '*'.repeat(maskedSecrets[key].length);
         });
+        dataCopy.settings.secrets = maskedSecrets;
+    }
+
+    return normalizeMessageExamples(dataCopy);
+}
+
+function normalizeMessageExamples(jsonData: any) {
+    if (!jsonData) return jsonData;
+    const currentExampleCount = jsonData.messageExamples ? jsonData.messageExamples.length : 0;
+
+    let examples = jsonData.messageExamples;
+
+    // If missing or empty, initialize with a default group of 2 objects.
+    if (!examples || examples.length === 0) {
         return {
             ...jsonData,
-            settings: {
-                ...jsonData.settings,
-                secrets: maskedSecrets,
-            },
+            messageExamples: [
+                [
+                    { user: 'User', content: { text: "" } },
+                    { user: jsonData.name, content: { text: "" } }
+                ]
+            ]
         };
     }
+
+    // If the first element is not an array, assume it's a flat array.
+    if (!Array.isArray(examples[0])) {
+        const normalized = [];
+        for (let i = 0; i < examples.length; i += 2) {
+            const group = examples.slice(i, i + 2);
+            // If the last group has only one element, add a default one.
+            if (group.length === 1) {
+                group.push({ user: "$JPIG", content: { text: "" } });
+            }
+            normalized.push(group);
+        }
+        return { ...jsonData, messageExamples: normalized };
+    }
+
+    // Otherwise, already normalized.
     return jsonData;
 }
 
@@ -216,94 +286,354 @@ function renderJsonForm(
                 }
 
                 // Message examples
+                // if (isMessageExampleKey) {
+                //     return (
+                //         <div
+                //             key={key}
+                //             className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
+                //         >
+                //             <div className="flex items-center justify-between">
+                //                 <div className="block text-sm font-semibold text-gray-200">{key}</div>
+                //                 {/* Add a new block for user and content */}
+                //                 <button
+                //                     type="button"
+                //                     className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
+                //                     onClick={() => {
+                //                         const newExample = {
+                //                             user: "",
+                //                             content: { text: "" },
+                //                         };
+                //                         const newArray = Array.isArray(data[key])
+                //                             ? [newExample, ...data[key]]
+                //                             : [newExample];
+                //                         onChange({ ...data, [key]: newArray });
+                //                     }}
+                //                 >
+                //                     +
+                //                 </button>
+                //             </div>
+
+                //             <div className="space-y-2">
+                //                 {data[key].map((example: any, idx: number) => (
+                //                     <div
+                //                         key={idx}
+                //                         className="p-3 flex items-center gap-4 rounded border border-gray-700 bg-gray-800"
+                //                     >
+                //                         <div className="flex-1 space-y-2">
+                //                             <div>
+                //                                 <label className="block mb-2 text-sm">User</label>
+                //                                 <input
+                //                                     type="text"
+                //                                     className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
+                //                                     value={example.user || ""}
+                //                                     onChange={(e) => {
+                //                                         const updatedExample = {
+                //                                             ...example,
+                //                                             user: e.target.value,
+                //                                         };
+                //                                         const newArray = [...data[key]];
+                //                                         newArray[idx] = updatedExample;
+                //                                         onChange({ ...data, [key]: newArray });
+                //                                     }}
+                //                                 />
+                //                             </div>
+                //                             <div>
+                //                                 <label className="block mb-2 text-sm">Content Text</label>
+                //                                 <input
+                //                                     type="text"
+                //                                     className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
+                //                                     value={example.content?.text || ""}
+                //                                     onChange={(e) => {
+                //                                         const updatedExample = {
+                //                                             ...example,
+                //                                             content: { text: e.target.value },
+                //                                         };
+                //                                         const newArray = [...data[key]];
+                //                                         newArray[idx] = updatedExample;
+                //                                         onChange({ ...data, [key]: newArray });
+                //                                     }}
+                //                                 />
+                //                             </div>
+                //                         </div>
+                //                         {/* Remove the whole example */}
+                //                         <button
+                //                             type="button"
+                //                             className="px-2 py-1 text-red-400 hover:text-red-500 border border-red-500 rounded"
+                //                             onClick={() => {
+                //                                 const newArray = data[key].filter(
+                //                                     (_: any, i: number) => i !== idx
+                //                                 );
+                //                                 onChange({ ...data, [key]: newArray });
+                //                             }}
+                //                         >
+                //                             -
+                //                         </button>
+                //                     </div>
+                //                 ))}
+                //             </div>
+                //         </div>
+                //     );
+                // }
+
+                // if (isMessageExampleKey) {
+                //     // Grab the array from data
+                //     const examples = Array.isArray(data[key]) ? data[key] : [];
+
+                //     // Chunk the array into groups of 2
+                //     const chunked = [];
+                //     for (let i = 0; i < examples.length; i += 2) {
+                //       chunked.push(examples.slice(i, i + 2));
+                //     }
+
+                //     return (
+                //       <div key={key} className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2">
+                //         <div className="flex items-center justify-between">
+                //           <div className="block text-sm font-semibold text-gray-200">{key}</div>
+                //           <button
+                //             type="button"
+                //             className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
+                //             onClick={() => {
+                //               // Add two new objects to the end of the array:
+                //               // one for the user, one for the agent
+                //               const updatedArray = [...examples];
+                //               updatedArray.push(
+                //                 { user: "User", content: { text: "" } },
+                //                 { user: "$JPIG", content: { text: "" } }
+                //               );
+                //               onChange({ ...data, [key]: updatedArray });
+                //             }}
+                //           >
+                //             + New Group
+                //           </button>
+                //         </div>
+
+                //         {/* Now display each chunk of two objects in a single container */}
+                //         <div className="space-y-4">
+                //           {chunked.map((pair, pairIndex) => {
+                //             const userObj = pair[0] || { user: "", content: { text: "" } };
+                //             const agentObj = pair[1] || { user: "$JPIG", content: { text: "" } };
+
+                //             return (
+                //               <div key={pairIndex} className="border border-white p-2 mb-2">
+                //                 {/* USER ENTRY */}
+                //                 <div className="mb-2">
+                //                   <div className="text-sm font-semibold text-gray-200">User Entry</div>
+                //                   <div className="p-2 border border-gray-600 bg-gray-700">
+                //                     <label className="block mb-2 text-sm">User</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={userObj.user}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2; // user is the first in the pair
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           user: e.target.value
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                     <label className="block mb-2 text-sm">Content Text</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={userObj.content?.text || ""}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2;
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           content: { text: e.target.value }
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                   </div>
+                //                 </div>
+
+                //                 {/* AGENT ENTRY */}
+                //                 <div>
+                //                   <div className="text-sm font-semibold text-gray-200">Agent Entry</div>
+                //                   <div className="p-2 border border-gray-600 bg-gray-700">
+                //                     <label className="block mb-2 text-sm">User</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={agentObj.user}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2 + 1; // agent is second in the pair
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           user: e.target.value
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                     <label className="block mb-2 text-sm">Content Text</label>
+                //                     <input
+                //                       type="text"
+                //                       className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                //                       value={agentObj.content?.text || ""}
+                //                       onChange={(e) => {
+                //                         const updatedArray = [...examples];
+                //                         const realIndex = pairIndex * 2 + 1;
+                //                         updatedArray[realIndex] = {
+                //                           ...updatedArray[realIndex],
+                //                           content: { text: e.target.value }
+                //                         };
+                //                         onChange({ ...data, [key]: updatedArray });
+                //                       }}
+                //                     />
+                //                   </div>
+                //                 </div>
+                //               </div>
+                //             );
+                //           })}
+                //         </div>
+                //       </div>
+                //     );
+                //   }    
                 if (isMessageExampleKey) {
+                    // Get the raw examples from data[key]
+                    const rawExamples = Array.isArray(data[key]) ? data[key] : [];
+
+                    // Check if rawExamples is a flat array (of objects) or already an array of groups.
+                    let groups = [];
+                    if (rawExamples.length > 0 && !Array.isArray(rawExamples[0])) {
+                        // It's a flat array—chunk it into groups of 2.
+                        for (let i = 0; i < rawExamples.length; i += 2) {
+                            groups.push(rawExamples.slice(i, i + 2));
+                        }
+                    } else {
+                        // Already grouped.
+                        groups = rawExamples;
+                    }
+
                     return (
-                        <div
-                            key={key}
-                            className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-                        >
+                        <div key={key} className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="block text-sm font-semibold text-gray-200">{key}</div>
-                                {/* Add a new block for user and content */}
                                 <button
                                     type="button"
                                     className="px-2 py-1 text-green-300 hover:text-green-400 border border-green-500 rounded bg-gray-900"
                                     onClick={() => {
-                                        const newExample = {
-                                            user: "",
-                                            content: { text: "" },
-                                        };
-                                        const newArray = Array.isArray(data[key])
-                                            ? [newExample, ...data[key]]
-                                            : [newExample];
-                                        onChange({ ...data, [key]: newArray });
+                                        // Create a new group (an array with two objects)
+                                        const newGroup = [
+                                            { user: "User", content: { text: "" } },
+                                            { user: "$JPIG", content: { text: "" } }
+                                        ];
+                                        // Append the new group to the current groups
+                                        const updatedGroups = [...groups, newGroup];
+                                        onChange({ ...data, [key]: updatedGroups });
                                     }}
                                 >
                                     +
                                 </button>
                             </div>
 
-                            <div className="space-y-2">
-                                {data[key].map((example: any, idx: number) => (
-                                    <div
-                                        key={idx}
-                                        className="p-3 flex items-center gap-4 rounded border border-gray-700 bg-gray-800"
-                                    >
-                                        <div className="flex-1 space-y-2">
-                                            <div>
-                                                <label className="block mb-2 text-sm">User</label>
-                                                <input
-                                                    type="text"
-                                                    className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-                                                    value={example.user || ""}
-                                                    onChange={(e) => {
-                                                        const updatedExample = {
-                                                            ...example,
-                                                            user: e.target.value,
-                                                        };
-                                                        const newArray = [...data[key]];
-                                                        newArray[idx] = updatedExample;
-                                                        onChange({ ...data, [key]: newArray });
-                                                    }}
-                                                />
+                            <div className="space-y-4">
+                                {groups.map((group, groupIndex) => {
+                                    const userObj = group[0] || { user: "", content: { text: "" } };
+                                    const agentObj = group[1] || { user: "$JPIG", content: { text: "" } };
+
+                                    return (
+                                        <div key={groupIndex} className="border border-white p-2 mb-2 grid grid-cols-8 rounded-lg">
+                                            <div className="col-span-7">
+
+                                                {/* USER ENTRY */}
+                                                <div className="mb-2">
+                                                    <div className="text-sm font-semibold text-gray-200 mb-1">User Entry</div>
+                                                    <div className="p-2 border border-gray-600 bg-gray-700">
+                                                        <label className="block mb-2 text-sm">User</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={userObj.user}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][0] = {
+                                                                    ...updatedGroups[groupIndex][0],
+                                                                    user: e.target.value
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                        <label className="block mb-2 text-sm">Content Text</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={userObj.content?.text || ""}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][0] = {
+                                                                    ...updatedGroups[groupIndex][0],
+                                                                    content: { text: e.target.value }
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* AGENT ENTRY */}
+                                                <div>
+                                                    <div className="text-sm font-semibold text-gray-200 mb-1">Agent Entry</div>
+                                                    <div className="p-2 border border-gray-600 bg-gray-700">
+                                                        <label className="block mb-2 text-sm">User</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={agentObj.user}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][1] = {
+                                                                    ...updatedGroups[groupIndex][1],
+                                                                    user: e.target.value
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                        <label className="block mb-2 text-sm">Content Text</label>
+                                                        <input
+                                                            type="text"
+                                                            className="block w-full p-2 rounded border border-gray-500 bg-gray-800 text-white focus:outline-none"
+                                                            value={agentObj.content?.text || ""}
+                                                            onChange={(e) => {
+                                                                const updatedGroups = [...groups];
+                                                                updatedGroups[groupIndex][1] = {
+                                                                    ...updatedGroups[groupIndex][1],
+                                                                    content: { text: e.target.value }
+                                                                };
+                                                                onChange({ ...data, [key]: updatedGroups });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block mb-2 text-sm">Content Text</label>
-                                                <input
-                                                    type="text"
-                                                    className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring focus:ring-blue-500"
-                                                    value={example.content?.text || ""}
-                                                    onChange={(e) => {
-                                                        const updatedExample = {
-                                                            ...example,
-                                                            content: { text: e.target.value },
-                                                        };
-                                                        const newArray = [...data[key]];
-                                                        newArray[idx] = updatedExample;
-                                                        onChange({ ...data, [key]: newArray });
+                                            {/* Remove group button */}
+                                            <div className="flex justify-center items-center ml-2">
+                                                <button
+                                                    type="button"
+                                                    className="w-8 h-8 flex items-center justify-center text-red-300 hover:text-red-400 border border-red-500 rounded bg-gray-900"
+                                                    onClick={() => {
+                                                        // Remove the group at groupIndex
+                                                        const updatedGroups = groups.filter((_, index) => index !== groupIndex);
+                                                        onChange({ ...data, [key]: updatedGroups });
                                                     }}
-                                                />
+                                                >
+                                                    -
+                                                </button>
                                             </div>
                                         </div>
-                                        {/* Remove the whole example */}
-                                        <button
-                                            type="button"
-                                            className="px-2 py-1 text-red-400 hover:text-red-500 border border-red-500 rounded"
-                                            onClick={() => {
-                                                const newArray = data[key].filter(
-                                                    (_: any, i: number) => i !== idx
-                                                );
-                                                onChange({ ...data, [key]: newArray });
-                                            }}
-                                        >
-                                            -
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     );
                 }
+
 
                 // if (isMessageExampleKey) {
                 //     return (
@@ -397,29 +727,45 @@ function renderJsonForm(
                 const isSecretsField = path.includes("settings") && path.includes("secrets");
 
                 // Mask secrets values
+                // if (isSecretsField) {
+                //     return (
+                //         <div
+                //             key={key}
+                //             className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
+                //         >
+                //             <div className="block text-sm font-semibold text-gray-200">
+                //                 {key} (Masked)
+                //             </div>
+                //             {/* <input
+                //                 type="text"
+                //                 className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none"
+                //                 value={"*".repeat(String(data[key]).length)} // Masked value
+                //                 readOnly
+                //             /> */}
+                //             <textarea
+                //                 className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none overflow-hidden"
+                //                 style={{
+                //                     overflowWrap: "break-word",
+                //                     wordWrap: "break-word",
+                //                     whiteSpace: "pre-wrap",
+                //                 }}
+                //                 value={"*".repeat(String(data[key]).length)} // Masked value
+                //                 readOnly
+                //             />
+                //         </div>
+                //     );
+                // }
+
                 if (isSecretsField) {
                     return (
-                        <div
-                            key={key}
-                            className="p-3 rounded border border-gray-700 bg-gray-800 space-y-2"
-                        >
-                            <div className="block text-sm font-semibold text-gray-200">
+                        <div key={key} className="p-3 bg-gray-800 rounded">
+                            <div className="text-sm font-semibold text-gray-200">
                                 {key} (Masked)
                             </div>
-                            {/* <input
-                                type="text"
-                                className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none"
-                                value={"*".repeat(String(data[key]).length)} // Masked value
-                                readOnly
-                            /> */}
+                            {/* Read-only masked text area */}
                             <textarea
-                                className="block w-full p-2 rounded border border-gray-600 bg-gray-700 text-gray-500 focus:outline-none overflow-hidden"
-                                style={{
-                                    overflowWrap: "break-word",
-                                    wordWrap: "break-word",
-                                    whiteSpace: "pre-wrap",
-                                }}
-                                value={"*".repeat(String(data[key]).length)} // Masked value
+                                className="w-full bg-gray-700"
+                                value={"*".repeat(String(data[key]).length)}
                                 readOnly
                             />
                         </div>
@@ -825,6 +1171,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
             const existingFiles = type === 'pdf' ? formData.trainingPdfs : formData.trainingImages;
 
             const totalSize = calculateTotalFileSize([...existingFiles, newFile]);
+
+            console.log('totalSize', totalSize)
             if (totalSize > MAX_FILE_SIZE_MB) {
                 toast.error('Total uploaded file size exceeds 5 MB.');
                 return;
@@ -991,9 +1339,27 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         setError('');
         setSuccess(false);
 
+        const rawSecrets = {
+            TWITTER_USERNAME: username,
+            TWITTER_PASSWORD: password,
+            TWITTER_EMAIL: email,
+            TWITTER_2FA_SECRET: twofa,
+        };
+
+        function generateRoleplayContent(ticker: any) {
+            return `Roleplaying as ${ticker}: Prepare for an engaging experience where every interaction is filled with creativity and excitement!`;
+        }
+
+
         const updatedJson = {
             ...finalJson,
             plugins: [],
+            modelProvider: "zkagi",
+            system: generateRoleplayContent(finalJson.name),
+            settings: {
+                ...finalJson.settings,
+                secrets: rawSecrets,
+            },
         };
 
 
@@ -1231,6 +1597,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
             if (launchSuccessful) {
                 // Redirect to home page only if launch is successful
                 router.push('/');
+                toast.success('Agent created successfully!')
             } else {
                 toast.error('Launch failed. Please try again.');
             }
@@ -1304,10 +1671,55 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                         return content.items.map((item: any) => item.str).join(' ');
                     });
                     const texts = await Promise.all(textPromises);
+                    const fullText = texts.join('\n');
+                    console.log('PDF length', fullText.length)
                     return texts.join('\n');
                 })
             );
 
+
+            // --- SWAP API CALL ---
+            // Check if the agent type requires a swap (i.e. super-agent or micro-agent with a provided Telegram ID)
+            if ((agentType === 'super-agent' || agentType === 'micro-agent') && formData.trade && formData.trade.trim() !== '') {
+                // Determine which swap endpoint to use based on the tradeMode (for micro-agent)
+                let swapUrl = 'http://34.67.134.209/swap';
+                let swapHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+
+                if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
+                    swapUrl = 'http://34.67.134.209:3000/swap';
+                } else {
+                    // For super-agent or micro-agent in 'automation' mode, include the API key
+                    swapHeaders['x-api-key'] = 'swap123';
+                }
+
+                // Call the swap API
+                const swapResponse = await fetch(swapUrl, {
+                    method: 'POST',
+                    headers: swapHeaders,
+                    body: JSON.stringify({
+                        telegramId: formData.trade,
+                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+                    }),
+                });
+
+                if (!swapResponse.ok) {
+                    const errorData = await swapResponse.json();
+                    // Specific error handling if available
+                    if (
+                        swapResponse.status === 500 &&
+                        errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+                    ) {
+                        toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+                    } else {
+                        throw new Error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
+                    }
+                } else {
+                    toast.success('Telegram wallet setup successful!');
+                }
+            }
+
+            // --- COINLAUNCH API CALL ---
+            // Build the payload for coinLaunch using the processed PDF texts and other form data
             const apiPayload = {
                 coin_name: formData.name,
                 memecoin_address: null,
@@ -1325,76 +1737,139 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                 user_prompt: formData.prompt,
             };
 
-            // Initial API call remains the same
+            // Now call the coinLaunch API
             const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
                 body: JSON.stringify(apiPayload)
             });
 
-            if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
+            if (!response.ok) {
+                const errorMsg = `API call failed: ${response.statusText}`;
+                toast.error(errorMsg);
+                throw new Error(errorMsg);
+            }
 
             const result = await response.json();
-            toast.success(`Coin "${formData.name}" data has been successfully added!`);
+            toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
-            // Handle Telegram setup if needed (remains the same)
-            if (agentType === 'super-agent' && formData.trade) {
-                const telegramResponse = await fetch(
-                    'http://34.67.134.209/swap',
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-api-key': 'swap123',
-                        },
-                        body: JSON.stringify({
-                            telegramId: formData.trade,
-                            outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                        }),
-                    }
-                );
+            // const apiPayload = {
+            //     coin_name: formData.name,
+            //     memecoin_address: null,
+            //     ticker: formData.ticker,
+            //     description: formData.description,
+            //     urls: formData.trainingUrls,
+            //     training_data: {
+            //         pdfs: pdfTexts,
+            //         images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+            //         training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+            //     },
+            //     wallet_address: formData.walletAddress,
+            //     image_base64: formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+            //     seed: formData.seed,
+            //     user_prompt: formData.prompt,
+            // };
 
-                if (!telegramResponse.ok) {
-                    throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-                }
-                toast.success('Telegram wallet setup successful!');
-            }
+            // // Initial API call remains the same
+            // const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+            //     body: JSON.stringify(apiPayload)
+            // });
+
+            // if (!response.ok) {
+            //     const errorMsg = `API call failed: ${response.statusText}`;
+            //     toast.error(errorMsg);
+            //     throw new Error(errorMsg);
+            // }
 
 
-            if (agentType === 'micro-agent') {
-                if (formData.trade && formData.trade.trim() !== '') {
-                    if (formData.tradeMode === 'automation') {
-                        const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                telegramId: formData.trade,
-                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                            }),
-                        });
-                        if (!telegramResponse.ok) {
-                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-                        }
-                        toast.success('Telegram wallet setup successful!');
-                    } else if (formData.tradeMode === 'authentication') {
-                        const telegramResponse = await fetch('http://34.67.134.209/swap', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                telegramId: formData.trade,
-                                outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                            }),
-                        });
-                        if (!telegramResponse.ok) {
-                            throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
-                        }
-                        toast.success('Telegram wallet setup successful!');
-                    }
-                } else {
-                    console.log('No Telegram ID provided; skipping swap call.');
-                }
-            }
+            // const result = await response.json();
+            // toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
+            // // Handle Telegram setup if needed (remains the same)
+            // // Handle Telegram setup if needed
+            // if (agentType === 'super-agent' && formData.trade) {
+            //     const telegramResponse = await fetch('http://34.67.134.209/swap', {
+            //         method: 'POST',
+            //         headers: {
+            //             'Content-Type': 'application/json',
+            //             'x-api-key': 'swap123',
+            //         },
+            //         body: JSON.stringify({
+            //             telegramId: formData.trade,
+            //             outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //         }),
+            //     });
+
+            //     if (!telegramResponse.ok) {
+            //         const errorData = await telegramResponse.json();
+            //         if (
+            //             telegramResponse.status === 500 &&
+            //             errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+            //         ) {
+            //             toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+            //         } else {
+            //             throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+            //         }
+            //     } else {
+            //         toast.success('Telegram wallet setup successful!');
+            //     }
+            // }
+
+            // if (agentType === 'micro-agent') {
+            //     if (formData.trade && formData.trade.trim() !== '') {
+            //         if (formData.tradeMode === 'automation') {
+            //             const telegramResponse = await fetch('http://34.67.134.209/swap', {
+            //                 method: 'POST',
+            //                 headers: { 'Content-Type': 'application/json', 'x-api-key': 'swap123' },
+            //                 body: JSON.stringify({
+            //                     telegramId: formData.trade,
+            //                     outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //                 }),
+            //             });
+
+            //             if (!telegramResponse.ok) {
+            //                 const errorData = await telegramResponse.json();
+            //                 if (
+            //                     telegramResponse.status === 500 &&
+            //                     errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+            //                 ) {
+            //                     toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+            //                 } else {
+            //                     throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+            //                 }
+            //             } else {
+            //                 toast.success('Telegram wallet setup successful!');
+            //             }
+            //         } else if (formData.tradeMode === 'authentication') {
+            //             const telegramResponse = await fetch('http://34.67.134.209:3000/swap', {
+            //                 method: 'POST',
+            //                 headers: { 'Content-Type': 'application/json' },
+            //                 body: JSON.stringify({
+            //                     telegramId: formData.trade,
+            //                     outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //                 }),
+            //             });
+
+            //             if (!telegramResponse.ok) {
+            //                 const errorData = await telegramResponse.json();
+            //                 if (
+            //                     telegramResponse.status === 500 &&
+            //                     errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+            //                 ) {
+            //                     toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+            //                 } else {
+            //                     throw new Error(`Failed to complete Telegram wallet setup: ${telegramResponse.statusText}`);
+            //                 }
+            //             } else {
+            //                 toast.success('Telegram wallet setup successful!');
+            //             }
+            //         }
+            //     } else {
+            //         console.log('No Telegram ID provided; skipping swap call.');
+            //     }
+            // }
 
             // Store ticker info
             const tickerObject = {
@@ -1627,6 +2102,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                     if (jsonMatch && jsonMatch[1]) {
                         try {
                             const parsedJson = JSON.parse(jsonMatch[1]);
+                            const normalizedJson = normalizeMessageExamples(parsedJson);
+
                             parsedJson.clients = ["twitter"];
                             parsedJson.modelProvider = "zkagi";
                             parsedJson.plugins = [];
@@ -1859,6 +2336,61 @@ Example Output Structure:
                     try {
                         const parsedJson = JSON.parse(cleanJson);
 
+
+                        // if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                        //     // Force each item to become a plain string
+                        //     parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                        //         // If item looks like { content: { text: "some text" } }, extract it:
+                        //         if (
+                        //             item &&
+                        //             typeof item === "object" &&
+                        //             item.content &&
+                        //             typeof item.content.text === "string"
+                        //         ) {
+                        //             return item.content.text;
+                        //         }
+                        //         // If it's already a string, keep it:
+                        //         if (typeof item === "string") {
+                        //             return item;
+                        //         }
+                        //         // Otherwise, fallback to a stringified version:
+                        //         return JSON.stringify(item);
+                        //     });
+                        // }
+
+                        if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                            parsedJson.postExamples = parsedJson.postExamples.map((item: { text: any; content: { text: any; }; }) => {
+                                // Case 1: If already a string, just use it
+                                if (typeof item === "string") {
+                                    return item;
+                                }
+
+                                // Case 2: If it's an object with a direct "text" property of type string
+                                if (item && typeof item === "object" && typeof item.text === "string") {
+                                    return item.text;
+                                }
+
+                                // Case 3: If it's an object with item.content.text of type string
+                                if (item && typeof item === "object" && item.content && typeof item.content.text === "string") {
+                                    return item.content.text;
+                                }
+
+                                // Case 4: Fallback – JSON-stringify anything else
+                                return JSON.stringify(item);
+                            });
+                        }
+
+
+                        if (parsedJson.messageExamples && Array.isArray(parsedJson.messageExamples)) {
+                            const groupedMessageExamples = [];
+                            for (let i = 0; i < parsedJson.messageExamples.length; i += 2) {
+                                // Slice every two messages into an inner array
+                                groupedMessageExamples.push(parsedJson.messageExamples.slice(i, i + 2));
+                            }
+                            parsedJson.messageExamples = groupedMessageExamples;
+                        }
+
+
                         // Preserve existing secrets and clients
                         const currentSecrets = editableJson?.settings?.secrets || {};
                         const currentClients = editableJson?.clients || [];
@@ -1893,6 +2425,27 @@ Example Output Structure:
 
                 const currentSecrets = editableJson?.settings?.secrets || {};
                 const currentClients = editableJson?.clients || [];
+
+                if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
+                    // Force each item to become a plain string
+                    parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
+                        // If item looks like { content: { text: "some text" } }, extract it:
+                        if (
+                            item &&
+                            typeof item === "object" &&
+                            item.content &&
+                            typeof item.content.text === "string"
+                        ) {
+                            return item.content.text;
+                        }
+                        // If it's already a string, keep it:
+                        if (typeof item === "string") {
+                            return item;
+                        }
+                        // Otherwise, fallback to a stringified version:
+                        return JSON.stringify(item);
+                    });
+                }
 
                 parsedJson.settings = {
                     ...parsedJson.settings,
@@ -2301,9 +2854,12 @@ Example Output Structure:
                                                         <div>
                                                             <h1 className="text-xs border my-2 p-2 bg-yellow-200 text-yellow-900 rounded-lg ">
                                                                 <strong className="italic font-bold text-xs">HOW TO ACCESS 2FA SECRET </strong>
+                                                                <br />
                                                                 Log into your twitter handle &gt; Go to settings and account access &gt; Security &gt;
                                                                 <strong>2-Factor Authentication</strong> &gt; Check the Authentication App Checkbox &gt;
                                                                 Click get started &gt; Click can&apos;t scan code &gt; COPY and Paste the code in 2FA section.
+                                                                <br />
+                                                                Before running, ensure you click on <strong>Next</strong>, then open <strong>Google Authenticator app</strong> and add a new setup key, paste the above copied in the key input field then add it. This will display a 6 character password on authenticator add that on twitter field, and your authenticator setup is complete.
                                                             </h1>
 
                                                             <label className="block mb-2 text-sm">Twitter 2FA Secret</label>
@@ -2312,7 +2868,7 @@ Example Output Structure:
                                                                 name="twofa"
                                                                 onChange={handleTwitterCredentialsChange}
                                                                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                                                                placeholder="Enter Twitter Password"
+                                                                placeholder="Enter Twitter 2FA Secret"
                                                                 required
                                                             />
                                                         </div>

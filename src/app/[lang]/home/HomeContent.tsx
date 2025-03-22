@@ -428,7 +428,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             const tickerData = (tickersData || []).find((item: any) => item.ticker === ticker);
             return {
                 ticker,
-                status: tickerData ? tickerData.status === 'true' : null, // `null` if no character
+                status: tickerData?.status,
             };
         });
     }
@@ -3751,7 +3751,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             <div
                                                 className="flex-grow overflow-y-auto mb-[4px] max-h-[calc(70vh-200px)] scrollbar-track-gray-700 scrollbar-thumb-gray-500"
                                             >
-                                                {mergedTickers.length > 0 ? (
+                                                {/* {mergedTickers.length > 0 ? (
                                                     mergedTickers.map(({ ticker, status }) => (
                                                         <div
                                                             key={ticker}
@@ -3760,14 +3760,39 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                             onClick={() => toggleTickerStatus(ticker, status)}
                                                         >
                                                             <span
-                                                                className={`inline-block w-3 h-3 rounded-full ${status === null ? 'bg-gray-500' : status ? 'bg-green-500' : 'bg-red-500'
+                                                                className={`inline-block w-3 h-3 rounded-full ${status === null ? 'bg-gray-500' : status === true ? 'bg-green-500' : 'bg-red-500'
                                                                     }`}
                                                             ></span>
                                                             <span>{ticker}</span>
                                                         </div>
                                                     ))
                                                 ) : (
-                                                    <div className="text-gray-500 text-sm text-center p-4 italic"> {dictionary?.sidebar.agents.noAgents}</div>
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
+                                                )} */}
+
+                                                {mergedTickers.length > 0 ? (
+                                                    mergedTickers.map(({ ticker, status }) => {
+                                                        return (
+                                                            <div
+                                                                key={ticker}
+                                                                className={`cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center space-x-2 ${status === null ? 'cursor-not-allowed' : ''
+                                                                    }`}
+                                                                onClick={() => toggleTickerStatus(ticker, status)}
+                                                            >
+                                                                <span
+                                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
+                                                                        ? 'bg-gray-500'
+                                                                        : status === true
+                                                                            ? 'bg-green-500'
+                                                                            : 'bg-red-500'
+                                                                        }`}
+                                                                ></span>
+                                                                <span>{ticker}</span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )}
                                             </div>
                                         )}
@@ -3888,7 +3913,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                     {/* Chat messages */}
                     <div className=' flex flex-col justify-between w-full'>
-                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[650px] ">
+                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[630px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">

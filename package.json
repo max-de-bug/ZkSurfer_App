@@ -38,6 +38,8 @@
     "@solana/web3.js": "^1.95.2",
     "@tanstack/react-query": "^5.59.15",
     "@textea/json-viewer": "^4.0.1",
+    "@walletconnect/client": "^1.8.0",
+    "@walletconnect/qrcode-modal": "^1.8.0",
     "@web3-react/core": "^8.2.3",
     "@web3-react/injected-connector": "^6.0.7",
     "@web3-react/metamask": "^8.2.4",
@@ -67,7 +69,7 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "viem": "^2.21.32",
-    "wagmi": "^2.12.20",
+    "wagmi": "^2.14.15",
     "zod": "^3.24.1",
     "zustand": "^5.0.0"
   },
