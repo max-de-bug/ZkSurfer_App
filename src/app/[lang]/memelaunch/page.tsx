@@ -24,7 +24,10 @@ export interface MemeLaunchPageProps {
     dictionary: Dictionary;
 }
 
-
+interface ParsedJson {
+    postExamples: any;
+    [key: string]: any;
+}
 
 interface FormDataType {
     name: string;
@@ -2489,57 +2492,57 @@ Example Output Structure:
                     try {
                         const parsedJson = JSON.parse(cleanJson);
 
-
-                        // if (parsedJson.postExamples && Array.isArray(parsedJson.postExamples)) {
-                        //     // Force each item to become a plain string
-                        //     parsedJson.postExamples = parsedJson.postExamples.map((item: any) => {
-                        //         // If item looks like { content: { text: "some text" } }, extract it:
-                        //         if (
-                        //             item &&
-                        //             typeof item === "object" &&
-                        //             item.content &&
-                        //             typeof item.content.text === "string"
-                        //         ) {
-                        //             return item.content.text;
-                        //         }
-                        //         // If it's already a string, keep it:
-                        //         if (typeof item === "string") {
-                        //             return item;
-                        //         }
-                        //         // Otherwise, fallback to a stringified version:
-                        //         return JSON.stringify(item);
-                        //     });
-                        // }
-
                         if (parsedJson.postExamples) {
-                            // Ensure postExamples is always treated as an array.
-                            const postExamplesArray = Array.isArray(parsedJson.postExamples)
+                            // Ensure postExamples is always treated as an array
+                            const postExamplesArray: any[] = Array.isArray(parsedJson.postExamples)
                                 ? parsedJson.postExamples
                                 : [parsedJson.postExamples];
 
-                            parsedJson.postExamples = postExamplesArray.map((item: any) => {
-                                // Case 1: If the item is already a string, return it.
+                            parsedJson.postExamples = postExamplesArray.map((item: any): string => {
+                                // Case 1: If the item is already a string, return it
                                 if (typeof item === "string") {
                                     return item;
                                 }
 
-                                // Case 2: If the item has a direct "text" property.
-                                if (item && typeof item === "object" && typeof item.text === "string") {
-                                    return item.text;
+                                // Case 2: If the item has a direct "text" property
+                                if (item && typeof item === "object" && item.text !== undefined) {
+                                    return item.text?.toString() || "";
                                 }
 
-                                // Case 3: If the item has a nested content.text property.
-                                if (
-                                    item &&
-                                    typeof item === "object" &&
-                                    item.content &&
-                                    typeof item.content.text === "string"
-                                ) {
-                                    return item.content.text;
+                                // Case 3: If the item has a nested content.text property
+                                if (item && typeof item === "object" && item.content) {
+                                    if (typeof item.content === "object" && item.content.text !== undefined) {
+                                        return item.content.text?.toString() || "";
+                                    }
+                                    // If content is itself a string
+                                    if (typeof item.content === "string") {
+                                        return item.content;
+                                    }
                                 }
 
-                                // Case 4: Fallback – convert anything else to a string.
-                                return JSON.stringify(item);
+                                // Case 4: Recursively search for any property named "text"
+                                const findTextProperty = (obj: any): string => {
+                                    if (!obj || typeof obj !== "object") return "";
+
+                                    // Direct text property
+                                    if (obj.text !== undefined) return obj.text?.toString() || "";
+
+                                    // Search in all properties
+                                    for (const key in obj) {
+                                        if (typeof obj[key] === "object") {
+                                            const result = findTextProperty(obj[key]);
+                                            if (result) return result;
+                                        }
+                                    }
+
+                                    return "";
+                                };
+
+                                const textValue = findTextProperty(item);
+                                if (textValue) return textValue;
+
+                                // Case 5: Fallback - empty string
+                                return "";
                             });
                         }
 
@@ -2558,6 +2561,7 @@ Example Output Structure:
                         // Preserve existing secrets and clients
                         const currentSecrets = editableJson?.settings?.secrets || {};
                         const currentClients = editableJson?.clients || [];
+
 
                         parsedJson.settings = {
                             ...parsedJson.settings,
