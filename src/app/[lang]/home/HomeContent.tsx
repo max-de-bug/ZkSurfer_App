@@ -3475,6 +3475,35 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //     });
     // };
 
+    const handleDeleteAgent = async (ticker: string) => {
+        if (!walletAddress) {
+            toast.error("Wallet not connected");
+            return;
+        }
+        try {
+            const response = await fetch(
+                `https://zynapse.zkagi.ai/characters?wallet_address=${walletAddress}&ticker=${ticker}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'api-key': 'zk-123321'
+                    },
+                }
+            );
+            if (!response.ok) {
+                throw new Error("Failed to delete agent");
+            }
+            toast.success(`Agent ${ticker} deleted successfully`);
+            // Optionally, revalidate or update your agent data here:
+            mutate([AGENTS_API_URL, apiKey, walletAddress]);
+        } catch (error) {
+            console.error("Error deleting agent", error);
+            toast.error("Error deleting agent");
+        }
+    };
+
+
     const renderTextContent = (content?: string) => {
         if (!content) {
             return null; // or return an empty fragment: <></>
@@ -3860,7 +3889,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )} */}
 
-                                                {mergedTickers.length > 0 ? (
+                                                {/* {mergedTickers.length > 0 ? (
                                                     mergedTickers.map(({ ticker, status }) => {
                                                         return (
                                                             <div
@@ -3883,6 +3912,82 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     })
                                                 ) : (
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
+                                                )} */}
+
+                                              
+
+
+                                                {tickersData && tickersData.length > 0 ? (
+                                                    tickersData.map(({ ticker, status }: { ticker: string; status: boolean | null }) => (
+                                                        <div
+                                                            key={ticker}
+                                                            className={`relative cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center justify-between ${status === null ? 'cursor-not-allowed' : ''
+                                                                }`}
+                                                            onClick={() => toggleTickerStatus(ticker, status)}
+                                                        >
+                                                            {/* Left side: status dot + ticker name */}
+                                                            <div className="flex items-center space-x-2">
+                                                                <span
+                                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
+                                                                            ? 'bg-gray-500'
+                                                                            : status === true
+                                                                                ? 'bg-green-500'
+                                                                                : 'bg-red-500'
+                                                                        }`}
+                                                                />
+                                                                <span>{ticker}</span>
+                                                            </div>
+
+                                                            {/* Right side: three-dots (options) button */}
+                                                            <button
+                                                                type="button"
+                                                                className="rounded-full hover:bg-gray-800"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setShowAgentOptions(ticker);
+                                                                }}
+                                                            >
+                                                                <HiDotsVertical />
+                                                            </button>
+
+                                                            {/* Options popup */}
+                                                            {showAgentOptions === ticker && (
+                                                                <div
+                                                                    ref={popUpRef}
+                                                                    className="absolute right-0 mt-2 w-40 bg-[#171D3D] rounded shadow-lg z-50"
+                                                                >
+                                                                    {/* Example: Delete button */}
+                                                                    <button
+                                                                        className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setShowAgentOptions(null);
+                                                                            handleDeleteAgent(ticker);
+                                                                        }}
+                                                                    >
+                                                                        Delete Agent
+                                                                    </button>
+                                                                    {/* Example: Edit button (if needed) */}
+                                                                    {/* 
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAgentOptions(null);
+                  handleEditAgent(ticker);
+                }}
+              >
+                Edit Agent
+              </button> 
+              */}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center p-4 italic">
+                                                        No agents created yet
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -3965,6 +4070,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             </div>
                                         )}
                                     </div> */}
+
 
                                 </div>
                             </div>
