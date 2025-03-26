@@ -1439,7 +1439,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             mediaElement.onloadedmetadata = () => {
                 URL.revokeObjectURL(mediaElement.src);
-                resolve(mediaElement.duration <= 15);
+                resolve(mediaElement.duration <= 50);
             };
 
             mediaElement.onerror = () => {

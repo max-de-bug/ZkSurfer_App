@@ -67,6 +67,7 @@
 
 // export default WalletConnectPopup;
 
+"use client";
 import React from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useDisconnect } from 'wagmi';

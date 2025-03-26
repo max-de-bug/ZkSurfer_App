@@ -358,8 +358,26 @@ const KimaTransferAgent: React.FC = () => {
     const { address } = useAccount();
 
     const handleSubmit = async (e: React.FormEvent) => {
+        console.log('Form submitted!');
         e.preventDefault();
         console.log('userData',userData)
+
+         
+    if (!address) {
+        setStatus("Please connect your wallet first.");
+        return;
+    }
+
+    if (!userData.targetAddress) {
+        setStatus("Please enter a target address.");
+        return;
+    }
+
+    if (!userData.amount || Number(userData.amount) <= 0) {
+        setStatus("Please enter a valid amount.");
+        return;
+    }
+
         try {
             let txHash;
             if (userData.originChain === "Ethereum") {
