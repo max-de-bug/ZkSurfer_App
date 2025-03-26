@@ -52,6 +52,7 @@ import { useDictionary } from '@/app/i18n/context';
 import { useParams } from 'next/navigation';
 import compressImageMint from '../../../lib/compressImage';
 import { FaMusic } from 'react-icons/fa';
+import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
 
 interface GeneratedTweet {
     tweet: string;
@@ -63,7 +64,7 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'bridge';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -245,6 +246,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [thoughtsMap, setThoughtsMap] = useState<Record<number, string | null>>({});
 
     const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
+    const [showBridgePopup, setShowBridgePopup] = useState(false);
 
     // const [showAgentTypePopup, setShowAgentTypePopup] = useState(false);
     const [selectedAgentType, setSelectedAgentType] = useState<string | null>(null);
@@ -1057,7 +1059,14 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             };
             setDisplayMessages((prev) => [...prev, displayMessage]);
             setShowCommandPopup(false);
-        } else if (command === 'select') {
+        }
+        // else if (command === 'bridge') {
+        //     // When the "bridge" command is selected, show the popup
+        //     setShowBridgePopup(true);
+        //     setInputMessage('');
+        //     return;
+        // }
+        else if (command === 'select') {
             setInputMessage(`/${command} `);
             const displayMessage: Message = {
                 role: 'assistant',
@@ -1605,6 +1614,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         // Ensure these values match what your API expects (they could come from state or constants)
         formData.append('driving_multiplier', '1.0'); // or your dynamic value
         formData.append('scale', '2.3'); // or your dynamic value
+        formData.append('flag_relative_motion','false');
 
         try {
             const response = await fetch('http://47.80.4.197:30902/generate-video/', {
@@ -1674,6 +1684,17 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         //     setInputMessage(""); // Clear input
         //     return; // Skip the rest
         // }
+
+        if (!wallet.connected || !inputMessage.trim()) {
+            return;
+        }
+
+        if (inputMessage.trim() === '/bridge') {
+            setShowBridgePopup(true);
+            setInputMessage(''); // Clear the input field
+            return; // Exit early to disable further processing
+        }
+
 
         const getImageResultType = () => {
             if (inputMessage.startsWith('/image-gen')) {
@@ -3914,9 +3935,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )} */}
 
-                                              
-
-
                                                 {tickersData && tickersData.length > 0 ? (
                                                     tickersData.map(({ ticker, status }: { ticker: string; status: boolean | null }) => (
                                                         <div
@@ -3925,20 +3943,20 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                 }`}
                                                             onClick={() => toggleTickerStatus(ticker, status)}
                                                         >
-                                                            {/* Left side: status dot + ticker name */}
+
                                                             <div className="flex items-center space-x-2">
                                                                 <span
                                                                     className={`inline-block w-3 h-3 rounded-full ${status === null
-                                                                            ? 'bg-gray-500'
-                                                                            : status === true
-                                                                                ? 'bg-green-500'
-                                                                                : 'bg-red-500'
+                                                                        ? 'bg-gray-500'
+                                                                        : status === true
+                                                                            ? 'bg-green-500'
+                                                                            : 'bg-red-500'
                                                                         }`}
                                                                 />
                                                                 <span>{ticker}</span>
                                                             </div>
 
-                                                            {/* Right side: three-dots (options) button */}
+
                                                             <button
                                                                 type="button"
                                                                 className="rounded-full hover:bg-gray-800"
@@ -3950,36 +3968,37 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                 <HiDotsVertical />
                                                             </button>
 
-                                                            {/* Options popup */}
+
                                                             {showAgentOptions === ticker && (
                                                                 <div
                                                                     ref={popUpRef}
-                                                                    className="absolute right-0 mt-2 w-40 bg-[#171D3D] rounded shadow-lg z-50"
+                                                                    className="absolute right-0 top-full mt-2 w-40 h-24 pl-1 bg-[#171D3D] rounded shadow-lg z-50 flex flex-col justify-center"
                                                                 >
-                                                                    {/* Example: Delete button */}
-                                                                    <button
-                                                                        className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setShowAgentOptions(null);
-                                                                            handleDeleteAgent(ticker);
-                                                                        }}
-                                                                    >
-                                                                        Delete Agent
-                                                                    </button>
-                                                                    {/* Example: Edit button (if needed) */}
-                                                                    {/* 
-              <button
-                className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAgentOptions(null);
-                  handleEditAgent(ticker);
-                }}
-              >
-                Edit Agent
-              </button> 
-              */}
+                                                                    <div>
+                                                                        <button
+                                                                            className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setShowAgentOptions(null);
+                                                                                handleDeleteAgent(ticker);
+                                                                            }}
+                                                                        >
+                                                                            Delete Agent
+                                                                        </button>
+                                                                    </div>
+                                                                    <div>
+                                                                        <button
+                                                                            className="block w-full text-left px-4 py-2 hover:bg-[#24284E] text-white"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setShowAgentOptions(null);
+                                                                                handleEditAgent(ticker);
+                                                                            }}
+                                                                        >
+                                                                            Edit Agent
+                                                                        </button>
+                                                                    </div>
+
                                                                 </div>
                                                             )}
                                                         </div>
@@ -3989,6 +4008,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         No agents created yet
                                                     </div>
                                                 )}
+
                                             </div>
                                         )}
                                     </div>
@@ -4426,10 +4446,21 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                 ref={inputRef}
                                                 value={inputMessage}
                                                 onChange={handleInputChange}
+                                                // onKeyDown={(e) => {
+                                                //     if (e.key === 'Enter' && !e.shiftKey) {
+                                                //         e.preventDefault(); // Prevent default new line
+                                                //         handleSubmit(e); // Pass the event to handleSubmit
+                                                //     }
+                                                // }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault(); // Prevent default new line
-                                                        handleSubmit(e); // Pass the event to handleSubmit
+                                                        // Only submit if there's non-whitespace content
+                                                        if (!inputMessage.trim()) {
+                                                            e.preventDefault();
+                                                            return; // Prevent submission when empty
+                                                        }
+                                                        e.preventDefault();
+                                                        handleSubmit(e);
                                                     }
                                                 }}
                                                 placeholder={dictionary?.inputPlaceholder}
@@ -4486,6 +4517,23 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     </div>
                                                 </div>
                                             )}
+                                            {showBridgePopup && (
+                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                                                    <div className="bg-white p-4 rounded-lg relative">
+                                                        <button
+                                                            className="absolute top-2 right-2 text-black"
+                                                            onClick={() => setShowBridgePopup(false)}
+                                                        >
+                                                            ✖
+                                                        </button>
+                                                        <WalletConnectPopup
+                                                            isOpen={showBridgePopup}
+                                                            onClose={() => setShowBridgePopup(false)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
 
 
                                         </div>

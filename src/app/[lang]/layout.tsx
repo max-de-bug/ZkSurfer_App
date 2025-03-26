@@ -25,7 +25,6 @@
 //     );
 // }
 
-
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
@@ -36,6 +35,7 @@ import '../../../polyfills';
 import { Toaster } from "sonner";
 import { getDictionary } from "../i18n/dictionaries";
 import { locales, Locale } from "../i18n/settings";
+import MultiWalletProvider from '../../component/MulttiWalletProvider';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -104,7 +104,9 @@ export default async function RootLayout({
       <body className={inter.className}>
         <Providers>
           <AppWalletProvider>
-            {children}
+            <MultiWalletProvider>
+              {children}
+            </MultiWalletProvider>
             <Toaster position="top-right" richColors />
           </AppWalletProvider>
         </Providers>
