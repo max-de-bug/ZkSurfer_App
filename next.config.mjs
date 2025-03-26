@@ -94,6 +94,7 @@ const nextConfig = {
     NEXT_PUBLIC_TREASURY: process.env.NEXT_PUBLIC_TREASURY,
     NEXT_PUBLIC_CENTRAL_WALLET_SECRET:
       process.env.NEXT_PUBLIC_CENTRAL_WALLET_SECRET,
+      NEXT_PUBLIC_VIDEO_LIPSYNC:process.env.NEXT_PUBLIC_VIDEO_LIPSYNC
   },
   experimental: {
     esmExternals: "loose",

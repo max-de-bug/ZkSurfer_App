@@ -1616,8 +1616,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         formData.append('scale', '2.3'); // or your dynamic value
         formData.append('flag_relative_motion','false');
 
+        const apiUrl = process.env.NEXT_PUBLIC_VIDEO_LIPSYNC;
+
         try {
-            const response = await fetch('http://47.80.4.197:30902/generate-video/', {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData,
             });
