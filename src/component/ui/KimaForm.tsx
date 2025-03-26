@@ -359,7 +359,6 @@ const KimaTransferAgent: React.FC = () => {
     const { address } = useAccount();
 
     const handleSubmit = async (e: React.FormEvent) => {
-        console.log('Form submitted!');
         e.preventDefault();
         console.log('userData',userData)
 
@@ -474,7 +473,7 @@ const KimaTransferAgent: React.FC = () => {
 
             {/* Transfer Form */}
             <form
-                onSubmit={handleSubmit}
+                // onSubmit={handleSubmit}
                 className="bg-[#171D3D] border shadow-md rounded px-8 pt-6 pb-8 mb-4"
             >
                 {/* Origin Chain */}
@@ -602,7 +601,7 @@ const KimaTransferAgent: React.FC = () => {
                         Deduct Fee
                     </label>
                 </div>
-                <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">
+                <button type="button" onClick={handleSubmit} className="w-full bg-blue-500 text-white py-2 rounded">
                     Start Transfer
                 </button>
             </form>
