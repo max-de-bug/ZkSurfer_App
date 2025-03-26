@@ -14,6 +14,7 @@ import { BrowserProvider, Contract } from "ethers";
 import TronWeb from "tronweb";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useDisconnect } from "wagmi";
+import {toast} from 'sonner';
 
 interface UserData {
     originChain: string;
@@ -422,6 +423,7 @@ const KimaTransferAgent: React.FC = () => {
             setStatus((prev) => `${prev}\nTransfer successful! Details: ${JSON.stringify(submitResult)}`);
         } catch (error: any) {
             setStatus(`Error: ${error.message}`);
+            toast.error('error')
         }
     };
 

@@ -1589,84 +1589,165 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         return await response.json();
     };
 
+    // const processVideoLipsync = async () => {
+    //     // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
+    //     const imageFile = files.find((file) => file.file.type.startsWith('image/'));
+    //     const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
+
+    //     if (!imageFile || !audioFile) {
+    //         toast.error("Please upload one image file and one audio file.");
+    //         return;
+    //     }
+
+    //     // Validate the audio file's duration.
+    //     const isAudioValid = await validateMediaDuration(audioFile.file);
+    //     if (!isAudioValid) {
+    //         toast.error("Audio file must be 15 seconds or shorter.");
+    //         return;
+    //     }
+
+    //     const formData = new FormData();
+    //     formData.append('reference_image', imageFile.file);
+    //     formData.append('input_audio', audioFile.file);
+    //     formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
+
+    //     // Ensure these values match what your API expects (they could come from state or constants)
+    //     formData.append('driving_multiplier', '1.0'); // or your dynamic value
+    //     formData.append('scale', '2.3'); // or your dynamic value
+    //     formData.append('flag_relative_motion','false');
+
+    //     const apiUrlSync = process.env.NEXT_PUBLIC_VIDEO_LIPSYNC;
+
+    //     try {
+    //         const response = await fetch(apiUrlSync, {
+    //             method: 'POST',
+    //             body: formData,
+    //         });
+
+    //         console.log('response', response);
+
+    //         if (!response.ok) {
+    //             const errorText = await response.text();
+    //             throw new Error(errorText);
+    //         }
+
+    //         // Create a URL from the returned video blob.
+    //         const blob = await response.blob();
+    //         const videoUrl = URL.createObjectURL(blob);
+
+    //         const successMessage: Message = {
+    //             role: 'assistant',
+    //             content: (
+    //                 <div>
+    //                     <video src={videoUrl} controls className="w-full h-auto rounded-md" />
+    //                     <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
+    //                         Download Merged Video
+    //                     </a>
+    //                 </div>
+    //             ),
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, successMessage]);
+    //     } catch (error: any) {
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //     }
+
+    //     // Clear the uploaded files and reset the input.
+    //     setFiles([]);
+    //     setInputMessage('');
+    //     if (inputRef.current) {
+    //         inputRef.current.style.height = '2.5rem';
+    //     }
+    //     // Reset the option for future submissions.
+    //     setVideoLipsyncOption(null);
+    //     setShowVideoLipsyncOption(false);
+    // };
+
     const processVideoLipsync = async () => {
         // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
         const imageFile = files.find((file) => file.file.type.startsWith('image/'));
         const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
-
+      
         if (!imageFile || !audioFile) {
-            toast.error("Please upload one image file and one audio file.");
-            return;
+          toast.error("Please upload one image file and one audio file.");
+          return;
         }
-
+      
         // Validate the audio file's duration.
         const isAudioValid = await validateMediaDuration(audioFile.file);
         if (!isAudioValid) {
-            toast.error("Audio file must be 15 seconds or shorter.");
-            return;
+          toast.error("Audio file must be 15 seconds or shorter.");
+          return;
         }
-
+      
         const formData = new FormData();
         formData.append('reference_image', imageFile.file);
         formData.append('input_audio', audioFile.file);
         formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
-
-        // Ensure these values match what your API expects (they could come from state or constants)
+      
+        // Append extra parameters as required.
         formData.append('driving_multiplier', '1.0'); // or your dynamic value
         formData.append('scale', '2.3'); // or your dynamic value
-        formData.append('flag_relative_motion','false');
-
-        const apiUrl = process.env.NEXT_PUBLIC_VIDEO_LIPSYNC;
-
+        formData.append('flag_relative_motion', 'false');
+      
+        // Use the Next.js API route rather than directly calling the external URL.
+        const apiUrlSync = '/api/video-lipsync';
+      
         try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                body: formData,
-            });
-
-            console.log('response', response);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText);
-            }
-
-            // Create a URL from the returned video blob.
-            const blob = await response.blob();
-            const videoUrl = URL.createObjectURL(blob);
-
-            const successMessage: Message = {
-                role: 'assistant',
-                content: (
-                    <div>
-                        <video src={videoUrl} controls className="w-full h-auto rounded-md" />
-                        <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
-                            Download Merged Video
-                        </a>
-                    </div>
-                ),
-                type: 'text',
-            };
-            setDisplayMessages((prev) => [...prev, successMessage]);
+          const response = await fetch(apiUrlSync, {
+            method: 'POST',
+            body: formData,
+          });
+      
+          console.log('response', response);
+      
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+          }
+      
+          // Create a URL from the returned video blob.
+          const blob = await response.blob();
+          const videoUrl = URL.createObjectURL(blob);
+      
+          const successMessage: Message = {
+            role: 'assistant',
+            content: (
+              <div>
+                <video src={videoUrl} controls className="w-full h-auto rounded-md" />
+                <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
+                  Download Merged Video
+                </a>
+              </div>
+            ),
+            type: 'text',
+          };
+          setDisplayMessages((prev) => [...prev, successMessage]);
         } catch (error: any) {
-            const errorMessage: Message = {
-                role: 'assistant',
-                content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
-                type: 'text',
-            };
-            setDisplayMessages((prev) => [...prev, errorMessage]);
+          const errorMessage: Message = {
+            role: 'assistant',
+            content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
+            type: 'text',
+          };
+          setDisplayMessages((prev) => [...prev, errorMessage]);
         }
-
+      
         // Clear the uploaded files and reset the input.
         setFiles([]);
         setInputMessage('');
         if (inputRef.current) {
-            inputRef.current.style.height = '2.5rem';
+          inputRef.current.style.height = '2.5rem';
         }
         // Reset the option for future submissions.
         setVideoLipsyncOption(null);
         setShowVideoLipsyncOption(false);
-    };
+      };
+      
 
 
     const handleSubmit = async (e: React.FormEvent) => {
