@@ -1672,82 +1672,82 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
         const imageFile = files.find((file) => file.file.type.startsWith('image/'));
         const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
-      
+
         if (!imageFile || !audioFile) {
-          toast.error("Please upload one image file and one audio file.");
-          return;
+            toast.error("Please upload one image file and one audio file.");
+            return;
         }
-      
+
         // Validate the audio file's duration.
         const isAudioValid = await validateMediaDuration(audioFile.file);
         if (!isAudioValid) {
-          toast.error("Audio file must be 15 seconds or shorter.");
-          return;
+            toast.error("Audio file must be 15 seconds or shorter.");
+            return;
         }
-      
+
         const formData = new FormData();
         formData.append('reference_image', imageFile.file);
         formData.append('input_audio', audioFile.file);
         formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
-      
+
         // Append extra parameters as required.
         formData.append('driving_multiplier', '1.0'); // or your dynamic value
         formData.append('scale', '2.3'); // or your dynamic value
         formData.append('flag_relative_motion', 'false');
-      
+
         // Use the Next.js API route rather than directly calling the external URL.
         const apiUrlSync = '/api/video-lipsync';
-      
+
         try {
-          const response = await fetch(apiUrlSync, {
-            method: 'POST',
-            body: formData,
-          });
-      
-          console.log('response', response);
-      
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText);
-          }
-      
-          // Create a URL from the returned video blob.
-          const blob = await response.blob();
-          const videoUrl = URL.createObjectURL(blob);
-      
-          const successMessage: Message = {
-            role: 'assistant',
-            content: (
-              <div>
-                <video src={videoUrl} controls className="w-full h-auto rounded-md" />
-                <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
-                  Download Merged Video
-                </a>
-              </div>
-            ),
-            type: 'text',
-          };
-          setDisplayMessages((prev) => [...prev, successMessage]);
+            const response = await fetch(apiUrlSync, {
+                method: 'POST',
+                body: formData,
+            });
+
+            console.log('response', response);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+
+            // Create a URL from the returned video blob.
+            const blob = await response.blob();
+            const videoUrl = URL.createObjectURL(blob);
+
+            const successMessage: Message = {
+                role: 'assistant',
+                content: (
+                    <div>
+                        <video src={videoUrl} controls className="w-full h-auto rounded-md" />
+                        <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
+                            Download Merged Video
+                        </a>
+                    </div>
+                ),
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, successMessage]);
         } catch (error: any) {
-          const errorMessage: Message = {
-            role: 'assistant',
-            content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
-            type: 'text',
-          };
-          setDisplayMessages((prev) => [...prev, errorMessage]);
+            const errorMessage: Message = {
+                role: 'assistant',
+                content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, errorMessage]);
         }
-      
+
         // Clear the uploaded files and reset the input.
         setFiles([]);
         setInputMessage('');
         if (inputRef.current) {
-          inputRef.current.style.height = '2.5rem';
+            inputRef.current.style.height = '2.5rem';
         }
         // Reset the option for future submissions.
         setVideoLipsyncOption(null);
         setShowVideoLipsyncOption(false);
-      };
-      
+    };
+
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -2970,6 +2970,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     });
                     clearTimeout(timeoutId);
 
+                    console.log('response data', response)
+
                     if (!response.ok) throw new Error('Failed to get response');
 
                     // Create a placeholder assistant message (with empty content) that will be updated as chunks arrive.
@@ -2992,6 +2994,25 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         if (value) {
                             // Decode the chunk.
                             let chunk = decoder.decode(value, { stream: true });
+
+                    
+                            if (chunk.startsWith('data: [PROOF]')) {
+                                const proofStr = chunk.replace('data: [PROOF]', '').trim();
+                                try {
+                                    const parsedProof = JSON.parse(proofStr);
+                                    // console.log('Proof data:', parsedProof.proof);
+                                    setProofData(parsedProof.proof);
+                                } catch (err) {
+                                    console.error('Error parsing proof data:', err);
+                                    // Fallback: just log the raw string.
+                                    console.log('Proof data (raw):', proofStr);
+                                    setProofData(proofStr);
+                                }
+                                continue;
+                            }
+
+
+
                             // Optionally remove unwanted parts from the chunk.
                             chunk = chunk.replace(/data:/g, '');
                             chunk = chunk.replace(/\[PROOF\]\s*\[object Object\]/g, '');
@@ -3066,8 +3087,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         return messagesCopy;
                     });
 
-                    // Optionally update proof data if it's sent along.
-                    // setProofData(data.proof);
 
                 } catch (error) {
                     console.error('Error:', error);
@@ -3362,6 +3381,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const handleDownload = async () => {
         if (!proofData) {
             console.log('No proof data to download');
+            toast.error('No proof data to download')
             return;
         }
 
@@ -3612,7 +3632,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         if (!content) {
             return null; // or return an empty fragment: <></>
         }
-        console.log('text content');
+        // console.log('text content');
         const parts = content.split('```');
         return parts.map((part, index) => {
             if (index % 2 === 0) {

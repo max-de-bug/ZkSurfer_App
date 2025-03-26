@@ -293,7 +293,8 @@ export async function POST(request: Request) {
                         const proof = await generateProof(accumulatedResponse);
                         await verifyProof(proof);
                         // Send a final SSE event with the proof.
-                        const proofMessage = `data: [PROOF] ${proof}\n\n`;
+                        //  const proofMessage = `data: [PROOF] ${proof}\n\n`;
+                        const proofMessage = `data: [PROOF] ${JSON.stringify(proof)}\n\n`;
                         controller.enqueue(encoder.encode(proofMessage));
                     }
                 } catch (error) {
