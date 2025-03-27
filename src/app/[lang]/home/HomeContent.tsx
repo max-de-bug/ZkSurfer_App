@@ -1785,7 +1785,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     
                     console.log(`Compressed audio file size: ${wavBlob.size} bytes`);
     
-                    if (wavBlob.size > maxSizeInBytes) {
+                    if (wavBlob.size >= maxSizeInBytes) {
                         console.warn('Compression did not reduce file size sufficiently');
                         reject(new Error('Could not compress audio to required size'));
                     } else {
@@ -1806,73 +1806,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         });
     };
     
-    // const compressAudioFile = async (
-    //     file: File,
-    //     maxSizeInBytes: number = 3 * 1024 * 1024 // 3 MB
-    // ): Promise<Blob> => {
-    //     return new Promise((resolve, reject) => {
-    //         console.log(`Original audio file size: ${file.size} bytes`);
 
-    //         // If file is already under 3 MB, return as-is
-    //         if (file.size <= maxSizeInBytes) {
-    //             console.log('Audio file is already under 3 MB. No compression needed.');
-    //             return resolve(file);
-    //         }
-
-    //         // Create audio context for processing
-    //         const audioContext = new (window.AudioContext)();
-    //         const reader = new FileReader();
-
-    //         reader.onload = async (e) => {
-    //             try {
-    //                 // Decode audio data
-    //                 const arrayBuffer = e.target?.result as ArrayBuffer;
-    //                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-    //                 console.log('Audio decoding completed');
-    //                 console.log(`Original audio duration: ${audioBuffer.duration} seconds`);
-
-    //                 // Create a new AudioBuffer with reduced quality
-    //                 const offlineCtx = new OfflineAudioContext(
-    //                     audioBuffer.numberOfChannels,
-    //                     audioBuffer.length,
-    //                     audioBuffer.sampleRate
-    //                 );
-
-    //                 const source = offlineCtx.createBufferSource();
-    //                 source.buffer = audioBuffer;
-    //                 source.connect(offlineCtx.destination);
-    //                 source.start();
-
-    //                 // Render the audio
-    //                 const renderedBuffer = await offlineCtx.startRendering();
-
-    //                 // Convert to WAV
-    //                 const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
-
-    //                 console.log(`Compressed audio file size: ${wavBlob.size} bytes`);
-
-    //                 // Check if compression was successful
-    //                 if (wavBlob.size > maxSizeInBytes) {
-    //                     console.warn('Compression did not reduce file size sufficiently');
-    //                     reject(new Error('Could not compress audio to required size'));
-    //                 } else {
-    //                     resolve(wavBlob);
-    //                 }
-    //             } catch (error) {
-    //                 console.error('Audio compression error:', error);
-    //                 reject(error);
-    //             }
-    //         };
-
-    //         reader.onerror = (error) => {
-    //             console.error('File reading error:', error);
-    //             reject(error);
-    //         };
-
-    //         reader.readAsArrayBuffer(file);
-    //     });
-    // };
 
     // Utility function to convert AudioBuffer to WAV Blob
     function bufferToWave(abuffer: AudioBuffer, len: number): Blob {
