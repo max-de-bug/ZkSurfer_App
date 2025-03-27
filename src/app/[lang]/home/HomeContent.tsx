@@ -54,6 +54,7 @@ import compressImageMint from '../../../lib/compressImage';
 import { FaMusic } from 'react-icons/fa';
 import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
 
+
 interface GeneratedTweet {
     tweet: string;
     id?: number;
@@ -1723,6 +1724,212 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             reader.readAsDataURL(file);
         });
     };
+    
+    const compressAudioFile = async (
+        file: File,
+        maxSizeInBytes: number = 3 * 1024 * 1024 // 3 MB
+    ): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            console.log(`Original audio file size: ${file.size} bytes`);
+    
+            // If file is already under 3 MB, return as-is
+            if (file.size <= maxSizeInBytes) {
+                console.log('Audio file is already under 3 MB. No compression needed.');
+                return resolve(file);
+            }
+    
+            // Create an audio context for processing
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const reader = new FileReader();
+    
+            reader.onload = async (e) => {
+                try {
+                    // Decode audio data
+                    const arrayBuffer = e.target?.result as ArrayBuffer;
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+                    console.log('Audio decoding completed');
+                    console.log(`Original audio duration: ${audioBuffer.duration} seconds`);
+    
+                    // Settings for WAV encoding
+                    const bitDepth = 16; // bits per sample
+                    const channels = audioBuffer.numberOfChannels;
+                    const duration = audioBuffer.duration;
+    
+                    // Calculate target sample rate to achieve the desired file size:
+                    // targetSampleRate = (maxSizeInBytes * 8) / (duration * channels * bitDepth)
+                    let targetSampleRate = Math.floor((maxSizeInBytes * 8) / (duration * channels * bitDepth));
+                    console.log(`Calculated target sample rate: ${targetSampleRate} Hz`);
+    
+                    // Ensure the sample rate is not higher than the original and not below a reasonable minimum (e.g., 8000 Hz)
+                    const newSampleRate = Math.max(8000, Math.min(audioBuffer.sampleRate, targetSampleRate));
+                    console.log(`Using new sample rate: ${newSampleRate} Hz`);
+    
+                    // Create an OfflineAudioContext with the new sample rate
+                    const offlineCtx = new OfflineAudioContext(
+                        channels,
+                        Math.ceil(duration * newSampleRate),
+                        newSampleRate
+                    );
+    
+                    const source = offlineCtx.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(offlineCtx.destination);
+                    source.start();
+    
+                    // Render the audio at the new sample rate
+                    const renderedBuffer = await offlineCtx.startRendering();
+    
+                    // Convert the rendered buffer to WAV using a helper function
+                    const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+    
+                    console.log(`Compressed audio file size: ${wavBlob.size} bytes`);
+    
+                    if (wavBlob.size > maxSizeInBytes) {
+                        console.warn('Compression did not reduce file size sufficiently');
+                        reject(new Error('Could not compress audio to required size'));
+                    } else {
+                        resolve(wavBlob);
+                    }
+                } catch (error) {
+                    console.error('Audio compression error:', error);
+                    reject(error);
+                }
+            };
+    
+            reader.onerror = (error) => {
+                console.error('File reading error:', error);
+                reject(error);
+            };
+    
+            reader.readAsArrayBuffer(file);
+        });
+    };
+    
+    // const compressAudioFile = async (
+    //     file: File,
+    //     maxSizeInBytes: number = 3 * 1024 * 1024 // 3 MB
+    // ): Promise<Blob> => {
+    //     return new Promise((resolve, reject) => {
+    //         console.log(`Original audio file size: ${file.size} bytes`);
+
+    //         // If file is already under 3 MB, return as-is
+    //         if (file.size <= maxSizeInBytes) {
+    //             console.log('Audio file is already under 3 MB. No compression needed.');
+    //             return resolve(file);
+    //         }
+
+    //         // Create audio context for processing
+    //         const audioContext = new (window.AudioContext)();
+    //         const reader = new FileReader();
+
+    //         reader.onload = async (e) => {
+    //             try {
+    //                 // Decode audio data
+    //                 const arrayBuffer = e.target?.result as ArrayBuffer;
+    //                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    //                 console.log('Audio decoding completed');
+    //                 console.log(`Original audio duration: ${audioBuffer.duration} seconds`);
+
+    //                 // Create a new AudioBuffer with reduced quality
+    //                 const offlineCtx = new OfflineAudioContext(
+    //                     audioBuffer.numberOfChannels,
+    //                     audioBuffer.length,
+    //                     audioBuffer.sampleRate
+    //                 );
+
+    //                 const source = offlineCtx.createBufferSource();
+    //                 source.buffer = audioBuffer;
+    //                 source.connect(offlineCtx.destination);
+    //                 source.start();
+
+    //                 // Render the audio
+    //                 const renderedBuffer = await offlineCtx.startRendering();
+
+    //                 // Convert to WAV
+    //                 const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+
+    //                 console.log(`Compressed audio file size: ${wavBlob.size} bytes`);
+
+    //                 // Check if compression was successful
+    //                 if (wavBlob.size > maxSizeInBytes) {
+    //                     console.warn('Compression did not reduce file size sufficiently');
+    //                     reject(new Error('Could not compress audio to required size'));
+    //                 } else {
+    //                     resolve(wavBlob);
+    //                 }
+    //             } catch (error) {
+    //                 console.error('Audio compression error:', error);
+    //                 reject(error);
+    //             }
+    //         };
+
+    //         reader.onerror = (error) => {
+    //             console.error('File reading error:', error);
+    //             reject(error);
+    //         };
+
+    //         reader.readAsArrayBuffer(file);
+    //     });
+    // };
+
+    // Utility function to convert AudioBuffer to WAV Blob
+    function bufferToWave(abuffer: AudioBuffer, len: number): Blob {
+        const numOfChan = abuffer.numberOfChannels;
+        const length = len * numOfChan * 2 + 44;
+        const buffer = new ArrayBuffer(length);
+        const view = new DataView(buffer);
+        const channels = [];
+        let sample: number;
+        let offset = 0;
+        let pos = 0;
+
+        // Write WAV header
+        setUint32(0x46464952);                         // "RIFF"
+        setUint32(length - 8);                         // file length - 8
+        setUint32(0x45564157);                         // "WAVE"
+
+        setUint32(0x20746d66);                         // "fmt " chunk
+        setUint32(16);                                 // length = 16
+        setUint16(1);                                  // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2);                      // block-align
+        setUint16(16);                                 // 16-bit (hardcoded)
+
+        setUint32(0x61746164);                         // "data" - chunk
+        setUint32(length - pos - 4);                   // chunk length
+
+        // Write interleaved data
+        for (let i = 0; i < abuffer.numberOfChannels; i++)
+            channels.push(abuffer.getChannelData(i));
+
+        while (pos < length) {
+            for (let i = 0; i < numOfChan; i++) {
+                sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                view.setInt16(pos, sample, true);
+                pos += 2;
+            }
+            offset++;
+        }
+
+        // Create the Blob
+        return new Blob([buffer], { type: "audio/wav" });
+
+        // Utility sub-function to write big-endian values
+        function setUint16(data: number) {
+            view.setUint16(pos, data, true);
+            pos += 2;
+        }
+
+        function setUint32(data: number) {
+            view.setUint32(pos, data, true);
+            pos += 4;
+        }
+    }
 
     const processVideoLipsync = async () => {
         // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
@@ -1745,12 +1952,16 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             // Compress the image file before uploading
             const compressedImageBlob = await compressImageFile(imageFile.file);
 
+            const compressedAudioBlob = await compressAudioFile(audioFile.file);
+            console.log('compressedAudioBlob', compressedAudioBlob)
+
             // Optionally, if you need to compress audio, integrate a similar approach or use ffmpeg.js
 
             const formData = new FormData();
             // Use the compressed image blob rather than the original file
             formData.append('reference_image', compressedImageBlob, imageFile.file.name);
-            formData.append('input_audio', audioFile.file);
+            // formData.append('input_audio', audioFile.file);
+            formData.append('input_audio', compressedAudioBlob, audioFile.file.name);
             formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
 
             // Append extra parameters as required.
