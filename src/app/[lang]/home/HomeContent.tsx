@@ -1727,7 +1727,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     
     const compressAudioFile = async (
         file: File,
-        maxSizeInBytes: number = 3 * 1024 * 1024 // 3 MB
+        maxSizeInBytes: number = 3.2 * 1024 * 1024 // 3 MB
     ): Promise<Blob> => {
         return new Promise((resolve, reject) => {
             console.log(`Original audio file size: ${file.size} bytes`);
@@ -1788,6 +1788,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     if (wavBlob.size >= maxSizeInBytes) {
                         console.warn('Compression did not reduce file size sufficiently');
                         reject(new Error('Could not compress audio to required size'));
+                        toast.error('Kindly upload a different audio file, we were unable to compress your file to the desired 4MB limit.')
                     } else {
                         resolve(wavBlob);
                     }
