@@ -1668,6 +1668,62 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //     setShowVideoLipsyncOption(false);
     // };
 
+    const compressImageFile = (
+        file: File,
+        quality = 0.7,
+        maxWidth = 800,
+        maxHeight = 800
+    ): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            // Use window.Image to avoid conflict with Next.js's Image component.
+            const img = new window.Image();
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                if (event.target && event.target.result) {
+                    img.src = event.target.result as string;
+                } else {
+                    reject(new Error("Failed to load the file."));
+                }
+            };
+
+            reader.onerror = (error) => reject(error);
+
+            img.onload = () => {
+                let { width, height } = img;
+                // Calculate new dimensions while maintaining aspect ratio.
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    return reject(new Error("Canvas not supported."));
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                // Convert canvas back to Blob with specified quality.
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error("Image compression failed."));
+                        }
+                    },
+                    file.type,
+                    quality
+                );
+            };
+
+            reader.readAsDataURL(file);
+        });
+    };
+
     const processVideoLipsync = async () => {
         // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
         const imageFile = files.find((file) => file.file.type.startsWith('image/'));
@@ -1685,20 +1741,26 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('reference_image', imageFile.file);
-        formData.append('input_audio', audioFile.file);
-        formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
-
-        // Append extra parameters as required.
-        formData.append('driving_multiplier', '1.0'); // or your dynamic value
-        formData.append('scale', '2.3'); // or your dynamic value
-        formData.append('flag_relative_motion', 'false');
-
-        // Use the Next.js API route rather than directly calling the external URL.
-        const apiUrlSync = '/api/video-lipsync';
-
         try {
+            // Compress the image file before uploading
+            const compressedImageBlob = await compressImageFile(imageFile.file);
+
+            // Optionally, if you need to compress audio, integrate a similar approach or use ffmpeg.js
+
+            const formData = new FormData();
+            // Use the compressed image blob rather than the original file
+            formData.append('reference_image', compressedImageBlob, imageFile.file.name);
+            formData.append('input_audio', audioFile.file);
+            formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
+
+            // Append extra parameters as required.
+            formData.append('driving_multiplier', '1.0'); // or your dynamic value
+            formData.append('scale', '2.3'); // or your dynamic value
+            formData.append('flag_relative_motion', 'false');
+
+            // Use the Next.js API route rather than directly calling the external URL.
+            const apiUrlSync = '/api/video-lipsync';
+
             const response = await fetch(apiUrlSync, {
                 method: 'POST',
                 body: formData,
@@ -1747,6 +1809,88 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         setVideoLipsyncOption(null);
         setShowVideoLipsyncOption(false);
     };
+
+
+
+    // const processVideoLipsync = async () => {
+    //     // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
+    //     const imageFile = files.find((file) => file.file.type.startsWith('image/'));
+    //     const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
+
+    //     if (!imageFile || !audioFile) {
+    //         toast.error("Please upload one image file and one audio file.");
+    //         return;
+    //     }
+
+    //     // Validate the audio file's duration.
+    //     const isAudioValid = await validateMediaDuration(audioFile.file);
+    //     if (!isAudioValid) {
+    //         toast.error("Audio file must be 15 seconds or shorter.");
+    //         return;
+    //     }
+
+    //     const formData = new FormData();
+    //     formData.append('reference_image', imageFile.file);
+    //     formData.append('input_audio', audioFile.file);
+    //     formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
+
+    //     // Append extra parameters as required.
+    //     formData.append('driving_multiplier', '1.0'); // or your dynamic value
+    //     formData.append('scale', '2.3'); // or your dynamic value
+    //     formData.append('flag_relative_motion', 'false');
+
+    //     // Use the Next.js API route rather than directly calling the external URL.
+    //     const apiUrlSync = '/api/video-lipsync';
+
+    //     try {
+    //         const response = await fetch(apiUrlSync, {
+    //             method: 'POST',
+    //             body: formData,
+    //         });
+
+    //         console.log('response', response);
+
+    //         if (!response.ok) {
+    //             const errorText = await response.text();
+    //             throw new Error(errorText);
+    //         }
+
+    //         // Create a URL from the returned video blob.
+    //         const blob = await response.blob();
+    //         const videoUrl = URL.createObjectURL(blob);
+
+    //         const successMessage: Message = {
+    //             role: 'assistant',
+    //             content: (
+    //                 <div>
+    //                     <video src={videoUrl} controls className="w-full h-auto rounded-md" />
+    //                     <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
+    //                         Download Merged Video
+    //                     </a>
+    //                 </div>
+    //             ),
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, successMessage]);
+    //     } catch (error: any) {
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //     }
+
+    //     // Clear the uploaded files and reset the input.
+    //     setFiles([]);
+    //     setInputMessage('');
+    //     if (inputRef.current) {
+    //         inputRef.current.style.height = '2.5rem';
+    //     }
+    //     // Reset the option for future submissions.
+    //     setVideoLipsyncOption(null);
+    //     setShowVideoLipsyncOption(false);
+    // };
 
 
 
@@ -2995,7 +3139,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             // Decode the chunk.
                             let chunk = decoder.decode(value, { stream: true });
 
-                    
+
                             if (chunk.startsWith('data: [PROOF]')) {
                                 const proofStr = chunk.replace('data: [PROOF]', '').trim();
                                 try {
