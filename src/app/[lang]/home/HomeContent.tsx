@@ -2127,7 +2127,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             try {
                 // Trigger the API call.
-                const response = await fetch('http://103.231.86.182:3006/tts', {
+                const response = await fetch('/api/voice-clone', {
                     method: 'POST',
                     body: formData,
                 });
