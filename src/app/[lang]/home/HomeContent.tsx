@@ -53,6 +53,7 @@ import { useParams } from 'next/navigation';
 import compressImageMint from '../../../lib/compressImage';
 import { FaMusic } from 'react-icons/fa';
 import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
+import DownloadButton from '@/component/ui/DownloadButton';
 
 
 interface GeneratedTweet {
@@ -3700,37 +3701,37 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     // };
     const handleDownload = async () => {
         if (!proofData) {
-          console.error('No proof data available.');
-          toast.error('No proof data to download');
-          return;
+            console.error('No proof data available.');
+            toast.error('No proof data to download');
+            return;
         }
-      
+
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
+
         if (isMobile) {
-          // Create a hidden iframe that points to your API route.
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = '/api/download-proof';
-          document.body.appendChild(iframe);
-          // Clean up after a few seconds.
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 3000);
+            // Create a hidden iframe that points to your API route.
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = '/api/download-proof';
+            document.body.appendChild(iframe);
+            // Clean up after a few seconds.
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 3000);
         } else {
-          // Desktop fallback using Blob URL.
-          const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'proof.json';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+            // Desktop fallback using Blob URL.
+            const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'proof.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
-      };
-      
+    };
+
 
     const fallbackDownload = (blob: Blob) => {
         const url = URL.createObjectURL(blob);
@@ -4690,65 +4691,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                             height={20}
                                                                         />
                                                                     </button> */}
-                                                                    <button
-  className="text-white rounded-lg"
-  onClick={() => {
-    if (typeof message.content === 'string') {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      if (message.content.startsWith('data:image/')) {
-        // If it's an image, download the image.
-        if (isMobile) {
-          // Mobile: create a hidden iframe to load the image URL.
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = message.content;
-          document.body.appendChild(iframe);
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 3000);
-        } else {
-          // Desktop: use your existing downloadImage function.
-          downloadImage(message.content);
-        }
-      } else {
-        // For text content, create a Blob.
-        const blob = new Blob([message.content], { type: 'text/plain' });
-        if (isMobile) {
-          // Mobile: create a hidden iframe with the blob URL.
-          const url = URL.createObjectURL(blob);
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = url;
-          document.body.appendChild(iframe);
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(url);
-          }, 3000);
-        } else {
-          // Desktop: use anchor tag to trigger download.
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'generated.txt';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-      }
-    } else {
-      console.error('Unexpected content format');
-    }
-  }}
->
-  <Image
-    src="images/Download.svg"
-    alt="Download"
-    width={20}
-    height={20}
-  />
-</button>
+                                                                    <DownloadButton message={{ content: message.content }} />
 
                                                                     <button className="text-white rounded-lg">
                                                                         <Image
