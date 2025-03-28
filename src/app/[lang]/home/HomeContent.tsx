@@ -3698,35 +3698,39 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //         fallbackDownload(blob);
     //     }
     // };
-
     const handleDownload = async () => {
-        // If no proof data is available on the client, show an error
         if (!proofData) {
-            console.error('No proof data available.');
-            toast.error('No proof data to download');
-            return;
+          console.error('No proof data available.');
+          toast.error('No proof data to download');
+          return;
         }
-
-        // Check for mobile devices using a simple regex on the user agent
+      
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
+      
         if (isMobile) {
-            // Redirect to the API endpoint that serves the file with proper headers.
-            window.location.href = '/api/download-proof';
+          // Create a hidden iframe that points to your API route.
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = '/api/download-proof';
+          document.body.appendChild(iframe);
+          // Clean up after a few seconds.
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 3000);
         } else {
-            // For non-mobile devices, create a Blob URL and trigger download as before.
-            const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'proof.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+          // Desktop fallback using Blob URL.
+          const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'proof.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
         }
-    };
-
+      };
+      
 
     const fallbackDownload = (blob: Blob) => {
         const url = URL.createObjectURL(blob);

@@ -1835,79 +1835,159 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
             // --- SWAP API CALL ---
             // Check if the agent type requires a swap (i.e. super-agent or micro-agent with a provided Telegram ID)
-            if ((agentType === 'super-agent' || agentType === 'micro-agent') && formData.trade && formData.trade.trim() !== '') {
-                // Determine which swap endpoint to use based on the tradeMode (for micro-agent)
-                let swapUrl = 'http://34.67.134.209/swap';
-                let swapHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+            // if ((agentType === 'super-agent' || agentType === 'micro-agent') && formData.trade && formData.trade.trim() !== '') {
+            //     // Determine which swap endpoint to use based on the tradeMode (for micro-agent)
+            //     let swapUrl = 'http://34.67.134.209/swap';
+            //     let swapHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
 
-                if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
-                    swapUrl = 'http://34.67.134.209:3000/swap';
-                } else {
-                    // For super-agent or micro-agent in 'automation' mode, include the API key
-                    swapHeaders['x-api-key'] = 'swap123';
-                }
+            //     if (agentType === 'micro-agent' && formData.tradeMode === 'authentication') {
+            //         swapUrl = 'http://34.67.134.209:3000/swap';
+            //     } else {
+            //         // For super-agent or micro-agent in 'automation' mode, include the API key
+            //         swapHeaders['x-api-key'] = 'swap123';
+            //     }
 
-                // Call the swap API
-                const swapResponse = await fetch(swapUrl, {
-                    method: 'POST',
-                    headers: swapHeaders,
-                    body: JSON.stringify({
-                        telegramId: formData.trade,
-                        outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
-                    }),
-                });
+            //     // Call the swap API
+            //     const swapResponse = await fetch(swapUrl, {
+            //         method: 'POST',
+            //         headers: swapHeaders,
+            //         body: JSON.stringify({
+            //             telegramId: formData.trade,
+            //             outputMint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij',
+            //         }),
+            //     });
 
-                if (!swapResponse.ok) {
-                    const errorData = await swapResponse.json();
-                    // Specific error handling if available
-                    if (
-                        swapResponse.status === 500 &&
-                        errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
-                    ) {
-                        toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
-                    } else {
-                        throw new Error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
-                    }
-                } else {
-                    toast.success('Telegram wallet setup successful!');
-                }
-            }
+            //     if (!swapResponse.ok) {
+            //         const errorData = await swapResponse.json();
+            //         // Specific error handling if available
+            //         if (
+            //             swapResponse.status === 500 &&
+            //             errorData.error === "Swap failed: Swap failed: The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+            //         ) {
+            //             toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+            //         } else {
+            //             throw new Error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
+            //         }
+            //     } else {
+            //         toast.success('Telegram wallet setup successful!');
+            //     }
+            // }
+
+              
 
             // --- COINLAUNCH API CALL ---
             // Build the payload for coinLaunch using the processed PDF texts and other form data
-            const apiPayload = {
-                coin_name: formData.name,
-                memecoin_address: null,
-                ticker: formData.ticker,
-                description: formData.description,
-                urls: formData.trainingUrls,
-                training_data: {
-                    pdfs: pdfTexts,
-                    images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
-                    training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
-                },
-                wallet_address: formData.walletAddress,
-                image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
-                // formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
-                seed: formData.seed,
-                user_prompt: formData.prompt,
-            };
+            // const apiPayload = {
+            //     coin_name: formData.name,
+            //     memecoin_address: null,
+            //     ticker: formData.ticker,
+            //     description: formData.description,
+            //     urls: formData.trainingUrls,
+            //     training_data: {
+            //         pdfs: pdfTexts,
+            //         images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+            //         training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+            //     },
+            //     wallet_address: formData.walletAddress,
+            //     image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+            //     // formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+            //     seed: formData.seed,
+            //     user_prompt: formData.prompt,
+            // };
 
-            // Now call the coinLaunch API
-            const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
-                body: JSON.stringify(apiPayload)
-            });
+            // // Now call the coinLaunch API
+            // const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+            //     body: JSON.stringify(apiPayload)
+            // });
 
-            if (!response.ok) {
-                const errorMsg = `API call failed: ${response.statusText}`;
-                toast.error(errorMsg);
-                throw new Error(errorMsg);
-            }
+            // if (!response.ok) {
+            //     const errorMsg = `API call failed: ${response.statusText}`;
+            //     toast.error(errorMsg);
+            //     throw new Error(errorMsg);
+            // }
 
-            const result = await response.json();
-            toast.success(`Agent "${formData.name}" data has been successfully added!`);
+            // const result = await response.json();
+            // toast.success(`Agent "${formData.name}" data has been successfully added!`);
+
+            // --- SWAP API CALL ---
+if ((agentType === 'super-agent' || agentType === 'micro-agent') && formData.trade && formData.trade.trim() !== '') {
+    // Build the payload for your internal API route.
+    const swapPayload = {
+      agentType,
+      trade: formData.trade,
+      tradeMode: formData.tradeMode, // Ensure tradeMode is provided if needed.
+    };
+  
+    try {
+      // Call the internal API route for the swap
+      const swapResponse = await fetch('/api/swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(swapPayload),
+      });
+  
+      if (!swapResponse.ok) {
+        const errorData = await swapResponse.json();
+        // Specific error handling if available
+        if (
+          swapResponse.status === 500 &&
+          errorData.error ===
+            "Please add balance to your wallet; you'll find the wallet address inside your Telegram bot. Add at least 0.01 SOL as balance."
+        ) {
+          toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+        } else {
+          toast.error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
+        }
+        // Return early so that the coinLaunch API call doesn't execute
+        return;
+      } else {
+        toast.success('Telegram wallet setup successful!');
+      }
+    } catch (error: any) {
+      console.error("Error in swap API:", error);
+      toast.error("Error completing Telegram wallet setup. Please try again.");
+      // Return early on error.
+      return;
+    }
+  }
+  
+  // --- COINLAUNCH API CALL ---
+  // Build the payload for coinLaunch using the processed PDF texts and other form data
+  const apiPayload = {
+    coin_name: formData.name,
+    memecoin_address: null,
+    ticker: formData.ticker,
+    description: formData.description,
+    urls: formData.trainingUrls,
+    training_data: {
+      pdfs: pdfTexts,
+      images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+      training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+    },
+    wallet_address: formData.walletAddress,
+    image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+    seed: formData.seed,
+    user_prompt: formData.prompt,
+  };
+  
+  // Now call the coinLaunch API
+  const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+    body: JSON.stringify(apiPayload)
+  });
+  
+  if (!response.ok) {
+    const errorMsg = `API call failed: ${response.statusText}`;
+    toast.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
+  const result = await response.json();
+  toast.success(`Agent "${formData.name}" data has been successfully added!`);
+  
 
             // const apiPayload = {
             //     coin_name: formData.name,
