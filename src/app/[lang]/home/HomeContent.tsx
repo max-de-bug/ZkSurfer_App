@@ -1724,67 +1724,67 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             reader.readAsDataURL(file);
         });
     };
-    
+
     const compressAudioFile = async (
         file: File,
         maxSizeInBytes: number = 3.2 * 1024 * 1024 // 3 MB
     ): Promise<Blob> => {
         return new Promise((resolve, reject) => {
             console.log(`Original audio file size: ${file.size} bytes`);
-    
+
             // If file is already under 3 MB, return as-is
             if (file.size <= maxSizeInBytes) {
                 console.log('Audio file is already under 3 MB. No compression needed.');
                 return resolve(file);
             }
-    
+
             // Create an audio context for processing
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const reader = new FileReader();
-    
+
             reader.onload = async (e) => {
                 try {
                     // Decode audio data
                     const arrayBuffer = e.target?.result as ArrayBuffer;
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
+
                     console.log('Audio decoding completed');
                     console.log(`Original audio duration: ${audioBuffer.duration} seconds`);
-    
+
                     // Settings for WAV encoding
                     const bitDepth = 16; // bits per sample
                     const channels = audioBuffer.numberOfChannels;
                     const duration = audioBuffer.duration;
-    
+
                     // Calculate target sample rate to achieve the desired file size:
                     // targetSampleRate = (maxSizeInBytes * 8) / (duration * channels * bitDepth)
                     let targetSampleRate = Math.floor((maxSizeInBytes * 8) / (duration * channels * bitDepth));
                     console.log(`Calculated target sample rate: ${targetSampleRate} Hz`);
-    
+
                     // Ensure the sample rate is not higher than the original and not below a reasonable minimum (e.g., 8000 Hz)
                     const newSampleRate = Math.max(8000, Math.min(audioBuffer.sampleRate, targetSampleRate));
                     console.log(`Using new sample rate: ${newSampleRate} Hz`);
-    
+
                     // Create an OfflineAudioContext with the new sample rate
                     const offlineCtx = new OfflineAudioContext(
                         channels,
                         Math.ceil(duration * newSampleRate),
                         newSampleRate
                     );
-    
+
                     const source = offlineCtx.createBufferSource();
                     source.buffer = audioBuffer;
                     source.connect(offlineCtx.destination);
                     source.start();
-    
+
                     // Render the audio at the new sample rate
                     const renderedBuffer = await offlineCtx.startRendering();
-    
+
                     // Convert the rendered buffer to WAV using a helper function
                     const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
-    
+
                     console.log(`Compressed audio file size: ${wavBlob.size} bytes`);
-    
+
                     if (wavBlob.size >= maxSizeInBytes) {
                         console.warn('Compression did not reduce file size sufficiently');
                         reject(new Error('Could not compress audio to required size'));
@@ -1797,16 +1797,16 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     reject(error);
                 }
             };
-    
+
             reader.onerror = (error) => {
                 console.error('File reading error:', error);
                 reject(error);
             };
-    
+
             reader.readAsArrayBuffer(file);
         });
     };
-    
+
 
 
     // Utility function to convert AudioBuffer to WAV Blob
@@ -3668,36 +3668,65 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         }
     };
 
+    // const handleDownload = async () => {
+    //     if (!proofData) {
+    //         console.log('No proof data to download');
+    //         toast.error('No proof data to download')
+    //         return;
+    //     }
+
+    //     const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+
+    //     if (window.showSaveFilePicker) {
+    //         try {
+    //             const handle = await window.showSaveFilePicker({
+    //                 suggestedName: 'proof.json',
+    //                 types: [{
+    //                     description: 'JSON File',
+    //                     accept: { 'application/json': ['.json'] },
+    //                 }],
+    //             });
+    //             const writable = await handle.createWritable();
+    //             await writable.write(blob);
+    //             await writable.close();
+    //         } catch (err) {
+    //             console.error('Failed to save file:', err);
+    //             // Fall back to the alternative method
+    //             fallbackDownload(blob);
+    //         }
+    //     } else {
+    //         fallbackDownload(blob);
+    //     }
+    // };
+
     const handleDownload = async () => {
+        // If no proof data is available on the client, show an error
         if (!proofData) {
-            console.log('No proof data to download');
-            toast.error('No proof data to download')
+            console.error('No proof data available.');
+            toast.error('No proof data to download');
             return;
         }
 
-        const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+        // Check for mobile devices using a simple regex on the user agent
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        if (window.showSaveFilePicker) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: 'proof.json',
-                    types: [{
-                        description: 'JSON File',
-                        accept: { 'application/json': ['.json'] },
-                    }],
-                });
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-            } catch (err) {
-                console.error('Failed to save file:', err);
-                // Fall back to the alternative method
-                fallbackDownload(blob);
-            }
+        if (isMobile) {
+            // Redirect to the API endpoint that serves the file with proper headers.
+            window.location.href = '/api/download-proof';
         } else {
-            fallbackDownload(blob);
+            // For non-mobile devices, create a Blob URL and trigger download as before.
+            const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'proof.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     };
+
 
     const fallbackDownload = (blob: Blob) => {
         const url = URL.createObjectURL(blob);
@@ -4628,9 +4657,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                             if (typeof message.content === 'string') {
                                                                                 console.log('message.content', message.content)
                                                                                 // Check if the content is a data URL for an image.
-                                                                                if (message.content.startsWith('/9j/')) {
+                                                                                if (message.content.startsWith('data:image/')) {
                                                                                     // Download as an image.
-                                                                                    downloadImage(`data:image/png;base64,${message.content}`);
+                                                                                    downloadImage(`${message.content}`);
                                                                                 } else {
                                                                                     // Otherwise, treat the content as text.
                                                                                     // Create a Blob from the text content.
