@@ -3708,8 +3708,27 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+        // Attempt to use the Web Share API on mobile if available.
+        if (isMobile && navigator.share) {
+            try {
+                const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
+                const file = new File([blob], 'proof.json', { type: blob.type });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Download Proof Data',
+                        text: 'Share to save the file',
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.error('Web Share API error:', error);
+            }
+        }
+
+        // Fallback: use an iframe on mobile, or a Blob URL on desktop.
         if (isMobile) {
-            // Create a hidden iframe that points to your API route.
+            // For mobile devices without Web Share support, create a hidden iframe to trigger download via your API.
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = '/api/download-proof';
@@ -3719,7 +3738,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 document.body.removeChild(iframe);
             }, 3000);
         } else {
-            // Desktop fallback using Blob URL.
+            // Desktop fallback using a Blob URL.
             const blob = new Blob([JSON.stringify(proofData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
