@@ -418,7 +418,8 @@ const KimaTransferAgent: React.FC = () => {
         ];
         const tokenContract = new Contract(tokenAddress, tokenAbi, signer);
         const allowance = await tokenContract.allowance(userAddress, KIMA_POOLS.EVM);
-        const amountWei = BigInt(Math.floor(Number(userData.amount) * 10 ** fees.decimals));
+        // const amountWei = BigInt(Math.floor(Number(userData.amount) * 10 ** fees.decimals));
+        const amountWei = BigInt(Math.floor(fees.allowanceAmount));
 
         if (BigInt(allowance.toString()) < amountWei) {
             const tx = await tokenContract.approve(KIMA_POOLS.EVM, amountWei);

@@ -1015,7 +1015,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                                 >
                                     here
                                 </a>
-                                , open the bot, type <code>/start</code>, and you'll receive your Telegram ID.
+                                , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID.
                                 Add multiple IDs if needed.)
                             </span>
                         </label>
@@ -1172,7 +1172,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                             >
                                 here
                             </a>
-                            , open the bot, type <code>/start</code>, and you'll receive your Telegram ID.
+                            , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID.
                             You can add multiple IDs below.)
                         </span>
                     </label>
