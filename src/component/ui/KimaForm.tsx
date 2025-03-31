@@ -48,7 +48,7 @@ const CHAIN_NAMES = {
     Arbitrum: "ARB",
     Avalanche: "AVAX",
     Base: "BASE",
-    "BinanceSmartChain": "BSC",
+    "Binance Smart Chain": "BSC",
     Optimism: "OPT",
     Solana: "SOL",
     Tron: "TRX",
