@@ -46,7 +46,7 @@ interface FormDataType {
     trainingUrls: string[];
     trainingPdfs: File[];
     trainingImages: File[];
-    trade?: string;
+    trade?: string[];
     tradeMode?: 'automation' | 'authentication';
 }
 
@@ -859,8 +859,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         trainingUrls: [],
         trainingPdfs: [],
         trainingImages: [],
-        ...(agentType === 'super-agent' && { trade: '' }),
-        ...(agentType === 'micro-agent' && { tradeMode: 'automation' })
+        ...(agentType === 'super-agent' && { trade: [''] }),
+        ...(agentType === 'micro-agent' && { tradeMode: 'automation', trade: [''] })
     });
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
@@ -943,7 +943,10 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                                 Autonomous
                             </button>
                             <button
-                                onClick={() => handleTradeModeChange('authentication')}
+                                // onClick={() => handleTradeModeChange('authentication')}
+                                onClick={() =>
+                                    toast.error("Self-signed mode is curently unavailable. Please use Autonomous mode for micro-agent.")
+                                }
                                 className={`px-2 py-1 rounded-md transition-colors text-xs ${tradeMode === 'authentication'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-700 text-gray-300'
@@ -972,7 +975,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                         </button>
                     </div>
 
-                    <div className="mt-4">
+                    {/* <div className="mt-4">
                         <label className="block mb-2 text-sm">
                             Telegram ID{" "}
                             <span className="text-xs text-gray-400 italic">
@@ -997,28 +1000,159 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                             placeholder="Enter Telegram ID"
                             required
                         />
+                    </div> */}
+
+                    <div className="mt-4">
+                        <label className="block mb-2 text-sm">
+                            Telegram IDs
+                            <span className="text-xs text-gray-400 italic">
+                                (Click{' '}
+                                <a
+                                    href="https://t.me/UserBotInfoBot?start=anything"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-blue-500"
+                                >
+                                    here
+                                </a>
+                                , open the bot, type <code>/start</code>, and you'll receive your Telegram ID.
+                                Add multiple IDs if needed.)
+                            </span>
+                        </label>
+                        {Array.isArray(formData.trade) ? (
+                            formData.trade.map((id, index) => (
+                                <div key={index} className="flex items-center gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        value={id}
+                                        onChange={(e) => {
+                                            const currentIds = Array.isArray(formData.trade) ? formData.trade : [];
+                                            const newIds = [...currentIds];
+                                            newIds[index] = e.target.value;
+                                            setFormData((prev) => ({ ...prev, trade: newIds }));
+                                        }}
+                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                        placeholder="Enter Telegram ID"
+                                        required
+                                    />
+                                    {index === (Array.isArray(formData.trade) ? formData.trade.length : 0) - 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const currentIds = Array.isArray(formData.trade) ? formData.trade : [];
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    trade: [...currentIds, '']
+                                                }));
+                                            }}
+                                            className="px-2 py-1 bg-blue-500 text-white rounded"
+                                        >
+                                            +
+                                        </button>
+                                    )}
+                                    {Array.isArray(formData.trade) && formData.trade.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const currentIds = Array.isArray(formData.trade) ? formData.trade : [];
+                                                const newIds = currentIds.filter((_, i) => i !== index);
+                                                setFormData((prev) => ({ ...prev, trade: newIds }));
+                                            }}
+                                            className="px-2 py-1 bg-red-500 text-white rounded"
+                                        >
+                                            –
+                                        </button>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <input
+                                type="text"
+                                name="trade"
+                                value={typeof formData.trade === 'string' ? formData.trade : ''}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({ ...prev, trade: [e.target.value] }))
+                                }
+                                className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                placeholder="Enter Telegram ID"
+                                required
+                            />
+                        )}
                     </div>
+
+
 
                 </div>
             );
         }
 
         // Super agent section (unchanged)
+        // return (
+        //     <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
+        //         <div className="text-[#7E7CCF] font-ttfirs text-lg italic">
+        //             AiFi: Trading
+        //         </div>
+        //         <div className="text-xs text-[#B9B9B9] font-ttfirs">Authenticate your telegram to enable trading</div>
+
+
+        //         <div className="mt-4">
+        //             <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
+        //             <button
+        //                 type="button"
+        //                 onClick={() =>
+        //                     window.open('https://t.me/mpcsolanawalletbot', '_blank')
+        //                 }
+        //                 className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+        //             >
+        //                 Open Telegram Bot
+        //             </button>
+        //         </div>
+
+        //         <div className="mt-4">
+        //             <label className="block mb-2 text-sm">
+        //                 Telegram ID{" "}
+        //                 <span className="text-xs text-gray-400 italic">
+        //                     (Click{" "}
+        //                     <a
+        //                         href="https://t.me/UserBotInfoBot?start=anything"
+        //                         target="_blank"
+        //                         rel="noopener noreferrer"
+        //                         className="underline text-blue-500 "
+        //                     >
+        //                         here
+        //                     </a>
+        //                     , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID. Paste it in the input below.)
+        //                 </span>
+        //             </label>
+        //             <input
+        //                 type="text"
+        //                 name="trade"
+        //                 value={formData.trade || ''}
+        //                 onChange={handleChange}
+        //                 className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+        //                 placeholder="Enter Telegram ID"
+        //                 required
+        //             />
+        //         </div>
+        //     </div>
+        // );
+
+        // Super agent section
         return (
             <div className="mt-2 border border-[#B9B9B9] bg-[#09090B] p-4 rounded-lg">
                 <div className="text-[#7E7CCF] font-ttfirs text-lg italic">
                     AiFi: Trading
                 </div>
-                <div className="text-xs text-[#B9B9B9] font-ttfirs">Authenticate your telegram to enable trading</div>
+                <div className="text-xs text-[#B9B9B9] font-ttfirs">
+                    Authenticate your telegram to enable trading
+                </div>
 
 
                 <div className="mt-4">
                     <label className="block mb-2 text-sm">Setup Wallet via Telegram</label>
                     <button
                         type="button"
-                        onClick={() =>
-                            window.open('https://t.me/mpcsolanawalletbot', '_blank')
-                        }
+                        onClick={() => window.open("https://t.me/mpcsolanawalletbot", "_blank")}
                         className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                     >
                         Open Telegram Bot
@@ -1027,32 +1161,90 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
                 <div className="mt-4">
                     <label className="block mb-2 text-sm">
-                        Telegram ID{" "}
+                        Telegram IDs{" "}
                         <span className="text-xs text-gray-400 italic">
                             (Click{" "}
                             <a
                                 href="https://t.me/UserBotInfoBot?start=anything"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="underline text-blue-500 "
+                                className="underline text-blue-500"
                             >
                                 here
                             </a>
-                            , open the bot, type <code>/start</code>, and you&apos;ll receive your Telegram ID. Paste it in the input below.)
+                            , open the bot, type <code>/start</code>, and you'll receive your Telegram ID.
+                            You can add multiple IDs below.)
                         </span>
                     </label>
-                    <input
-                        type="text"
-                        name="trade"
-                        value={formData.trade || ''}
-                        onChange={handleChange}
-                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
-                        placeholder="Enter Telegram ID"
-                        required
-                    />
+                    {Array.isArray(formData.trade) ? (
+                        formData.trade.map((id, index) => (
+                            <div key={index} className="flex items-center gap-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={id}
+                                    onChange={(e) => {
+                                        // Ensure trade is treated as an array (using a default empty array if undefined)
+                                        const currentIds = Array.isArray(formData.trade)
+                                            ? formData.trade
+                                            : [];
+                                        const newIds = [...currentIds];
+                                        newIds[index] = e.target.value;
+                                        setFormData((prev) => ({ ...prev, trade: newIds }));
+                                    }}
+                                    className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                                    placeholder="Enter Telegram ID"
+                                    required
+                                />
+                                {/* Show "+" button on the last input */}
+                                {index === ((formData.trade?.length ?? 0) - 1) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const currentIds = Array.isArray(formData.trade) ? formData.trade : [];
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                trade: [...currentIds, ""]
+                                            }));
+                                        }}
+                                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                                    >
+                                        +
+                                    </button>
+                                )}
+                                {/* Show "-" button if more than one ID is present */}
+                                {(formData.trade?.length ?? 0) > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const currentIds = Array.isArray(formData.trade) ? formData.trade : [];
+                                            const newIds = currentIds.filter((_, i) => i !== index);
+                                            setFormData((prev) => ({ ...prev, trade: newIds }));
+                                        }}
+                                        className="px-2 py-1 bg-red-500 text-white rounded"
+                                    >
+                                        –
+                                    </button>
+                                )}
+
+                            </div>
+                        ))
+                    ) : (
+                        <input
+                            type="text"
+                            name="trade"
+                            value={typeof formData.trade === "string" ? formData.trade : ""}
+                            onChange={(e) =>
+                                setFormData((prev) => ({ ...prev, trade: [e.target.value] }))
+                            }
+                            className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                            placeholder="Enter Telegram ID"
+                            required
+                        />
+                    )}
                 </div>
             </div>
         );
+
     };
 
 
@@ -1873,7 +2065,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
             //     }
             // }
 
-              
+
 
             // --- COINLAUNCH API CALL ---
             // Build the payload for coinLaunch using the processed PDF texts and other form data
@@ -1912,82 +2104,83 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
             // toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
             // --- SWAP API CALL ---
-if ((agentType === 'super-agent' || agentType === 'micro-agent') && formData.trade && formData.trade.trim() !== '') {
-    // Build the payload for your internal API route.
-    const swapPayload = {
-      agentType,
-      trade: formData.trade,
-      tradeMode: formData.tradeMode, // Ensure tradeMode is provided if needed.
-    };
-  
-    try {
-      // Call the internal API route for the swap
-      const swapResponse = await fetch('/api/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(swapPayload),
-      });
-  
-      if (!swapResponse.ok) {
-        const errorData = await swapResponse.json();
-        // Specific error handling if available
-        if (
-          swapResponse.status === 500 &&
-          errorData.error ===
-            "Please add balance to your wallet; you'll find the wallet address inside your Telegram bot. Add at least 0.01 SOL as balance."
-        ) {
-          toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
-        } else {
-          toast.error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
-        }
-        // Return early so that the coinLaunch API call doesn't execute
-        return;
-      } else {
-        toast.success('Telegram wallet setup successful!');
-      }
-    } catch (error: any) {
-      console.error("Error in swap API:", error);
-      toast.error("Error completing Telegram wallet setup. Please try again.");
-      // Return early on error.
-      return;
-    }
-  }
-  
-  // --- COINLAUNCH API CALL ---
-  // Build the payload for coinLaunch using the processed PDF texts and other form data
-  const apiPayload = {
-    coin_name: formData.name,
-    memecoin_address: null,
-    ticker: formData.ticker,
-    description: formData.description,
-    urls: formData.trainingUrls,
-    training_data: {
-      pdfs: pdfTexts,
-      images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
-      training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
-    },
-    wallet_address: formData.walletAddress,
-    image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
-    seed: formData.seed,
-    user_prompt: formData.prompt,
-  };
-  
-  // Now call the coinLaunch API
-  const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
-    body: JSON.stringify(apiPayload)
-  });
-  
-  if (!response.ok) {
-    const errorMsg = `API call failed: ${response.statusText}`;
-    toast.error(errorMsg);
-    throw new Error(errorMsg);
-  }
-  
-  const result = await response.json();
-  toast.success(`Agent "${formData.name}" data has been successfully added!`);
-  
+            if ((agentType === 'super-agent' || agentType === 'micro-agent') && Array.isArray(formData.trade) &&
+                formData.trade.some((id) => id.trim() !== '')) {
+                // Build the payload for your internal API route.
+                const swapPayload = {
+                    agentType,
+                    telegramIds: formData.trade.filter((id) => id.trim() !== ''),
+                    tradeMode: formData.tradeMode, // Ensure tradeMode is provided if needed.
+                };
+
+                try {
+                    // Call the internal API route for the swap
+                    const swapResponse = await fetch('/api/swap', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(swapPayload),
+                    });
+
+                    if (!swapResponse.ok) {
+                        const errorData = await swapResponse.json();
+                        // Specific error handling if available
+                        if (
+                            swapResponse.status === 500 &&
+                            errorData.error ===
+                            "Please add balance to your wallet; you'll find the wallet address inside your Telegram bot. Add at least 0.01 SOL as balance."
+                        ) {
+                            toast.error("please add balance to your wallet, you'll find the wallet address inside your telegram bot, add atleast 0.01 sol as balance");
+                        } else {
+                            toast.error(`Failed to complete Telegram wallet setup: ${swapResponse.statusText}`);
+                        }
+                        // Return early so that the coinLaunch API call doesn't execute
+                        return;
+                    } else {
+                        toast.success('Telegram wallet setup successful!');
+                    }
+                } catch (error: any) {
+                    console.error("Error in swap API:", error);
+                    toast.error("Error completing Telegram wallet setup. Please try again.");
+                    // Return early on error.
+                    return;
+                }
+            }
+
+            // --- COINLAUNCH API CALL ---
+            // Build the payload for coinLaunch using the processed PDF texts and other form data
+            const apiPayload = {
+                coin_name: formData.name,
+                memecoin_address: null,
+                ticker: formData.ticker,
+                description: formData.description,
+                urls: formData.trainingUrls,
+                training_data: {
+                    pdfs: pdfTexts,
+                    images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+                    training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+                },
+                wallet_address: formData.walletAddress,
+                image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+                seed: formData.seed,
+                user_prompt: formData.prompt,
+            };
+
+            // Now call the coinLaunch API
+            const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+                body: JSON.stringify(apiPayload)
+            });
+
+            if (!response.ok) {
+                const errorMsg = `API call failed: ${response.statusText}`;
+                toast.error(errorMsg);
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json();
+            toast.success(`Agent "${formData.name}" data has been successfully added!`);
+
 
             // const apiPayload = {
             //     coin_name: formData.name,
