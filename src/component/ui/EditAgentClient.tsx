@@ -848,214 +848,217 @@ export default function EditAgentClient({
 
   return (
     <div
-  style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#171D3D'
-  }}
->
-    <main className=" text-white"  style={{
-      maxWidth: '800px', // or any desired width
-      width: '100%',
-      padding: '1rem',
-      textAlign: 'left' // ensures inner content is left-aligned
-    }}>
-      <h1>Edit Agent Data</h1>
-      {newImageUrl ? (
-        <div style={{ margin: '1rem 0' }}>
-          <img
-            src={newImageUrl}
-            alt={`Uploaded image for ${ticker}`}
-            style={{ maxWidth: '100%', borderRadius: 8 }}
-          />
-        </div>
-      ) : image_base64 || image ? (
-        <div style={{ margin: '1rem 0' }}>
-          <img
-            src={image ? `data:image/png;base64,${image}` : `data:image/png;base64,${image_base64}`}
-            alt={`Agent for ${ticker}`}
-            style={{ maxWidth: '100%', borderRadius: 8 }}
-          />
-        </div>
-      ) : (
-        <p>No image available</p>
-      )}
-      <h2 style={{ background: '#343B4F', padding: '1rem', borderRadius: 8, marginBottom: '1rem', color: '#fff' }}>
-        {ticker}
-      </h2>
-      <section style={{ background: '#343B4F', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}>
-        <h3 style={{ marginBottom: '0.5rem', color: '#fff' }}>Description</h3>
-        <div style={{ whiteSpace: 'pre-wrap', color: '#ccc' }}>
-          {description ?? 'No description found.'}
-        </div>
-      </section>
-      <section style={{ background: '#343B4F', padding: '1rem', borderRadius: 8 }}>
-        {/* URL Section */}
-        <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6, marginBottom: '1rem' }}>
-          <h4 style={{ color: '#fff', marginBottom: '0.5rem' }}>URL</h4>
-          <div style={{ marginTop: '0.5rem' }}>
-            <input
-              type="text"
-              placeholder="Enter primary URL"
-              value={url}
-              onChange={handleUrlChange}
-              disabled={primaryUrlLocked}
-              style={{ width: '100%', padding: '0.5rem' }}
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#171D3D'
+      }}
+    >
+      <main className=" text-white" style={{
+        maxWidth: '800px', // or any desired width
+        width: '100%',
+        padding: '1rem',
+        textAlign: 'left' // ensures inner content is left-aligned
+      }}>
+        <h1>Edit Agent Data</h1>
+        {newImageUrl ? (
+          <div style={{ margin: '1rem 0', textAlign: 'center' }}>
+            <img
+              src={newImageUrl}
+              alt={`Uploaded image for ${ticker}`}
+              style={{ maxWidth: '100%', borderRadius: 8 }}
             />
-            {primaryUrlLocked && <small style={{ color: '#aaa' }}>Editing disabled for pre-existing forbidden URL.</small>}
           </div>
-          {url && (
+        ) : image_base64 || image ? (
+          <div style={{ margin: '1rem 0', textAlign: 'center' }}>
+            <img
+              src={image ? `data:image/png;base64,${image}` : `data:image/png;base64,${image_base64}`}
+              alt={`Agent for ${ticker}`}
+              style={{ maxWidth: '100%', borderRadius: 8 }}
+            />
+          </div>
+        ) : (
+          <p>No image available</p>
+        )}
+
+        <h2 style={{ background: '#343B4F', padding: '1rem', borderRadius: 8, marginBottom: '1rem', color: '#fff' }}>
+          {ticker}
+        </h2>
+        <section style={{ background: '#343B4F', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}>
+          <h3 style={{ marginBottom: '0.5rem', color: '#fff' }}>Description</h3>
+          <div style={{ whiteSpace: 'pre-wrap', color: '#ccc' }}>
+            {description ?? 'No description found.'}
+          </div>
+        </section>
+        <section style={{ background: '#343B4F', padding: '1rem', borderRadius: 8 }}>
+          {/* URL Section */}
+          <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6, marginBottom: '1rem' }}>
+            <h4 style={{ color: '#fff', marginBottom: '0.5rem' }}>URL</h4>
             <div style={{ marginTop: '0.5rem' }}>
               <input
                 type="text"
-                placeholder="Enter additional URL"
-                value={additionalUrl}
-                onChange={handleAdditionalUrlChange}
+                placeholder="Enter primary URL"
+                value={url}
+                onChange={handleUrlChange}
+                disabled={primaryUrlLocked}
                 style={{ width: '100%', padding: '0.5rem' }}
               />
+              {primaryUrlLocked && <small style={{ color: '#aaa' }}>Editing disabled for pre-existing forbidden URL.</small>}
             </div>
-          )}
-        </div>
-        {/* PDF Section */}
-        <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6, marginBottom: '1rem' }}>
-          <h4 style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            PDFs
-            <label style={{ cursor: 'pointer', color: '#57b3ff' }}>
-              +
-              <input
-                type="file"
-                accept="application/pdf"
-                multiple
-                onChange={handlePdfChange}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </h4>
-          {allPdfItems.length > 0 ? (
-            <ul style={{ marginLeft: '1rem' }}>
-              {allPdfItems.map((item, idx) => (
-                <li
-                  key={idx}
-                  onClick={() => handlePdfItemClick(item)}
-                  style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                >
-                  <span style={{ marginRight: '0.5rem' }}>📄</span>
-                  {item.name}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ color: '#ccc' }}>No data</p>
-          )}
-        </div>
-        {/* Image Section */}
-        <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6 }}>
-          <h4 style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            Image
-            {!newImageFile ? (
+            {url && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <input
+                  type="text"
+                  placeholder="Enter additional URL"
+                  value={additionalUrl}
+                  onChange={handleAdditionalUrlChange}
+                  style={{ width: '100%', padding: '0.5rem' }}
+                />
+              </div>
+            )}
+          </div>
+          {/* PDF Section */}
+          <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6, marginBottom: '1rem' }}>
+            <h4 style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              PDFs
               <label style={{ cursor: 'pointer', color: '#57b3ff' }}>
                 +
-                <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  multiple
+                  onChange={handlePdfChange}
+                  style={{ display: 'none' }}
+                />
               </label>
+            </h4>
+            {allPdfItems.length > 0 ? (
+              <ul style={{ marginLeft: '1rem' }}>
+                {allPdfItems.map((item, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handlePdfItemClick(item)}
+                    style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                  >
+                    <span style={{ marginRight: '0.5rem' }}>📄</span>
+                    {item.name}
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <span style={{ color: '#aaa', cursor: 'not-allowed' }}>+</span>
-            )}
-          </h4>
-          <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem' }}>
-            {(image || image_base64) && (
-              <img
-                src={image ? `data:image/png;base64,${image}` : `data:image/png;base64,${image_base64}`}
-                alt="Existing image"
-                style={{ maxWidth: newImageUrl ? '50%' : '100%', borderRadius: 8 }}
-              />
-            )}
-            {newImageUrl && (
-              <img
-                src={newImageUrl}
-                alt="New uploaded image"
-                style={{ maxWidth: '50%', borderRadius: 8 }}
-              />
+              <p style={{ color: '#ccc' }}>No data</p>
             )}
           </div>
-          {!(image || image_base64) && !newImageUrl && <p style={{ color: '#ccc' }}>No data</p>}
-        </div>
-      </section>
-      <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-        <button
-          onClick={handleSaveChanges}
-          disabled={!isChanged || loading}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: isChanged ? '#57b3ff' : '#777',
-            border: 'none',
-            borderRadius: 4,
-            cursor: isChanged ? 'pointer' : 'not-allowed',
-            color: '#fff',
-          }}
-        >
-          {loading ? 'Uploading to knowledge base...' : 'Save Changes'}
-        </button>
-      </div>
-      {/* PDF Preview Modal */}
-      {selectedPdf && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              padding: '1rem',
-              borderRadius: 8,
-              width: '80%',
-              height: '80%',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <h3>{selectedPdf.name}</h3>
-            <div style={{ flex: 1, overflowY: 'auto', background: '#eee', padding: '1rem' }}>
-              {selectedPdf.isNew ? (
-                // Use PDF viewer for new uploads.
-                <iframe
-                  src={selectedPdf.dataUrl}
-                  title={selectedPdf.name}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                />
+          {/* Image Section */}
+          <div style={{ background: '#333', padding: '0.75rem', borderRadius: 6 }}>
+            <h4 style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              Image
+              {!newImageFile ? (
+                <label style={{ cursor: 'pointer', color: '#57b3ff' }}>
+                  +
+                  <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                </label>
               ) : (
-                // Display raw text for existing PDFs.
-                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
-                  {getPdfText(selectedPdf.dataUrl || '')}
-                </pre>
+                <span style={{ color: '#aaa', cursor: 'not-allowed' }}>+</span>
+              )}
+            </h4>
+            <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+              {(image || image_base64) && (
+                <img
+                  src={image ? `data:image/png;base64,${image}` : `data:image/png;base64,${image_base64}`}
+                  alt="Existing image"
+                  style={{ maxWidth: newImageUrl ? '50%' : '100%', borderRadius: 8 }}
+                />
+              )}
+              {newImageUrl && (
+                <img
+                  src={newImageUrl}
+                  alt="New uploaded image"
+                  style={{ maxWidth: '50%', borderRadius: 8 }}
+                />
               )}
             </div>
-            <button
-              onClick={() => setSelectedPdf(null)}
+
+            s
+            {!(image || image_base64) && !newImageUrl && <p style={{ color: '#ccc' }}>No data</p>}
+          </div>
+        </section>
+        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+          <button
+            onClick={handleSaveChanges}
+            disabled={!isChanged || loading}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: isChanged ? '#57b3ff' : '#777',
+              border: 'none',
+              borderRadius: 4,
+              cursor: isChanged ? 'pointer' : 'not-allowed',
+              color: '#fff',
+            }}
+          >
+            {loading ? 'Uploading to knowledge base...' : 'Save Changes'}
+          </button>
+        </div>
+        {/* PDF Preview Modal */}
+        {selectedPdf && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+          >
+            <div
               style={{
-                marginTop: '1rem',
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                alignSelf: 'flex-end',
+                background: '#fff',
+                padding: '1rem',
+                borderRadius: 8,
+                width: '80%',
+                height: '80%',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              Close
-            </button>
+              <h3>{selectedPdf.name}</h3>
+              <div style={{ flex: 1, overflowY: 'auto', background: '#eee', padding: '1rem' }}>
+                {selectedPdf.isNew ? (
+                  // Use PDF viewer for new uploads.
+                  <iframe
+                    src={selectedPdf.dataUrl}
+                    title={selectedPdf.name}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  // Display raw text for existing PDFs.
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
+                    {getPdfText(selectedPdf.dataUrl || '')}
+                  </pre>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedPdf(null)}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  alignSelf: 'flex-end',
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </main>
+        )}
+      </main>
     </div>
   );
 }
