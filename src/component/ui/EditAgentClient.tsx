@@ -981,7 +981,6 @@ export default function EditAgentClient({
               )}
             </div>
 
-            s
             {!(image || image_base64) && !newImageUrl && <p style={{ color: '#ccc' }}>No data</p>}
           </div>
         </section>
