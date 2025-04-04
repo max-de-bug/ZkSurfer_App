@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Connection, PublicKey, Transaction, clusterApiUrl } from "@solana/web3.js";
 import {
     getAssociatedTokenAddress,
@@ -13,6 +13,7 @@ import TronWeb from "tronweb";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useDisconnect } from "wagmi";
 import { toast } from "sonner";
+import CircularCountdown from "./CircularCountdown";
 
 interface UserData {
     originChain: string;
@@ -54,7 +55,11 @@ const CHAIN_NAMES = {
     Tron: "TRX",
 } as const;
 
-const KimaTransferAgent: React.FC = () => {
+interface KimaTransferAgentProps {
+    onTransferSuccess?: () => void; // optional callback
+}
+
+const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess }) => {
     const [userData, setUserData] = useState<UserData>({
         originChain: "Ethereum",
         targetAddress: "",
@@ -75,11 +80,49 @@ const KimaTransferAgent: React.FC = () => {
     const [chains, setChains] = useState<Chain[]>([]);
     const [userBalance, setUserBalance] = useState<string | null>(null);
     const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
-    // New state for transfer progress modal and data
+    // Transfer progress state
     const [transferLoading, setTransferLoading] = useState<boolean>(false);
     const [transferStatus, setTransferStatus] = useState<{ pullhash: string; txstatus: string } | null>(null);
+    // Countdown timer state (15 minutes = 900 seconds)
+    const [countdown, setCountdown] = useState<number>(15 * 60);
+    const totalTime = 15 * 60;
+    // A ref to store the new tab window if we open one
+    const newTabRef = useRef<Window | null>(null);
+    // Ref to ensure the timer is started only once per transfer
+    const timerStartedRef = useRef<boolean>(false);
 
-    // For disconnecting the wallet via wagmi
+    // Remove transferStatus from dependency so that the timer is not reset by polling updates
+    useEffect(() => {
+        let timer: NodeJS.Timeout | null = null;
+        if (transferLoading && !timerStartedRef.current) {
+            timerStartedRef.current = true; // mark timer as started
+            setCountdown(totalTime); // initialize countdown
+            timer = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        if (timer) clearInterval(timer);
+                        // Timer has reached 0; if the transfer is not complete, open a new tab
+                        if (!transferStatus || transferStatus.txstatus.toLowerCase() !== "completed") {
+                            // newTabRef.current = window.open(window.location.origin + "/", "_blank");
+                            toast.info("We will notify you once transaction is complete, it's taking a bit longer than expected.");
+                            setTransferLoading(false); // close the modal in the current tab
+                            disconnect();
+                            if (onTransferSuccess) onTransferSuccess();
+                        }
+                        // Reset timer ref for future transfers
+                        timerStartedRef.current = false;
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [transferLoading]); // note: transferStatus removed from dependencies
+
+    // Disconnect wallet via wagmi
     const { disconnect } = useDisconnect();
     const { address } = useAccount();
 
@@ -105,7 +148,6 @@ const KimaTransferAgent: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
         const newValue = type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
-
         if (name === "targetAddress" && value) {
             if (userData.targetChain === "Solana" && !isValidSolanaAddress(value)) {
                 setStatus("Error: Target address must be a valid Solana address.");
@@ -119,7 +161,6 @@ const KimaTransferAgent: React.FC = () => {
                 return;
             }
         }
-
         setUserData((prev) => ({ ...prev, [name]: newValue }));
         setStatus("");
     };
@@ -487,9 +528,10 @@ const KimaTransferAgent: React.FC = () => {
         return { transactionHash: tx, msgResponses: [] };
     };
 
+
     // Polling function for transaction status
     const pollTransactionStatus = async (txId: string) => {
-        console.log('txId', txId)
+        console.log("txId", txId);
         try {
             const response = await fetch(`/api/kima/tx/${txId}/status`, {
                 headers: { accept: "application/json" },
@@ -498,14 +540,19 @@ const KimaTransferAgent: React.FC = () => {
             if (data && data.data && data.data.transaction_data) {
                 const { pullhash, txstatus } = data.data.transaction_data;
                 setTransferStatus({ pullhash, txstatus });
-                // Continue polling if not completed
                 if (txstatus.toLowerCase() !== "completed") {
-                    setTimeout(() => pollTransactionStatus(txId), 15000); // poll every 15 sec
+                    // Continue polling every 15 seconds
+                    setTimeout(() => pollTransactionStatus(txId), 15000);
                 } else {
                     toast.success("Transfer successful");
+                    // If a new tab was opened, close it and open a new one with the '/' route
+                    if (newTabRef.current && !newTabRef.current.closed) {
+                        newTabRef.current.close();
+                    }
+                    // window.open(window.location.origin + "/", "_blank");
                     setTransferLoading(false);
-                    // Optionally, disconnect wallet to force reconnect next time
                     disconnect();
+                    if (onTransferSuccess) onTransferSuccess();
                 }
             }
         } catch (error) {
@@ -513,11 +560,9 @@ const KimaTransferAgent: React.FC = () => {
         }
     };
 
-    // Modified handleSubmit to disable UI, show loader and trigger status polling
+    // Modified handleSubmit to start the transfer process and initiate polling
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("userData", userData);
-
         if (!address) {
             setStatus("Please connect your wallet first.");
             return;
@@ -530,9 +575,8 @@ const KimaTransferAgent: React.FC = () => {
             setStatus("Please enter a valid amount.");
             return;
         }
-
         try {
-            // Disable interactions and show transfer modal
+            // Start transfer and lock the timer
             setTransferLoading(true);
             setStatus("");
 
@@ -546,12 +590,11 @@ const KimaTransferAgent: React.FC = () => {
             } else {
                 throw new Error("Unsupported origin chain.");
             }
-
-            // Prepare and send the submit request
+            // Prepare and send the submit request (same as before)
             const tokenAddress = getTokenAddress();
             if (!tokenAddress) throw new Error("Token address not found.");
             const submitBody = {
-                originAddress: address, // Connected wallet address
+                originAddress: address,
                 originChain: CHAIN_NAMES[userData.originChain as keyof typeof CHAIN_NAMES],
                 targetAddress: userData.targetAddress,
                 targetChain: CHAIN_NAMES[userData.targetChain as keyof typeof CHAIN_NAMES],
@@ -570,8 +613,6 @@ const KimaTransferAgent: React.FC = () => {
             });
             if (!submitResponse.ok) throw new Error("Failed to submit transfer.");
             const submitResult = await submitResponse.json();
-            console.log("Submit result:", submitResult);
-
             let txId: string | undefined;
             if (submitResult && Array.isArray(submitResult.events)) {
                 for (const event of submitResult.events) {
@@ -587,7 +628,7 @@ const KimaTransferAgent: React.FC = () => {
                 }
             }
             if (!txId) throw new Error("Transaction ID not found in submit result.");
-            // Now immediately call the status API using the extracted txId
+            // Begin polling transaction status
             pollTransactionStatus(txId);
         } catch (error: any) {
             setStatus(`Error: ${error.message}`);
@@ -850,7 +891,7 @@ const KimaTransferAgent: React.FC = () => {
             {/* Transfer Progress Modal */}
             {transferLoading && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-75">
-                    <div className="p-6 bg-gray-800 rounded text-center">
+                    <div className="p-6 bg-gray-800 rounded text-center relative">
                         <p className="text-white text-lg mb-4">Transferring...</p>
                         {transferStatus && (
                             <>
@@ -858,9 +899,12 @@ const KimaTransferAgent: React.FC = () => {
                                 <p className="text-white">Transaction Status: {transferStatus.txstatus}</p>
                             </>
                         )}
-                        <p className="text-white mt-4">
-                            The transfer will take approx. 15 minutes to complete.
-                        </p>
+                        <div className="mt-4 flex flex-col items-center">
+                            <CircularCountdown countdown={countdown} totalTime={totalTime} />
+                            <p className="text-white mt-2">
+                                The transfer will take approx. 15 minutes to complete.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

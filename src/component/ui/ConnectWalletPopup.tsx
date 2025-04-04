@@ -105,17 +105,37 @@ const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({ isOpen, onClose
                 </div>
 
                 {/* RainbowKit’s Custom Connect Button */}
+                {/* <ConnectButton.Custom>
+                    {({ account, chain, openConnectModal, mounted }) => {
+                        if (mounted && account && chain) {
+                            return (
+                                <div className="space-y-2">
+                      
+                                    <KimaTransferAgent />
+                                </div>
+                            );
+                        }
+               
+                        return (
+                            <button
+                                onClick={openConnectModal}
+                                className="border bg-transparent text-white px-4 py-2 rounded transition-colors w-full"
+                            >
+                                Connect Wallet
+                            </button>
+                        );
+                    }}
+                </ConnectButton.Custom> */}
                 <ConnectButton.Custom>
                     {({ account, chain, openConnectModal, mounted }) => {
                         if (mounted && account && chain) {
                             return (
                                 <div className="space-y-2">
-                                    {/* Insert the KimaTransferAgent form */}
-                                    <KimaTransferAgent />
+                                    {/* Pass the callback down */}
+                                    <KimaTransferAgent onTransferSuccess={onClose} />
                                 </div>
                             );
                         }
-                        // Otherwise, show a connect wallet button
                         return (
                             <button
                                 onClick={openConnectModal}
@@ -126,6 +146,7 @@ const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({ isOpen, onClose
                         );
                     }}
                 </ConnectButton.Custom>
+
             </div>
         </div>
     );
