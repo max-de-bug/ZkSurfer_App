@@ -168,12 +168,8 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     // Fetch chains from API
     useEffect(() => {
         const fetchChains = async () => {
-            const chainUrl = process.env.NEXT_PUBLIC_CHAIN;
-            if (!chainUrl) {
-                throw new Error("NEXT_PUBLIC_CHAIN is not defined");
-            }
             try {
-                const response = await fetch(chainUrl, {
+                const response = await fetch('/api/chains', {
                     headers: { accept: "application/json" },
                 });
                 const data = await response.json();
