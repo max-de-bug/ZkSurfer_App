@@ -23,7 +23,7 @@
     "toggleSidebar": "Toggle Sidebar",
     "editProfile": "Edit Profile"
   },
-  "inputPlaceholder":"Message ZkTerminal",
+  "inputPlaceholder":"Message ZkTerminal or type / to invoke command pallete",
   "commands": [
     {
       "label": "Create Agent",

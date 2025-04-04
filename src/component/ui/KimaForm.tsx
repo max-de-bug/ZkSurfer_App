@@ -106,7 +106,7 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
                             // newTabRef.current = window.open(window.location.origin + "/", "_blank");
                             toast.info("We will notify you once transaction is complete, it's taking a bit longer than expected.");
                             setTransferLoading(false); // close the modal in the current tab
-                            disconnect();
+                            // disconnect();
                             if (onTransferSuccess) onTransferSuccess();
                         }
                         // Reset timer ref for future transfers
@@ -168,8 +168,12 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     // Fetch chains from API
     useEffect(() => {
         const fetchChains = async () => {
+            const chainUrl = process.env.NEXT_PUBLIC_CHAIN;
+            if (!chainUrl) {
+                throw new Error("NEXT_PUBLIC_CHAIN is not defined");
+            }
             try {
-                const response = await fetch("http://103.231.86.182:3001/chains/chain", {
+                const response = await fetch(chainUrl, {
                     headers: { accept: "application/json" },
                 });
                 const data = await response.json();

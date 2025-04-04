@@ -99,6 +99,7 @@ const nextConfig = {
     NEXT_PUBLIC_SWAP_AUTOMATE: process.env.NEXT_PUBLIC_SWAP_AUTOMATE,
     NEXT_PUBLIC_SWAP_AUTHENTICATE: process.env.NEXT_PUBLIC_SWAP_AUTHENTICATE,
     NEXT_PUBLIC_KIMA_API: process.env.NEXT_PUBLIC_KIMA_API,
+    NEXT_PUBLIC_CHAIN: process.env.NEXT_PUBLIC_CHAIN,
   },
   experimental: {
     esmExternals: "loose",
