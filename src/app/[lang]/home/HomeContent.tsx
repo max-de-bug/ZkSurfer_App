@@ -4784,7 +4784,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             )}
                         </div>
 
-                        <footer className="w-full py-6 flex justify-center px-2 sticky">
+                        <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
                             <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
                                 <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
                                     {files.length > 0 && (
