@@ -4085,7 +4085,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             {/* <PresaleBanner walletConnected={connected} walletAddress={walletAddress} /> */}
 
             {/* Main content */}
-            <div className={`flex-1 flex flex-col bg-[#08121f] `}>
+            <div className={`flex-1 flex flex-col bg-[#08121f] h-screen`}>
                 {/* pt-16 md:pt-10 */}
                 {/* Header code remains the same */}
 
@@ -4111,31 +4111,81 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     </div>
                 </header> */}
 
-                {isMobile ? (
-                    // Mobile header: two groups—left and right
-                    <div
-                        className="w-full bg-[#08121f] px-4 py-2"
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        <div className="flex items-center justify-between">
-                            {/* Left group: menu button and logo */}
-                            <div className="flex items-center">
-                                <button onClick={toggleMenu} className="text-white">
-                                    <BiMenuAltLeft size={28} />
-                                </button>
-                                <div className="px-2">
+                <div className="sticky top-0 z-50">
+                    {isMobile ? (
+                        // Mobile header: two groups—left and right
+                        <div
+                            className="w-full bg-[#08121f] px-4 py-2"
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                        >
+                            <div className="flex items-center justify-between">
+                                {/* Left group: menu button and logo */}
+                                <div className="flex items-center">
+                                    <button onClick={toggleMenu} className="text-white">
+                                        <BiMenuAltLeft size={28} />
+                                    </button>
+                                    <div className="px-2">
+                                        <Image
+                                            src="/images/tiger.svg"
+                                            alt="Logo"
+                                            width={30}
+                                            height={30}
+                                        />
+                                    </div>
+                                </div>
+                                {/* Right group: wallet connect and dropdown */}
+                                <div className="flex items-center gap-2">
+                                    <CustomWalletButton />
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsOpen(!isOpen)}
+                                            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
+                                        >
+                                            {selectedModel} ▼
+                                        </button>
+                                        {isOpen && (
+                                            <div className="absolute right-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                                <button
+                                                    className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                    onClick={() => {
+                                                        setSelectedModel("DeepSeek");
+                                                        setIsOpen(false);
+                                                    }}
+                                                >
+                                                    DeepSeek
+                                                </button>
+                                                <button
+                                                    className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                    onClick={() => {
+                                                        setSelectedModel("Mistral");
+                                                        setIsOpen(false);
+                                                    }}
+                                                >
+                                                    Mistral
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        // Desktop header: your original one (or adjusted as needed)
+                        <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
+                            <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
+                                <div>
                                     <Image
                                         src="/images/tiger.svg"
-                                        alt="Logo"
+                                        alt="logo"
                                         width={30}
                                         height={30}
                                     />
                                 </div>
+                                <div className="font-ttfirs text-xl">ZkTerminal</div>
                             </div>
-                            {/* Right group: wallet connect and dropdown */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center space-x-4">
                                 <CustomWalletButton />
                                 <div className="relative">
                                     <button
@@ -4145,7 +4195,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                         {selectedModel} ▼
                                     </button>
                                     {isOpen && (
-                                        <div className="absolute right-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                        <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
                                             <button
                                                 className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
                                                 onClick={() => {
@@ -4168,58 +4218,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                ) : (
-                    // Desktop header: your original one (or adjusted as needed)
-                    <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
-                        <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
-                            <div>
-                                <Image
-                                    src="/images/tiger.svg"
-                                    alt="logo"
-                                    width={30}
-                                    height={30}
-                                />
-                            </div>
-                            <div className="font-ttfirs text-xl">ZkTerminal</div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                            <CustomWalletButton />
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsOpen(!isOpen)}
-                                    className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
-                                >
-                                    {selectedModel} ▼
-                                </button>
-                                {isOpen && (
-                                    <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
-                                        <button
-                                            className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                            onClick={() => {
-                                                setSelectedModel("DeepSeek");
-                                                setIsOpen(false);
-                                            }}
-                                        >
-                                            DeepSeek
-                                        </button>
-                                        <button
-                                            className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                            onClick={() => {
-                                                setSelectedModel("Mistral");
-                                                setIsOpen(false);
-                                            }}
-                                        >
-                                            Mistral
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </header>
-                )}
-
+                        </header>
+                    )}
+                </div>
 
 
                 {/* content post header */}
@@ -4783,7 +4784,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             )}
                         </div>
 
-                        <footer className="w-full py-6 flex justify-center px-2">
+                        <footer className="w-full py-6 flex justify-center px-2 sticky">
                             <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
                                 <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
                                     {files.length > 0 && (
