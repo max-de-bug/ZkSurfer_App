@@ -250,6 +250,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
     const [showBridgePopup, setShowBridgePopup] = useState(false);
 
+    const [convertProgress, setConvertProgress] = useState(0);
+
     // const [showAgentTypePopup, setShowAgentTypePopup] = useState(false);
     const [selectedAgentType, setSelectedAgentType] = useState<string | null>(null);
 
@@ -318,12 +320,56 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const [showImgToVideoPopup, setShowImgToVideoPopup] = useState(false);
+    const [wan2Choice, setWan2Choice] = useState<'with' | 'without' | null>(null);
+
+    const [showVideoLengthModal, setShowVideoLengthModal] = useState(false);
+    const [videoLength, setVideoLength] = useState('120'); // default or user-chosen
+
+    // For storing the returned WebP URL (with Wan2.0).
+    const [generatedWebpUrl, setGeneratedWebpUrl] = useState<string | null>(null);
+
+    // For controlling the conversion to MP4 on download:
+    const [ffmpeg, setFfmpeg] = useState<any>(null);
+    const [isConverting, setIsConverting] = useState(false);
+    const [convertedVideoUrl, setConvertedVideoUrl] = useState<string | null>(null);
+
+
     const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
+
+
+    // Load ffmpeg dynamically on the client side
+    // useEffect(() => {
+    //     (async () => {
+    //         try {
+    //             const ffmpegModule = await import('@ffmpeg/ffmpeg');
+    //             const { createFFmpeg } = ffmpegModule;
+    //             const ffmpegInstance = createFFmpeg({ log: true });
+    //             await ffmpegInstance.load();
+    //             setFfmpeg(ffmpegInstance);
+    //         } catch (err) {
+    //             console.error('Failed to load ffmpeg:', err);
+    //         }
+    //     })();
+    // }, []);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+                const ffmpegInstance = new FFmpeg();
+                await ffmpegInstance.load();
+                setFfmpeg(ffmpegInstance);
+            } catch (err) {
+                console.error('Failed to load ffmpeg:', err);
+            }
+        })();
+    }, []);
 
 
     // Returns the target language code if the browser language is one of the supported ones.
@@ -873,6 +919,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             setShowVideoLipsyncOption(false);
         }
 
+        if (value.startsWith('/img-to-video ') && !wan2Choice) {
+            setShowImgToVideoPopup(true);
+        } else {
+            setShowImgToVideoPopup(false);
+        }
+
         // Show AgentTypePopup if "/create-agent" is detected
         if (value === '/create-agent') {
             // setShowAgentTypePopup(true);
@@ -1041,7 +1093,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             setInputMessage('/video-lipsync ');
             setShowCommandPopup(false);
             setShowVideoLipsyncOption(true);
-        } else if (command === 'UGC') {
+        } else if (command === 'img-to-video') {
+            // Set the input field and trigger the popup regardless of how the command was set.
+            setInputMessage('/img-to-video ');
+            setShowCommandPopup(false);
+            setShowImgToVideoPopup(true);
+        }
+        else if (command === 'UGC') {
             setInputMessage(`/ugc `); // Add `/ugc` to the input field
             const displayMessage: Message = {
                 role: 'assistant',
@@ -2168,75 +2226,155 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             return;
         }
 
-
         if (fullMessage.startsWith('/img-to-video')) {
-            const userInput = fullMessage.replace('/img-to-video', '').trim();
-            if (files.length !== 1) {
-                toast.error('Please upload exactly one image before using /img-to-video.');
-                return;
-            }
-            if (!userInput) {
-                toast.error('Please provide a prompt after the /img-to-video command.');
-                return;
-            }
-            const file = files[0].file;
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('prompt', userInput);
-            formData.append('seed', '-1');
-            formData.append('fps', '24');
-            formData.append('w', '720');
-            formData.append('h', '720');
-            formData.append('video_length', '120');
-            formData.append('img_edge_ratio', '1');
-
-            try {
-                const response = await fetch('/api/imgToVideo', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (response.ok) {
-                    // 4. Get the video blob
-                    const blob = await response.blob();
-                    const videoUrl = window.URL.createObjectURL(blob);
-
-                    const successMessage: Message = {
-                        role: 'assistant',
-                        content: (
-                            <div>
-                                <video src={videoUrl} controls className="w-full rounded-lg" />
-                                <a
-                                    href={videoUrl}
-                                    download="output_video.mp4"
-                                    className="text-blue-500 underline"
-                                >
-                                    Download Video
-                                </a>
-                            </div>
-                        ),
-                        type: 'text',
-                    };
-
-                    setDisplayMessages((prev) => [...prev, successMessage]);
-                } else {
-                    const errorResponse = await response.json();
-                    toast.error(
-                        errorResponse.error || 'Failed to generate video. Please check your input.'
-                    );
+            if (wan2Choice === 'without') {
+                // Existing logic for "without Wan2.0"
+                const userInput = fullMessage.replace('/img-to-video', '').trim();
+                if (files.length !== 1) {
+                    toast.error('Please upload exactly one image before using /img-to-video.');
+                    return;
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                toast.error('An error occurred while generating the video.');
-            }
+                if (!userInput) {
+                    toast.error('Please provide a prompt after the /img-to-video command.');
+                    return;
+                }
+                const file = files[0].file;
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('prompt', userInput);
+                formData.append('seed', '-1');
+                formData.append('fps', '24');
+                formData.append('w', '720');
+                formData.append('h', '720');
+                formData.append('video_length', '120');
+                formData.append('img_edge_ratio', '1');
 
-            setInputMessage('');
-            if (inputRef.current) {
-                inputRef.current.style.height = '2.5rem';
+                try {
+                    const response = await fetch('/api/imgToVideo', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const videoUrl = window.URL.createObjectURL(blob);
+
+                        const successMessage: Message = {
+                            role: 'assistant',
+                            content: (
+                                <div>
+                                    <video src={videoUrl} controls className="w-full rounded-lg" />
+                                    <a
+                                        href={videoUrl}
+                                        download="output_video.mp4"
+                                        className="text-blue-500 underline"
+                                    >
+                                        Download Video
+                                    </a>
+                                </div>
+                            ),
+                            type: 'text',
+                        };
+
+                        setDisplayMessages((prev) => [...prev, successMessage]);
+                    } else {
+                        const errorResponse = await response.json();
+                        toast.error(
+                            errorResponse.error || 'Failed to generate video. Please check your input.'
+                        );
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    toast.error('An error occurred while generating the video.');
+                }
+
+                setInputMessage('');
+                if (inputRef.current) {
+                    inputRef.current.style.height = '2.5rem';
+                }
+                setFiles([]);
+                return;
+            } else if (wan2Choice === 'with') {
+                // Instead of executing the API call now, show the modal for additional input.
+                setShowVideoLengthModal(true);
+                return;
+            } else {
+                // Optionally handle the case when wan2Choice is not set.
+                toast.error('Please select a Wan2.0 mode before proceeding.');
+                return;
             }
-            setFiles([]);
-            return;
         }
+
+
+
+        // if (fullMessage.startsWith('/img-to-video')) {
+        //     const userInput = fullMessage.replace('/img-to-video', '').trim();
+        //     if (files.length !== 1) {
+        //         toast.error('Please upload exactly one image before using /img-to-video.');
+        //         return;
+        //     }
+        //     if (!userInput) {
+        //         toast.error('Please provide a prompt after the /img-to-video command.');
+        //         return;
+        //     }
+        //     const file = files[0].file;
+        //     const formData = new FormData();
+        //     formData.append('image', file);
+        //     formData.append('prompt', userInput);
+        //     formData.append('seed', '-1');
+        //     formData.append('fps', '24');
+        //     formData.append('w', '720');
+        //     formData.append('h', '720');
+        //     formData.append('video_length', '120');
+        //     formData.append('img_edge_ratio', '1');
+
+        //     try {
+        //         const response = await fetch('/api/imgToVideo', {
+        //             method: 'POST',
+        //             body: formData,
+        //         });
+
+        //         if (response.ok) {
+        //             // 4. Get the video blob
+        //             const blob = await response.blob();
+        //             const videoUrl = window.URL.createObjectURL(blob);
+
+        //             const successMessage: Message = {
+        //                 role: 'assistant',
+        //                 content: (
+        //                     <div>
+        //                         <video src={videoUrl} controls className="w-full rounded-lg" />
+        //                         <a
+        //                             href={videoUrl}
+        //                             download="output_video.mp4"
+        //                             className="text-blue-500 underline"
+        //                         >
+        //                             Download Video
+        //                         </a>
+        //                     </div>
+        //                 ),
+        //                 type: 'text',
+        //             };
+
+        //             setDisplayMessages((prev) => [...prev, successMessage]);
+        //         } else {
+        //             const errorResponse = await response.json();
+        //             toast.error(
+        //                 errorResponse.error || 'Failed to generate video. Please check your input.'
+        //             );
+        //         }
+        //     } catch (error) {
+        //         console.error('Error:', error);
+        //         toast.error('An error occurred while generating the video.');
+        //     }
+
+        //     setInputMessage('');
+        //     if (inputRef.current) {
+        //         inputRef.current.style.height = '2.5rem';
+        //     }
+        //     setFiles([]);
+        //     return;
+        // }
 
         if (fullMessage.startsWith('/ugc')) {
             const parts = fullMessage.replace('/ugc', '').trim().split(' ');
@@ -3791,6 +3929,97 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         setTouchStartX(null);
     };
 
+
+    const handleSubmitImgToVideoWan2 = async () => {
+        try {
+            if (files.length !== 1) {
+                toast.error('Please upload exactly one image for /img-to-video with Wan2.0.');
+                return;
+            }
+            // The user's text after /img-to-video
+            const userInput = inputMessage.replace('/img-to-video', '').trim();
+            if (!userInput) {
+                toast.error('Please provide a prompt after /img-to-video.');
+                return;
+            }
+
+            const positivePrompt = userInput.replace(/with wan2\.0/i, '').trim();
+
+            const imageFile = files[0].file;
+            const formData = new FormData();
+            formData.append('image_file', imageFile);
+            formData.append('positive_prompt', positivePrompt);
+            formData.append('seed', '0');
+            formData.append('steps', '20');
+            formData.append('cfg', '6');
+            formData.append('sampler_name', 'uni_pc');
+            formData.append('scheduler', 'simple');
+            formData.append('number', '1');
+            formData.append('video_length', videoLength);
+            formData.append('width', '512');
+            formData.append('height', '512');
+            formData.append('output_fps', '16');
+            formData.append('output_quality', '90');
+            formData.append('output_format', 'mp4');
+
+            setIsLoading(true);
+            const response = await fetch('/api/wan-img-to-video', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Wan2.0 generation failed: ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            const mp4Url = URL.createObjectURL(blob);
+
+            // Generate a filename for download
+            const filename = `video_${new Date().getTime()}.mp4`;
+
+
+            // Also push a chat message so user sees the result
+            const assistantMessage: Message = {
+                role: "assistant",
+                content: (
+                    <div>
+                        <video
+                            src={mp4Url}
+                            controls
+                            autoPlay
+                            loop
+                            className="w-full h-auto rounded-lg"
+                        />
+                        <a
+                            href={mp4Url}
+                            download={filename}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center justify-center gap-2 mt-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            Download MP4
+                        </a>
+                    </div>
+                ),
+                type: "text",
+            };
+
+            setDisplayMessages((prev) => [...prev, assistantMessage]);
+
+
+        } catch (error) {
+            console.error('Error in handleSubmitImgToVideoWan2:', error);
+        } finally {
+            setIsLoading(false);
+            // reset states if you want
+            setFiles([]);
+            setInputMessage('');
+            setWan2Choice(null);
+        }
+    };
+
+
     const renderMessageContent = (message: Message) => {
         // Handle React elements
         if (React.isValidElement(message.content)) {
@@ -4902,7 +5131,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                 //     }
                                                 // }}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                                                         // Only submit if there's non-whitespace content
                                                         if (!inputMessage.trim()) {
                                                             e.preventDefault();
@@ -4937,6 +5166,73 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             {showTickerPopup && (
                                                 <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
                                             )}
+
+                                            {showImgToVideoPopup && (
+                                                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
+                                                    <p className="mb-2 text-sm text-white">Choose your /img-to-video mode:</p>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button
+                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                            onClick={() => {
+                                                                setWan2Choice('with');
+                                                                setShowImgToVideoPopup(false);
+                                                                // The user typed /img-to-video, we’ll let them finish the prompt
+                                                                // or we can do it automatically:
+                                                                // setInputMessage('/img-to-video with Wan2.0 ');
+                                                                // Optionally show the video length modal right away:
+                                                                // setShowVideoLengthModal(true);
+                                                                setInputMessage('/img-to-video with Wan2.0 ');
+                                                            }}
+                                                        >
+                                                            With Wan2.0
+                                                        </button>
+
+                                                        <button
+                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                            onClick={() => {
+                                                                setWan2Choice('without');
+                                                                setShowImgToVideoPopup(false);
+                                                                // Optionally set a default message:
+                                                                // setInputMessage('/img-to-video without Wan2.0 ');
+                                                            }}
+                                                        >
+                                                            Without Wan2.0
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {showVideoLengthModal && wan2Choice === 'with' && (
+                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                                                    <div className="bg-[#171D3D] p-6 rounded-lg shadow-lg relative w-80">
+                                                        <button
+                                                            className="absolute top-2 right-2 text-white"
+                                                            onClick={() => setShowVideoLengthModal(false)}
+                                                        >
+                                                            ✖
+                                                        </button>
+                                                        <h2 className="text-xl text-white mb-4">Enter Video Length</h2>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full bg-gray-800 text-white p-2 rounded mb-4"
+                                                            value={videoLength}
+                                                            onChange={(e) => setVideoLength(e.target.value)}
+                                                        />
+                                                        <button
+                                                            className="px-4 py-2 bg-blue-500 text-white rounded w-full"
+                                                            onClick={() => {
+                                                                setShowVideoLengthModal(false);
+                                                                // Now call the function to execute the API call for "with Wan2.0"
+                                                                handleSubmitImgToVideoWan2();
+                                                            }}
+                                                        >
+                                                            Submit
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+
 
                                             {showVideoLipsyncOption && (
                                                 <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">

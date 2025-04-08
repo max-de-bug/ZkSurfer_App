@@ -100,6 +100,7 @@ const nextConfig = {
     NEXT_PUBLIC_SWAP_AUTHENTICATE: process.env.NEXT_PUBLIC_SWAP_AUTHENTICATE,
     NEXT_PUBLIC_KIMA_API: process.env.NEXT_PUBLIC_KIMA_API,
     NEXT_PUBLIC_CHAIN: process.env.NEXT_PUBLIC_CHAIN,
+    NEXT_PUBLIC_WAN_IMG_TO_VIDEO:process.env.NEXT_PUBLIC_WAN_IMG_TO_VIDEO
   },
   experimental: {
     esmExternals: "loose",
