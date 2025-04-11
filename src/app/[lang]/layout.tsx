@@ -1,32 +1,4 @@
-// import { getDictionary } from '../i18n/dictionaries';
-// import { locales, Locale } from '../i18n/settings';
-// import { ReactNode } from 'react';
-
-// interface RootLayoutProps {
-//     children: ReactNode;
-//     params: {
-//         lang: Locale;
-//     };
-// }
-
-// export async function generateStaticParams() {
-//     return locales.map(lang => ({ lang }));
-// }
-
-// export default async function RootLayout({ children, params }: RootLayoutProps) {
-//     const dictionary = await getDictionary(params.lang);
-
-//     return (
-//         <html lang={params.lang}>
-//             <body>
-//                 {children}
-//             </body>
-//         </html>
-//     );
-// }
-
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AppWalletProvider from "@/component/AppWalletProvider";
