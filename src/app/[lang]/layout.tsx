@@ -75,12 +75,12 @@ export default async function RootLayout({
       <head />
       <body className={inter.className}>
         <Providers>
-          <AppWalletProvider>
-            <MultiWalletProvider>
+          <MultiWalletProvider>
+            <AppWalletProvider>
               {children}
-            </MultiWalletProvider>
-            <Toaster position="top-right" richColors />
-          </AppWalletProvider>
+              <Toaster position="top-right" richColors />
+            </AppWalletProvider>
+          </MultiWalletProvider>
         </Providers>
       </body>
     </html>
