@@ -1282,29 +1282,39 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
 
-        // Validate the field using the corresponding schema
-        try {
-            if (name === "username") {
-                twitterSchema.shape.username.parse(value);
-            } else if (name === "email") {
-                twitterSchema.shape.email.parse(value);
-            } else if (name === "password") {
-                twitterSchema.shape.password.parse(value);
-            } else if (name === "twofa") {
-                twitterSchema.shape.twofa.parse(value);
-            }
-        } catch (error: any) {
-            toast.error(error.message);
+        // By default, use the raw value
+        let trimmedValue = value;
+
+        // If it's one of these fields and it ends with whitespace, trim it
+        if (['username', 'email', 'password'].includes(name) && /\s$/.test(value)) {
+            trimmedValue = value.trimEnd();
         }
 
-        // Update the Twitter credentials in state as before
-        setTwitterCredentials({ [name]: value });
+        // Validate against the Zod schema
+        try {
+            if (name === "username") twitterSchema.shape.username.parse(trimmedValue);
+            else if (name === "email") twitterSchema.shape.email.parse(trimmedValue);
+            else if (name === "password") twitterSchema.shape.password.parse(trimmedValue);
+            else if (name === "twofa") twitterSchema.shape.twofa.parse(trimmedValue);
+        } catch (err: any) {
+            toast.error(err.message);
+        }
+
+        // Store the (maybe) trimmed value
+        setTwitterCredentials({ [name]: trimmedValue });
     };
 
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+        let newValue = value;
+        if (name === 'ticker') {
+            // only trim if there's one or more whitespace characters at the end
+            if (/\s$/.test(value)) {
+                newValue = value.trimEnd();
+            }
+        }
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 

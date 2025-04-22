@@ -169,10 +169,11 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     useEffect(() => {
         const fetchChains = async () => {
             try {
-                const response = await fetch('/api/chains', {
+                const response = await fetch('http://103.231.86.182:3001/chains/chain', {
                     headers: { accept: "application/json" },
                 });
                 const data = await response.json();
+                console.log('data chains', data)
                 if (data.Chain && Array.isArray(data.Chain)) {
                     // Update chains: disable Berachain, Tron, and Solana
                     const updatedChains = data.Chain.map((chain: Chain) => {
@@ -211,154 +212,154 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
             } catch (error) {
                 console.error("Error fetching chains:", error);
                 setStatus("Error fetching chains. Using defaults.");
-                setChains([
-                    {
-                        id: "1",
-                        name: "Ethereum",
-                        symbol: "ETH",
-                        tokens: [
-                            {
-                                id: "1",
-                                symbol: "USDK",
-                                address: "0x5FF59Bf2277A1e6bA9bB8A38Ea3F9ABfd3d9345a",
-                            },
-                            {
-                                id: "2",
-                                symbol: "WBTC",
-                                address: "0x5703992Cd91cAB655f2BF3EcbD4cD22e3c75832D",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "2",
-                        name: "Arbitrum",
-                        symbol: "ARB",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_ARBITRUM_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "3",
-                        name: "Avalanche",
-                        symbol: "AVAX",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_AVALANCHE_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "4",
-                        name: "Base",
-                        symbol: "BASE",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_BASE_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "5",
-                        name: "Binance Smart Chain",
-                        symbol: "BSC",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_BSC_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "6",
-                        name: "Optimism",
-                        symbol: "OPT",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_OPTIMISM_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    {
-                        id: "7",
-                        name: "Polygon",
-                        symbol: "POL",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_POLYGON_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: false,
-                        isEvm: true,
-                    },
-                    // Disabled chains:
-                    {
-                        id: "8",
-                        name: "Solana",
-                        symbol: "SOL",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "9YSFWfU9Ram6mAo2QP9zsTnA8yFkkkFGEs3kGgjtQKvp",
-                            },
-                        ],
-                        disabled: true,
-                        isEvm: false,
-                    },
-                    {
-                        id: "9",
-                        name: "Tron",
-                        symbol: "TRX",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-                            },
-                        ],
-                        disabled: true,
-                        isEvm: false,
-                    },
-                    {
-                        id: "10",
-                        name: "Berachain",
-                        symbol: "BERA",
-                        tokens: [
-                            {
-                                id: "0",
-                                symbol: "USDK",
-                                address: "YOUR_BERACHAIN_TOKEN_ADDRESS",
-                            },
-                        ],
-                        disabled: true,
-                        isEvm: true,
-                    },
-                ]);
+                // setChains([
+                //     {
+                //         id: "1",
+                //         name: "Ethereum",
+                //         symbol: "ETH",
+                //         tokens: [
+                //             {
+                //                 id: "1",
+                //                 symbol: "USDK",
+                //                 address: "0x5FF59Bf2277A1e6bA9bB8A38Ea3F9ABfd3d9345a",
+                //             },
+                //             {
+                //                 id: "2",
+                //                 symbol: "WBTC",
+                //                 address: "0x5703992Cd91cAB655f2BF3EcbD4cD22e3c75832D",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "2",
+                //         name: "Arbitrum",
+                //         symbol: "ARB",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_ARBITRUM_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "3",
+                //         name: "Avalanche",
+                //         symbol: "AVAX",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_AVALANCHE_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "4",
+                //         name: "Base",
+                //         symbol: "BASE",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_BASE_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "5",
+                //         name: "Binance Smart Chain",
+                //         symbol: "BSC",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_BSC_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "6",
+                //         name: "Optimism",
+                //         symbol: "OPT",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_OPTIMISM_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     {
+                //         id: "7",
+                //         name: "Polygon",
+                //         symbol: "POL",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_POLYGON_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: false,
+                //         isEvm: true,
+                //     },
+                //     // Disabled chains:
+                //     {
+                //         id: "8",
+                //         name: "Solana",
+                //         symbol: "SOL",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "9YSFWfU9Ram6mAo2QP9zsTnA8yFkkkFGEs3kGgjtQKvp",
+                //             },
+                //         ],
+                //         disabled: true,
+                //         isEvm: false,
+                //     },
+                //     {
+                //         id: "9",
+                //         name: "Tron",
+                //         symbol: "TRX",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                //             },
+                //         ],
+                //         disabled: true,
+                //         isEvm: false,
+                //     },
+                //     {
+                //         id: "10",
+                //         name: "Berachain",
+                //         symbol: "BERA",
+                //         tokens: [
+                //             {
+                //                 id: "0",
+                //                 symbol: "USDK",
+                //                 address: "YOUR_BERACHAIN_TOKEN_ADDRESS",
+                //             },
+                //         ],
+                //         disabled: true,
+                //         isEvm: true,
+                //     },
+                // ]);
             }
         };
         fetchChains();

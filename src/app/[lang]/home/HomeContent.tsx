@@ -54,6 +54,7 @@ import compressImageMint from '../../../lib/compressImage';
 import { FaMusic } from 'react-icons/fa';
 import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
 import DownloadButton from '@/component/ui/DownloadButton';
+import ImageSelectionModal from '@/component/ui/ImageSelectionModal';
 
 
 interface GeneratedTweet {
@@ -163,6 +164,121 @@ interface Message {
     seed?: string;
 }
 
+interface VideoEditModalProps {
+    videoUrl: string;
+    onClose(): void;
+    onSaveTrimmed(trimmedBlob: Blob): void;
+    onSaveCaption(caption: string): void;
+}
+
+const VideoEditModal: FC<VideoEditModalProps> = ({
+    videoUrl, onClose, onSaveTrimmed, onSaveCaption
+}) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [duration, setDuration] = useState(0);
+    const [start, setStart] = useState(0);
+    const [end, setEnd] = useState(0);
+    const [caption, setCaption] = useState('');
+
+    useEffect(() => {
+        const v = videoRef.current!;
+        v.addEventListener('loadedmetadata', () => {
+            setDuration(v.duration);
+            setEnd(v.duration);
+        });
+    }, [videoUrl]);
+
+    // simple trim function using MediaSource Extensions + slicing
+    async function trim() {
+        const response = await fetch(videoUrl);
+        const buf = await response.arrayBuffer();
+        // here you’d ideally use ffmpeg.wasm or server-side trim
+        // for demo, we just slice the array:
+        const slice = buf.slice(
+            (start / duration) * buf.byteLength,
+            (end / duration) * buf.byteLength
+        );
+        const blob = new Blob([slice], { type: 'video/mp4' });
+        onSaveTrimmed(blob);
+        onClose();
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-[#171D3D] p-6 rounded-lg w-11/12 max-w-xl">
+                <button
+                    className="absolute top-3 right-3 text-white text-xl"
+                    onClick={onClose}
+                >×</button>
+                <video
+                    ref={videoRef}
+                    src={videoUrl}
+                    controls
+                    className="w-full mb-4 rounded"
+                />
+
+                <div className="mb-4">
+                    <label className="text-white block mb-1">Trim Range:</label>
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="number"
+                            value={start.toFixed(1)}
+                            onChange={e => setStart(Math.min(+e.target.value, end))}
+                            className="w-16 px-2 py-1 rounded bg-gray-700 text-white"
+                        />
+                        <span className="text-white">→</span>
+                        <input
+                            type="number"
+                            value={end.toFixed(1)}
+                            onChange={e => setEnd(Math.max(+e.target.value, start))}
+                            className="w-16 px-2 py-1 rounded bg-gray-700 text-white"
+                        />
+                        <button
+                            onClick={trim}
+                            className="ml-auto px-3 py-1 bg-green-600 rounded text-white"
+                        >✔ Trim</button>
+                    </div>
+                    <input
+                        type="range"
+                        min={0}
+                        max={duration}
+                        step={0.1}
+                        value={start}
+                        onChange={e => setStart(+e.target.value)}
+                        className="w-full mt-2"
+                    />
+                    <input
+                        type="range"
+                        min={0}
+                        max={duration}
+                        step={0.1}
+                        value={end}
+                        onChange={e => setEnd(+e.target.value)}
+                        className="w-full mt-1"
+                    />
+                </div>
+
+                <div>
+                    <label className="text-white block mb-1">Caption:</label>
+                    <div className="flex space-x-2">
+                        <input
+                            type="text"
+                            value={caption}
+                            onChange={e => setCaption(e.target.value)}
+                            placeholder="Enter caption…"
+                            className="flex-1 px-2 py-1 rounded bg-gray-700 text-white"
+                        />
+                        <button
+                            onClick={() => { onSaveCaption(caption); onClose(); }}
+                            className="px-3 py-1 bg-blue-600 rounded text-white"
+                        >Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 
 // const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => (
@@ -251,6 +367,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [showBridgePopup, setShowBridgePopup] = useState(false);
 
     const [convertProgress, setConvertProgress] = useState(0);
+    const [showImageSelectModal, setShowImageSelectModal] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
 
     // const [showAgentTypePopup, setShowAgentTypePopup] = useState(false);
     const [selectedAgentType, setSelectedAgentType] = useState<string | null>(null);
@@ -312,6 +431,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [tickers, setTickers] = useState<string[]>([]);
     const [showConnectModal, setShowConnectModal] = useState(false);
 
+    const [showVideoEditModal, setShowVideoEditModal] = useState(false);
+    const [videoToEdit, setVideoToEdit] = useState<string | null>(null);
+    const [videoCaptions, setVideoCaptions] = useState<Record<string, string>>({});
+
     const [tweets, setTweets] = useState([]);
     const [filteredCoins, setFilteredCoins] = useState([]);
 
@@ -371,6 +494,26 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         })();
     }, []);
 
+
+    function openVideoEditor(url: string) {
+        setVideoToEdit(url);
+        setShowVideoEditModal(true);
+    }
+
+    function handleSaveTrimmed(blob: Blob) {
+        const url = URL.createObjectURL(blob);
+        // replace the old video in your messages with the trimmed one:
+        setDisplayMessages(msgs =>
+            msgs.map(m =>
+                (typeof m.content === 'string' && m.content === videoToEdit)
+                    ? { ...m, content: url }
+                    : m
+            )
+        );
+    }
+    function handleSaveCaption(caption: string) {
+        setVideoCaptions(vc => ({ ...vc, [videoToEdit!]: caption }));
+    }
 
     // Returns the target language code if the browser language is one of the supported ones.
     // function getUserTargetLanguage() {
@@ -1987,6 +2130,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 content: (
                     <div>
                         <video src={videoUrl} controls className="w-full h-auto rounded-md" />
+                        {/* <button
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition"
+                            onClick={() => openVideoEditor(videoUrl)}
+                        >
+                            <div className="text-white bg-black bg-opacity-50 p-1 rounded" >Edit video</div>
+                        </button> */}
                         <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
                             Download Merged Video
                         </a>
@@ -2264,6 +2413,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             content: (
                                 <div>
                                     <video src={videoUrl} controls className="w-full rounded-lg" />
+                                    {/* <button
+                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition"
+                                        onClick={() => openVideoEditor(videoUrl)}
+                                    >
+                                        <div className="text-white bg-black bg-opacity-50 p-1 rounded" >Edit video</div>
+                                    </button> */}
                                     <a
                                         href={videoUrl}
                                         download="output_video.mp4"
@@ -3983,27 +4138,60 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 role: "assistant",
                 content: (
                     <div>
-                        <video
-                            src={mp4Url}
-                            controls
-                            autoPlay
-                            loop
-                            className="w-full h-auto rounded-lg"
-                        />
+                        <div className="relative group">
+                            <video
+                                src={mp4Url}
+                                controls
+                                autoPlay
+                                loop
+                                className="w-full h-auto rounded-lg"
+                            />
+                            <button
+                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition"
+                                onClick={() => openVideoEditor(mp4Url)}
+                            >
+                                Edit Video
+                            </button>
+                        </div>
+
                         <a
                             href={mp4Url}
                             download={filename}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center justify-center gap-2 mt-2"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
+                            {/* … your SVG download icon … */}
                             Download MP4
                         </a>
                     </div>
                 ),
                 type: "text",
-            };
+            }
+            // const assistantMessage: Message = {
+            //     role: "assistant",
+            //     content: (
+            //         <div>
+            //             <video
+            //                 src={mp4Url}
+            //                 controls
+            //                 autoPlay
+            //                 loop
+            //                 className="w-full h-auto rounded-lg"
+            //             />
+
+            //             <a
+            //                 href={mp4Url}
+            //                 download={filename}
+            //                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center justify-center gap-2 mt-2"
+            //             >
+            //                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            //                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+            //                 </svg>
+            //                 Download MP4
+            //             </a>
+            //         </div>
+            //     ),
+            //     type: "text",
+            // };
 
             setDisplayMessages((prev) => [...prev, assistantMessage]);
 
@@ -4950,6 +5138,20 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                             height={20}
                                                                         />
                                                                     </button>
+                                                                    {/* <button
+                                                                        onClick={() => {
+                                                                            // Store the image URL (assumed to be in message.content) then open the modal
+                                                                            if (typeof message.content === 'string' && message.content.startsWith('data:image/')) {
+                                                                                setSelectedImage(message.content);
+                                                                                setShowImageSelectModal(true);
+                                                                            } else {
+                                                                                console.warn("No valid image available for selection");
+                                                                            }
+                                                                        }}
+                                                                        className="text-white rounded-lg"
+                                                                    >
+                                                                        <Image src="images/select.svg" alt="Select" width={20} height={20} />
+                                                                    </button> */}
                                                                 </div>
                                                             )}
 
@@ -5278,6 +5480,26 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {showImageSelectModal && selectedImage && (
+                                                <ImageSelectionModal
+                                                    imageUrl={selectedImage}
+                                                    onClose={() => {
+                                                        setShowImageSelectModal(false);
+                                                        setSelectedImage(null);
+                                                    }}
+                                                />
+                                            )}
+
+                                            {showVideoEditModal && videoToEdit && (
+                                                <VideoEditModal
+                                                    videoUrl={videoToEdit}
+                                                    onClose={() => setShowVideoEditModal(false)}
+                                                    onSaveTrimmed={handleSaveTrimmed}
+                                                    onSaveCaption={handleSaveCaption}
+                                                />
+                                            )}
+
 
 
 

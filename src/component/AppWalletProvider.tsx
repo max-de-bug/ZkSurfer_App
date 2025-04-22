@@ -1,3 +1,187 @@
+// "use client";
+
+// import React, { useMemo, useEffect, useState, useCallback } from "react";
+// import {
+//   ConnectionProvider,
+//   WalletProvider,
+//   useWallet,
+//   Wallet
+// } from "@solana/wallet-adapter-react";
+// import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+// import { clusterApiUrl } from "@solana/web3.js";
+// import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+// import { CustomWalletModalProvider } from "./ui/CustomWalletModalProvider";
+// import { MagicWalletAdapter, MagicWalletName } from "./MagicWalletAdapter";
+// import { PublicKey } from "@solana/web3.js";
+
+// require("@solana/wallet-adapter-react-ui/styles.css");
+
+// // Create a context to share the Magic adapter instance
+// export const MagicAdapterContext = React.createContext<MagicWalletAdapter | null>(null);
+
+// // Make MagicWalletName globally available 
+// if (typeof window !== 'undefined') {
+//   window.MagicWalletName = MagicWalletName;
+// }
+
+// // Helper component to handle wallet reconnection after mount
+// const WalletInitializer = () => {
+//   const { publicKey, wallet, select, wallets, connecting, connected } = useWallet();
+//   const [attempted, setAttempted] = useState(false);
+
+//   // Get Magic adapter from context
+//   const magicAdapter = React.useContext(MagicAdapterContext);
+
+//   // Log wallet state when it changes
+//   useEffect(() => {
+//     if (wallets && wallets.length > 0) {
+//       console.log("Available wallets:", wallets.map(w => (w as any)?.name || 'unnamed'));
+//     }
+
+//     if (publicKey) {
+//       console.log("Connected with public key:", publicKey.toString());
+//     }
+//   }, [wallets, publicKey]);
+
+//   useEffect(() => {
+//     if (attempted || connecting || connected || !wallets.length || !magicAdapter) return;
+
+//     const initializeWallet = async () => {
+//       const storedAddress = localStorage.getItem('connectedWalletAddress');
+//       const storedWalletName = localStorage.getItem('walletName');
+
+//       if (storedAddress && storedWalletName === MagicWalletName) {
+//         try {
+//           console.log("Found stored Magic wallet address, attempting to reconnect");
+
+//           // Find the Magic adapter in the wallet list (by name)
+//           const magicWalletInList = wallets.find(
+//             wallet => (wallet as any)?.name === MagicWalletName
+//           );
+
+//           if (magicWalletInList) {
+//             console.log("Found Magic adapter in wallet list, selecting it");
+//             select(MagicWalletName);
+//           } else if (magicAdapter) {
+//             // Direct initialization if the adapter isn't in the wallet list yet
+//             console.log("Magic adapter not in wallet list, initializing directly");
+
+//             try {
+//               // Use type assertion to access private properties for debugging
+//               const isLoggedIn = await (magicAdapter as any)._magic?.user.isLoggedIn();
+
+//               if (isLoggedIn) {
+//                 console.log("User is logged in with Magic, setting public key");
+//                 magicAdapter.setPublicKey(storedAddress);
+
+//                 // Force select after a delay to ensure the adapter is ready
+//                 setTimeout(() => {
+//                   select(MagicWalletName);
+//                 }, 500);
+//               }
+//             } catch (err) {
+//               console.error("Error checking Magic login:", err);
+//             }
+//           }
+//         } catch (error) {
+//           console.error("Error reconnecting wallet:", error);
+//         }
+//       }
+
+//       setAttempted(true);
+//     };
+
+//     initializeWallet();
+//   }, [wallets, magicAdapter, select, attempted, connecting, connected]);
+
+//   return null;
+// };
+
+// export default function AppWalletProvider({
+//   children,
+// }: {
+//   children: React.ReactNode;
+// }) {
+//   const network = WalletAdapterNetwork.Devnet;
+//   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+//   const [magicAdapter, setMagicAdapter] = useState<MagicWalletAdapter | null>(null);
+
+//   // Initialize the Magic adapter
+//   useEffect(() => {
+//     const initMagic = async () => {
+//       try {
+//         const apiKey = process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY || '';
+//         console.log("Initializing Magic adapter with API key:", apiKey ? "[PRESENT]" : "[MISSING]");
+
+//         const adapter = new MagicWalletAdapter(apiKey, endpoint);
+//         console.log("Magic adapter initialized with name:", adapter.name);
+
+//         // Store reference to adapter
+//         setMagicAdapter(adapter);
+
+//         // Try to auto-reconnect if needed
+//         const storedAddress = localStorage.getItem('connectedWalletAddress');
+//         const storedWalletName = localStorage.getItem('walletName');
+
+//         if (storedAddress && storedWalletName === MagicWalletName) {
+//           try {
+//             // Use type assertion to access private property safely
+//             const isLoggedIn = await (adapter as any)._magic?.user.isLoggedIn();
+//             if (isLoggedIn) {
+//               console.log("User already logged in with Magic, setting public key");
+//               adapter.setPublicKey(storedAddress);
+//             }
+//           } catch (err) {
+//             console.error("Error checking Magic login status:", err);
+//           }
+//         }
+//       } catch (error) {
+//         console.error("Failed to initialize Magic adapter:", error);
+//       }
+//     };
+
+//     initMagic();
+//   }, [endpoint]);
+
+//   // Create the wallet list with the Magic adapter
+//   const wallets = useMemo(() => {
+//     // Use a more generic type or Wallet interface from @solana/wallet-adapter-base
+//     const adapters: any[] = [new PhantomWalletAdapter()];
+
+//     if (magicAdapter) {
+//       adapters.push(magicAdapter);
+//       console.log("Added Magic adapter to wallet list:", magicAdapter.name);
+//     }
+
+//     return adapters;
+//   }, [magicAdapter]);
+
+//   // Enable autoConnect only after wallets are properly initialized
+//   const [shouldAutoConnect, setShouldAutoConnect] = useState(false);
+
+//   useEffect(() => {
+//     // Short delay to ensure wallets are registered properly
+//     const timer = setTimeout(() => {
+//       setShouldAutoConnect(true);
+//     }, 500);
+
+//     return () => clearTimeout(timer);
+//   }, [wallets]);
+
+//   return (
+//     <ConnectionProvider endpoint={endpoint}>
+//       <MagicAdapterContext.Provider value={magicAdapter}>
+//         <WalletProvider wallets={wallets} autoConnect={shouldAutoConnect}>
+//           <WalletInitializer />
+//           <CustomWalletModalProvider>
+//             {children}
+//           </CustomWalletModalProvider>
+//         </WalletProvider>
+//       </MagicAdapterContext.Provider>
+//     </ConnectionProvider>
+//   );
+// }
+
 "use client";
 
 import React, { useMemo, useEffect, useState, useCallback } from "react";
@@ -27,72 +211,119 @@ if (typeof window !== 'undefined') {
 // Helper component to handle wallet reconnection after mount
 const WalletInitializer = () => {
   const { publicKey, wallet, select, wallets, connecting, connected } = useWallet();
-  const [attempted, setAttempted] = useState(false);
-
-  // Get Magic adapter from context
+  const [retryCount, setRetryCount] = useState(0);
+  const [initialized, setInitialized] = useState(false);
   const magicAdapter = React.useContext(MagicAdapterContext);
 
   // Log wallet state when it changes
   useEffect(() => {
-    if (wallets && wallets.length > 0) {
-      console.log("Available wallets:", wallets.map(w => (w as any)?.name || 'unnamed'));
-    }
+    console.log("WalletInitializer - Wallet state:", {
+      publicKey: publicKey?.toString(),
+      connected,
+      connecting,
+      walletCount: wallets.length,
+      walletNames: wallets.map(w => (w as any)?.name || 'unnamed'),
+      retryCount
+    });
+  }, [wallets, publicKey, connected, connecting, retryCount]);
 
-    if (publicKey) {
-      console.log("Connected with public key:", publicKey.toString());
-    }
-  }, [wallets, publicKey]);
-
+  // Use an interval to persistently check connection
   useEffect(() => {
-    if (attempted || connecting || connected || !wallets.length || !magicAdapter) return;
+    if (publicKey) {
+      console.log("Already connected with public key:", publicKey.toString());
+      setInitialized(true);
+      return; // Already connected, no need to do anything
+    }
 
-    const initializeWallet = async () => {
-      const storedAddress = localStorage.getItem('connectedWalletAddress');
-      const storedWalletName = localStorage.getItem('walletName');
+    const storedAddress = localStorage.getItem('connectedWalletAddress');
+    const storedWalletName = localStorage.getItem('walletName');
 
-      if (storedAddress && storedWalletName === MagicWalletName) {
-        try {
-          console.log("Found stored Magic wallet address, attempting to reconnect");
+    // Only proceed if we have stored credentials
+    if (!storedAddress || storedWalletName !== MagicWalletName) {
+      setInitialized(true);
+      return;
+    }
 
-          // Find the Magic adapter in the wallet list (by name)
-          const magicWalletInList = wallets.find(
-            wallet => (wallet as any)?.name === MagicWalletName
-          );
+    // If not connected yet but should be, set up an interval to keep trying
+    console.log("Setting up persistent reconnection check for Magic wallet");
 
-          if (magicWalletInList) {
-            console.log("Found Magic adapter in wallet list, selecting it");
-            select(MagicWalletName);
-          } else if (magicAdapter) {
-            // Direct initialization if the adapter isn't in the wallet list yet
-            console.log("Magic adapter not in wallet list, initializing directly");
-
-            try {
-              // Use type assertion to access private properties for debugging
-              const isLoggedIn = await (magicAdapter as any)._magic?.user.isLoggedIn();
-
-              if (isLoggedIn) {
-                console.log("User is logged in with Magic, setting public key");
-                magicAdapter.setPublicKey(storedAddress);
-
-                // Force select after a delay to ensure the adapter is ready
-                setTimeout(() => {
-                  select(MagicWalletName);
-                }, 500);
-              }
-            } catch (err) {
-              console.error("Error checking Magic login:", err);
-            }
-          }
-        } catch (error) {
-          console.error("Error reconnecting wallet:", error);
-        }
+    const reconnectionInterval = setInterval(() => {
+      // Stop after too many retries
+      if (retryCount > 15) {
+        console.log("Max retry count reached, stopping reconnection attempts");
+        clearInterval(reconnectionInterval);
+        return;
       }
 
-      setAttempted(true);
-    };
+      // If already connected, stop interval
+      if (publicKey) {
+        console.log("Connection established, stopping reconnection interval");
+        clearInterval(reconnectionInterval);
+        setInitialized(true);
+        return;
+      }
 
-    initializeWallet();
-  }, [wallets, magicAdapter, select, attempted, connecting, connected]);
+      // Find Magic adapter in wallet list
+      const hasMagicWallet = wallets.some(w => (w as any)?.name === MagicWalletName);
+
+      if (hasMagicWallet) {
+        console.log(`Retry ${retryCount}: Selecting Magic wallet adapter`);
+        select(MagicWalletName);
+
+        // If we have the context adapter and it has a setPublicKey method, use it
+        if (magicAdapter && typeof magicAdapter.setPublicKey === 'function') {
+          console.log("Using magicAdapter.setPublicKey to force reconnection");
+          magicAdapter.setPublicKey(storedAddress);
+        }
+
+        setRetryCount(prev => prev + 1);
+      } else {
+        console.log(`Retry ${retryCount}: Magic wallet not found in wallet list yet`);
+        setRetryCount(prev => prev + 1);
+      }
+    }, 1000); // Try every second
+
+    return () => clearInterval(reconnectionInterval);
+  }, [publicKey, wallets, select, magicAdapter, retryCount]);
+
+  return null;
+};
+
+// This component ensures the wallet remains connected even after many refreshes
+const PersistentConnectionManager = () => {
+  const { publicKey, connecting, connected } = useWallet();
+  const [checkCount, setCheckCount] = useState(0);
+
+  // Periodically verify connection state even after initial connection
+  useEffect(() => {
+    // If we're connected, schedule periodic checks to ensure connection persists
+    if (publicKey) {
+      console.log("Setting up periodic connection verification");
+
+      const verificationInterval = setInterval(() => {
+        const storedAddress = localStorage.getItem('connectedWalletAddress');
+        const storedWalletName = localStorage.getItem('walletName');
+
+        if (publicKey) {
+          console.log(`Connection verification #${checkCount}: Connection still active`);
+
+          // Update localStorage just to be safe
+          if (storedAddress !== publicKey.toString()) {
+            console.log("Updating localStorage with current public key");
+            localStorage.setItem('connectedWalletAddress', publicKey.toString());
+            localStorage.setItem('walletName', MagicWalletName);
+          }
+        } else if (storedAddress && storedWalletName === MagicWalletName) {
+          console.log(`Connection verification #${checkCount}: Connection lost but credentials exist`);
+          // We would trigger re-connection here, but the WalletInitializer will handle this
+        }
+
+        setCheckCount(prev => prev + 1);
+      }, 5000); // Check every 5 seconds
+
+      return () => clearInterval(verificationInterval);
+    }
+  }, [publicKey, checkCount]);
 
   return null;
 };
@@ -105,34 +336,44 @@ export default function AppWalletProvider({
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const [magicAdapter, setMagicAdapter] = useState<MagicWalletAdapter | null>(null);
+  const [adapterInitialized, setAdapterInitialized] = useState(false);
 
   // Initialize the Magic adapter
   useEffect(() => {
+    if (adapterInitialized) return;
+
     const initMagic = async () => {
       try {
         const apiKey = process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY || '';
         console.log("Initializing Magic adapter with API key:", apiKey ? "[PRESENT]" : "[MISSING]");
+
+        if (!apiKey) {
+          console.error("Missing Magic API key. Please check your environment variables.");
+          return;
+        }
 
         const adapter = new MagicWalletAdapter(apiKey, endpoint);
         console.log("Magic adapter initialized with name:", adapter.name);
 
         // Store reference to adapter
         setMagicAdapter(adapter);
+        setAdapterInitialized(true);
 
-        // Try to auto-reconnect if needed
+        // Make adapter globally available
+        if (typeof window !== 'undefined') {
+          window.magicAdapter = adapter;
+        }
+
+        // Check if we need to reconnect immediately
         const storedAddress = localStorage.getItem('connectedWalletAddress');
         const storedWalletName = localStorage.getItem('walletName');
 
         if (storedAddress && storedWalletName === MagicWalletName) {
+          console.log("Found stored Magic wallet, setting public key:", storedAddress);
           try {
-            // Use type assertion to access private property safely
-            const isLoggedIn = await (adapter as any)._magic?.user.isLoggedIn();
-            if (isLoggedIn) {
-              console.log("User already logged in with Magic, setting public key");
-              adapter.setPublicKey(storedAddress);
-            }
+            adapter.setPublicKey(storedAddress);
           } catch (err) {
-            console.error("Error checking Magic login status:", err);
+            console.error("Failed to set public key during initialization:", err);
           }
         }
       } catch (error) {
@@ -141,38 +382,26 @@ export default function AppWalletProvider({
     };
 
     initMagic();
-  }, [endpoint]);
+  }, [endpoint, adapterInitialized]);
 
   // Create the wallet list with the Magic adapter
   const wallets = useMemo(() => {
-    // Use a more generic type or Wallet interface from @solana/wallet-adapter-base
     const adapters: any[] = [new PhantomWalletAdapter()];
 
     if (magicAdapter) {
       adapters.push(magicAdapter);
-      console.log("Added Magic adapter to wallet list:", magicAdapter.name);
+      console.log("Added Magic adapter to wallet list");
     }
 
     return adapters;
   }, [magicAdapter]);
 
-  // Enable autoConnect only after wallets are properly initialized
-  const [shouldAutoConnect, setShouldAutoConnect] = useState(false);
-
-  useEffect(() => {
-    // Short delay to ensure wallets are registered properly
-    const timer = setTimeout(() => {
-      setShouldAutoConnect(true);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [wallets]);
-
   return (
     <ConnectionProvider endpoint={endpoint}>
       <MagicAdapterContext.Provider value={magicAdapter}>
-        <WalletProvider wallets={wallets} autoConnect={shouldAutoConnect}>
+        <WalletProvider wallets={wallets} autoConnect={true}>
           <WalletInitializer />
+          <PersistentConnectionManager />
           <CustomWalletModalProvider>
             {children}
           </CustomWalletModalProvider>
