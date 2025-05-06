@@ -168,7 +168,7 @@ export const WalletModal = ({ isVisible, onClose }: WalletModalProps) => {
 
                 {/* "Don't Have a Wallet" Section */}
                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Don't Have a Wallet</h3>
+                    <h3 className="text-lg font-semibold mb-2">Don&apos;t Have a Wallet</h3>
                     <p className="mb-4 text-xs">
                         Enter your email address to receive a Magic link for an OTP. A new Solana wallet will be automatically created for you upon successful authentication.
                     </p>
