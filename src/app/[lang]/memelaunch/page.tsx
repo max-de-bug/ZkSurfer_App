@@ -1309,6 +1309,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         let newValue = value;
+
         if (name === 'ticker') {
             // only trim if there's one or more whitespace characters at the end
             if (/\s$/.test(value)) {
@@ -1594,8 +1595,10 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         setError('');
         setSuccess(false);
 
+        const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
+
         const rawSecrets = {
-            TWITTER_USERNAME: username,
+            TWITTER_USERNAME: cleanUsername,
             TWITTER_PASSWORD: password,
             TWITTER_EMAIL: email,
             TWITTER_2FA_SECRET: twofa,
