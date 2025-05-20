@@ -15,6 +15,7 @@ import {
   optimism,
   polygon
 } from 'viem/chains';
+import { phantomWallet } from '@rainbow-me/rainbowkit/wallets';
 
 // Wagmi Configuration for Ethereum Wallets
 const config = getDefaultConfig({
@@ -28,7 +29,7 @@ const config = getDefaultConfig({
     polygon,
     berachain,
     avalanche,
-    bsc
+    bsc,
   ],
   ssr: true,
 });

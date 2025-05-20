@@ -91,6 +91,86 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     // Ref to ensure the timer is started only once per transfer
     const timerStartedRef = useRef<boolean>(false);
 
+    // const [kimaPools, setKimaPools] = useState<Record<string, string>>({});
+
+    // pull in your CHAIN_NAMES values as a type
+    type PoolKey = typeof CHAIN_NAMES[keyof typeof CHAIN_NAMES];
+    // PoolKey is now the union "ETH"|"POL"|"AVX"|…|"SOL"|"TRX"
+
+    // rename the state var to KIMA_POOLS so you can dot-access
+    const [KIMA_POOLS, setKimaPools] = useState<Record<PoolKey, string>>(
+        {} as Record<PoolKey, string>
+    );
+
+    const CHAIN_ID: Record<string, string> = {
+        Ethereum: "0x1",      // 1
+        Polygon: "0x89",     // 137
+        Arbitrum: "0xa4b1",   // 42161
+        Optimism: "0xa",      // 10
+        Base: "0x2105",   // 8453
+        "Binance Smart Chain": "0x38",     // 56
+        Avalanche: "0xa86a",   // 43114
+        // …add more if you support them
+    }
+
+
+    async function ensureCorrectNetwork(chainName: string) {
+        const ethereum = (window as any).ethereum
+        if (!ethereum) {
+            throw new Error("No EVM wallet found on window.ethereum")
+        }
+        const chainId = CHAIN_ID[chainName]
+        if (!chainId) {
+            throw new Error(`I don’t know the chainId for "${chainName}"`)
+        }
+
+        try {
+            // ask the wallet to switch
+            await ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId }]
+            })
+        } catch (switchError: any) {
+            // if the chain isn’t added at all, you need to add it:
+            if (switchError.code === 4902) {
+                await ethereum.request({
+                    method: "wallet_addEthereumChain",
+                    params: [
+                        {
+                            chainId,
+                            chainName,
+                            rpcUrls: ["https://…rpc.url.for." + chainName.toLowerCase()],
+                            nativeCurrency: { name: chainName, symbol: chainName.slice(0, 3), decimals: 18 },
+                            blockExplorerUrls: ["https://explorer." + chainName.toLowerCase() + ".io"]
+                        }
+                    ]
+                })
+            } else {
+                throw switchError
+            }
+        }
+    }
+
+    useEffect(() => {
+        async function loadPools() {
+            try {
+                const res = await fetch("http://103.231.86.182:3001/chains/pool", {
+                    headers: { accept: "application/json" },
+                });
+                const pools: Array<{ chainName: string; poolAddress: string }> = await res.json();
+                // reduce into { [chainName]: poolAddress }
+                const map = pools.reduce((acc, { chainName, poolAddress }) => {
+                    acc[chainName] = poolAddress;
+                    return acc;
+                }, {} as Record<string, string>);
+                setKimaPools(map);
+            } catch (err) {
+                console.error("Failed to fetch pool addresses", err);
+            }
+        }
+        loadPools();
+    }, []);
+
     // Remove transferStatus from dependency so that the timer is not reset by polling updates
     useEffect(() => {
         let timer: NodeJS.Timeout | null = null;
@@ -126,11 +206,11 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     const { disconnect } = useDisconnect();
     const { address } = useAccount();
 
-    const KIMA_POOLS = {
-        EVM: "0x9a721c664f9d69e4da24f91386086fbd81da23c1",
-        Solana: "5tvyUUqPMWVGaVsRXHoQWqGw6h9uifM45BHCTQgzwSdr",
-        Tron: "TQ3qmAgUgMwrY9prMiHLZmF43G4Jk8bxNF",
-    };
+    // const KIMA_POOLS = {
+    //     EVM: "0x948627f5c0352f320b284a2a9dbb92933866995d",
+    //     Solana: "E1ARyS9m5ZWSxhQbmrdVg2oycktRSHqzDRKkZZgrfr9A",
+    //     Tron: "TQ3qmAgUgMwrY9prMiHLZmF43G4Jk8bxNF",
+    // };
 
     // Address validation functions
     const isValidEthereumAddress = (address: string): boolean =>
@@ -177,7 +257,8 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
                 if (data.Chain && Array.isArray(data.Chain)) {
                     // Update chains: disable Berachain, Tron, and Solana
                     const updatedChains = data.Chain.map((chain: Chain) => {
-                        if (["Berachain", "Tron", "Solana"].includes(chain.name)) {
+                        if (["Berachain", "Tron"].includes(chain.name)) {
+                            //Solana
                             return { ...chain, disabled: true };
                         }
                         return chain;
@@ -368,6 +449,7 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     // Helper to get token address from selected chain and symbol
     const getTokenAddress = () => {
         const selectedChain = chains.find((chain) => chain.name === userData.originChain);
+        console.log('selectedchaincheck', selectedChain)
         if (!selectedChain) return null;
         const token = selectedChain.tokens.find((t) => t.symbol === userData.symbol);
         return token ? token.address : null;
@@ -381,7 +463,6 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
                 return;
             }
             const tokenAddress = getTokenAddress();
-            console.log("tokenAddress", tokenAddress);
             if (!tokenAddress) {
                 setUserBalance(null);
                 return;
@@ -395,8 +476,15 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
                     return;
                 }
                 const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" });
-                const userAddress = accounts[0];
-                const provider = new BrowserProvider((window as any).ethereum);
+                // console.log('accounts', accounts)
+                // const userAddress = accounts[0];
+                const userAddress = address;
+                // const provider = new BrowserProvider((window as any).ethereum);
+                await ensureCorrectNetwork(userData.originChain)
+
+                // now all calls talk to the right chain:
+                const ethereum = (window as any).ethereum
+                const provider = new BrowserProvider(ethereum)
                 const signer = await provider.getSigner();
                 const tokenContract = new Contract(
                     tokenAddress,
@@ -406,7 +494,6 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
                     ],
                     signer
                 );
-                console.log("tokenContract", tokenContract);
                 const balance = await tokenContract.balanceOf(userAddress);
                 const decimals = await tokenContract.decimals();
                 setUserBalance((Number(balance) / 10 ** Number(decimals)).toString());
@@ -447,7 +534,12 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
     // Approval/transfer functions for each chain
     const handleEthereumTransfer = async (): Promise<any> => {
         if (!window.ethereum) throw new Error("MetaMask is not installed!");
-        const provider = new BrowserProvider(window.ethereum);
+        // const provider = new BrowserProvider(window.ethereum);
+        await ensureCorrectNetwork(userData.originChain)
+
+        // now all calls talk to the right chain:
+        const ethereum = (window as any).ethereum
+        const provider = new BrowserProvider(ethereum)
         const signer = await provider.getSigner();
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
         const userAddress = accounts[0];
@@ -459,16 +551,25 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
             "function allowance(address owner, address spender) public view returns (uint256)",
         ];
         const tokenContract = new Contract(tokenAddress, tokenAbi, signer);
-        const allowance = await tokenContract.allowance(userAddress, KIMA_POOLS.EVM);
-        // const amountWei = BigInt(Math.floor(Number(userData.amount) * 10 ** fees.decimals));
+        const allowance = await tokenContract.allowance(userAddress, KIMA_POOLS.ETH);
+        console.log('KIMA', KIMA_POOLS.ETH)
+        console.log('userAddress', userAddress)
+        console.log('token', tokenAddress)
+        //const amountWei = BigInt(Math.floor(Number(userData.amount+3) * 10 ** fees.decimals));
         const amountWei = BigInt(Math.floor(fees.allowanceAmount));
+        //BigInt(Math.floor(fees.allowanceAmount));
+        //  const amountWei = BigInt(Math.floor(Number(userData.amount) * 10 ** fees.decimals));
+        console.log('amountWei', amountWei)
 
-        if (BigInt(allowance.toString()) < amountWei) {
-            const tx = await tokenContract.approve(KIMA_POOLS.EVM, amountWei);
-            const receipt = await tx.wait();
-            // Assume the response includes a msgResponses field containing the txId:
-            return receipt;
-        }
+        // if (BigInt(allowance.toString()) < amountWei) {
+        console.log('entry')
+        const tx = await tokenContract.approve(KIMA_POOLS.ETH, amountWei);
+        const receipt = await tx.wait();
+        console.log('receipt', receipt)
+        // Assume the response includes a msgResponses field containing the txId:
+        return receipt;
+        // }
+
         return { transactionHash: "Allowance sufficient", msgResponses: [] };
     };
 
@@ -479,7 +580,7 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
         const tokenAddress = getTokenAddress();
         if (!tokenAddress) throw new Error("Token address not found for selected chain and symbol.");
         const mintPublicKey = new PublicKey(tokenAddress);
-        const delegatePublicKey = new PublicKey(KIMA_POOLS.Solana);
+        const delegatePublicKey = new PublicKey(KIMA_POOLS.SOL);
         const tokenAccountAddress = await getAssociatedTokenAddress(mintPublicKey, publicKey);
         const amount = Math.floor(Number(userData.amount) * 10 ** fees.decimals);
 
@@ -522,7 +623,7 @@ const KimaTransferAgent: React.FC<KimaTransferAgentProps> = ({ onTransferSuccess
         if (!tokenAddress) throw new Error("Token address not found for selected chain and symbol.");
         const contract = await tronWeb.contract().at(tokenAddress);
         const amount = Math.floor(Number(userData.amount) * 10 ** fees.decimals);
-        const tx = await contract.approve(KIMA_POOLS.Tron, amount).send({
+        const tx = await contract.approve(KIMA_POOLS.TRX, amount).send({
             from: userAddress,
         });
         // Return a similar object with a transactionHash and a msgResponses array containing the txId

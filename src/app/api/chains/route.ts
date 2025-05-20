@@ -20,7 +20,8 @@ export async function GET() {
     if (data.Chain && Array.isArray(data.Chain)) {
       const updatedChains = data.Chain.map((chain: any) => {
         // Disable specific chains.
-        if (["Berachain", "Tron", "Solana"].includes(chain.name)) {
+        if (["Berachain", "Tron"].includes(chain.name)) { 
+          //"Solana"
           return { ...chain, disabled: true };
         }
         return chain;
