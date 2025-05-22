@@ -1,5 +1,6 @@
 // app/payment-failure/page.tsx
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiX, FiRefreshCw, FiAlertCircle } from "react-icons/fi";
