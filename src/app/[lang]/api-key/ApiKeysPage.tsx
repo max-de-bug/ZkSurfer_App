@@ -280,7 +280,7 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
                                     style={{ display: "block" }}
                                     title="Payment"
                                 >
-                                    Can't load widget
+                                    Can&apos;t load widget
                                 </iframe>
                             </div>
                         </div>
