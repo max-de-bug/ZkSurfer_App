@@ -1,16 +1,13 @@
 // app/payment-failure/page.tsx
 "use client";
-export const dynamic = 'force-dynamic';
 
-import { useRouter, useSearchParams } from "next/navigation";
+
+import { useRouter } from "next/navigation";
 import { FiX, FiRefreshCw, FiAlertCircle } from "react-icons/fi";
 
 export default function PaymentFailurePage() {
     const router = useRouter();
-    const params = useSearchParams();
-    const recipient = params.get("recipient") ?? "—";
-    const amount = params.get("amount") ?? "0";
-    const currency = params.get("currency") ?? "USD";
+
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
