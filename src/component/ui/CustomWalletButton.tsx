@@ -321,6 +321,7 @@ export const CustomWalletButton = () => {
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [storedWalletAddress, setStoredWalletAddress] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [hasCalledAddUser, setHasCalledAddUser] = useState(false);
 
   // Get Magic adapter from context
   const magicAdapter = useContext(MagicAdapterContext);
@@ -394,6 +395,36 @@ export const CustomWalletButton = () => {
   // Check connection status
   const isConnected = !!publicKey || (!!storedWalletAddress && localStorage.getItem('walletName') === MagicWalletName);
 
+
+  useEffect(() => {
+    if (
+      isConnected &&              // we’re connected
+      walletAddress &&            // we have an address
+      !hasCalledAddUser           // and haven’t called yet
+    ) {
+      setHasCalledAddUser(true);
+
+      fetch('https://zynapse.zkagi.ai/add-user', {
+        method: 'POST',
+        headers: {
+          'api-key': 'zk-123321',
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wallet_address: walletAddress,
+        }),
+      })
+        .then(async res => {
+          const json = await res.json();
+          console.log('add-user response:', json);
+        })
+        .catch(err => {
+          console.error('Error calling add-user:', err);
+        });
+    }
+  }, [isConnected, walletAddress, hasCalledAddUser]);
+
   // Create a custom wallet button component for Magic Link wallets
   const CustomConnectedButton = ({ address }: { address: string }) => {
     // Format address for display
@@ -433,7 +464,7 @@ export const CustomWalletButton = () => {
       } catch (error) {
         console.error("Error during disconnect:", error);
         toast.error("Failed to disconnect wallet. Please try again.");
-        
+
         // Force reload as last resort
         window.location.reload();
       } finally {

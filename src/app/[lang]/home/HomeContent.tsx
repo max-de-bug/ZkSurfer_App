@@ -2,7 +2,7 @@
 import { FC, useState, useEffect, useRef } from 'react';
 import { BiMenuAltLeft, BiMenuAltRight } from 'react-icons/bi';
 import { BsArrowReturnLeft } from 'react-icons/bs';
-import { FaPen } from 'react-icons/fa';
+import { FaCreditCard, FaPen } from 'react-icons/fa';
 import { HiDotsVertical } from 'react-icons/hi';
 import { TbLayoutSidebarLeftCollapseFilled } from "react-icons/tb";
 import { HiOutlinePencilSquare } from "react-icons/hi2";
@@ -4739,6 +4739,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     className="my-2"
                                                 />
                                                 {dictionary?.sidebar.apiKeys}
+                                            </div>
+                                        </Link>
+
+                                        <Link href={`/${lang}/payments`} >
+                                            <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer hover:bg-gray-700 p-2 rounded">
+                                                <FaCreditCard className="w-5 h-5 text-white" />
+                                                <span className="text-white">Payments</span>
                                             </div>
                                         </Link>
 

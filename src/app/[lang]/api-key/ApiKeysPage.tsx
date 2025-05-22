@@ -24,6 +24,9 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
     const [credits, setCredits] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [authToken, setAuthToken] = useState<string | null>(null);
+    const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [purchaseAmount, setPurchaseAmount] = useState<number>(0);
+    const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (publicKey) {
@@ -155,9 +158,42 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
         }
     };
 
-    const purchase = async () => {
-        toast.info('Coming Soon, you cannot purchase token at this moment')
-    }
+    const purchase = () => {
+        setShowPurchaseModal(true);
+    };
+
+    const handleBuy = async () => {
+        if (!publicKey) return;
+        try {
+            const res = await fetch("https://zynapse.zkagi.ai/v1/initiate-payment", {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "api-key": API_KEY,
+                },
+                body: JSON.stringify({
+                    wallet_address: publicKey.toString(),
+                    amount_usd: purchaseAmount,
+                }),
+            });
+            const { payment_url } = await res.json();
+            console.log("initiate-payment response:", payment_url);
+
+            // extract iid and build the embed URL
+            const url = new URL(payment_url);
+            const iid = url.searchParams.get("iid");
+            if (iid) {
+                setWidgetUrl(`https://nowpayments.io/embeds/payment-widget?iid=${iid}`);
+            }
+        } catch (err) {
+            console.error("initiate-payment error:", err);
+        } finally {
+            setShowPurchaseModal(false);
+            setPurchaseAmount(0);
+        }
+    };
+
 
     return (
         <div className="pt-3 p-6 bg-[#000A19] text-white h-screen">
@@ -193,6 +229,61 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
                     <ButtonV1New onClick={purchase}>
                         Purchase
                     </ButtonV1New>
+
+                    {showPurchaseModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                            <div className="bg-white p-6 rounded-lg w-80">
+                                <h2 className="text-xl font-bold mb-4">Buy Credits</h2>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={purchaseAmount}
+                                    onChange={e => setPurchaseAmount(Number(e.target.value))}
+                                    placeholder="Amount in USD"
+                                    className="w-full mb-4 px-3 py-2 border rounded"
+                                />
+                                <div className="flex justify-end space-x-2">
+                                    <button
+                                        onClick={() => setShowPurchaseModal(false)}
+                                        className="px-4 py-2 rounded border"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleBuy}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                                    >
+                                        Buy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {widgetUrl && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                            <div className="relative bg-white rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => setWidgetUrl(null)}
+                                    className="absolute top-2 right-2 text-gray-600 hover:text-black"
+                                >
+                                    ✕
+                                </button>
+                                <iframe
+                                    src={widgetUrl}
+                                    width="410"
+                                    height="696"
+                                    frameBorder="0"
+                                    scrolling="no"
+                                    style={{ display: "block" }}
+                                    title="Payment"
+                                >
+                                    Can't load widget
+                                </iframe>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
 
