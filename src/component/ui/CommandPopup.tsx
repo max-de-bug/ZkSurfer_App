@@ -1,6 +1,7 @@
 import React from 'react';
 
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'bridge';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone';
+// | 'bridge';
 
 interface CommandOption {
     command: Command;
@@ -104,10 +105,10 @@ const CommandPopup: React.FC<CommandPopupProps> = ({ onSelect }) => {
             command: 'generate-voice-clone',
             description: 'Add a reference audio and text, to geenrate a cloned voice base don reference for given text'
         },
-        {
-            command: 'bridge',
-            description: 'Kima Integration'
-        }
+        // {
+        //     command: 'bridge',
+        //     description: 'Kima Integration'
+        // }
     ];
 
     return (

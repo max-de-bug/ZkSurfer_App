@@ -67,7 +67,8 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'bridge';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' ;
+//| 'bridge';
 
 interface TickerPopupProps {
     tickers: string[];
@@ -2270,11 +2271,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             return;
         }
 
-        if (inputMessage.trim() === '/bridge') {
-            setShowBridgePopup(true);
-            setInputMessage(''); // Clear the input field
-            return; // Exit early to disable further processing
-        }
+        // if (inputMessage.trim() === '/bridge') {
+        //     setShowBridgePopup(true);
+        //     setInputMessage(''); // Clear the input field
+        //     return; // Exit early to disable further processing
+        // }
 
 
         const getImageResultType = () => {
@@ -5471,7 +5472,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     </div>
                                                 </div>
                                             )}
-                                            {showBridgePopup && (
+                                            {/* {showBridgePopup && (
                                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                                                     <div className="bg-white p-4 rounded-lg relative">
                                                         <button
@@ -5486,7 +5487,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         />
                                                     </div>
                                                 </div>
-                                            )}
+                                            )} */}
 
                                             {showImageSelectModal && selectedImage && (
                                                 <ImageSelectionModal
