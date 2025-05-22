@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 const API_KEYS_URL = "https://zynapse.zkagi.ai/get-api-keys-by-wallet";
 const DELETE_API_KEY_URL = "https://zynapse.zkagi.ai/delete-api-key";
-const BALANCE_API_URL = "https://zynapse.zkagi.ai/check-balance";
+const BALANCE_API_URL = "https://zynapse.zkagi.ai/v1/check-balance";
 const CREATE_API_KEY_URL = "https://zynapse.zkagi.ai/generate-api-key";
 const API_KEY = "zk-123321";
 
@@ -74,7 +74,7 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
                     "Accept": "/",
                     "User-Agent": "Thunder Client",
                     "Authorization": `Bearer ${token}`,
-                    "api-key": API_KEY,
+                    // "api-key": API_KEY,
                     "Content-Type": "application/json",
                 },
             });
@@ -82,6 +82,8 @@ export default function ApiKeysPage({ dictionary }: ApiKeysPageProps) {
             if (!response.ok) throw new Error("Failed to fetch balance");
 
             const data = await response.json();
+            console.log('balance', data)
+            console.log('token balance', token)
             setCredits(data.credit_balance || 0);
         } catch (error) {
             console.error("Error fetching credits:", error);
