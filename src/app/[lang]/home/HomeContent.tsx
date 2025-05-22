@@ -4742,12 +4742,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             </div>
                                         </Link>
 
-                                        <Link href={`/${lang}/payments`} >
+                                        {/* <Link href={`/${lang}/payments`} >
                                             <div className="mb-1 flex flex-row items-center justify-start gap-2 cursor-pointer hover:bg-gray-700 p-2 rounded">
                                                 <FaCreditCard className="w-5 h-5 text-white" />
                                                 <span className="text-white">Payments</span>
                                             </div>
-                                        </Link>
+                                        </Link> */}
 
                                     </div>
                                     <div className="mb-2">
