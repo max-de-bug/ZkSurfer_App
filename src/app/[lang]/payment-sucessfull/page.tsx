@@ -56,7 +56,7 @@ export default function PaymentSuccessPage() {
                             <h2 className="text-xl font-semibold text-gray-900">Successfully!</h2>
                         </div>
                         <p className="text-center text-gray-600">
-                            Thanks a lot, you're credits will reflect shortly!
+                            Thanks a lot, you&apos;re credits will reflect shortly!
                         </p>
                     </div>
                 </div>
