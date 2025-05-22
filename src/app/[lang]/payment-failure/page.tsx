@@ -36,7 +36,7 @@ export default function PaymentFailurePage() {
 
                     <h1 className="text-2xl font-bold text-gray-900">Payment Failed</h1>
                     <p className="text-center text-gray-600">
-                        Oops! Something went wrong and your payment didn’t go through.
+                        Oops! Something went wrong and your payment didn&apos;t go through.
                     </p>
 
                     {/* <div className="w-full bg-gray-50 rounded-xl p-4 flex justify-between items-center mt-4">
