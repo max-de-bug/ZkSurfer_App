@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
 
     // Get the video blob and return it.
     const arrayBuffer = await externalResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    return new NextResponse(buffer, {
+
+    return new NextResponse(arrayBuffer, {
       status: 200,
       headers: { 'Content-Type': contentType },
     });
@@ -78,4 +78,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

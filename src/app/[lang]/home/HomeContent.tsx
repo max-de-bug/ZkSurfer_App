@@ -67,7 +67,7 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone';
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'video-gen';
 //| 'bridge';
 
 interface TickerPopupProps {
@@ -1280,7 +1280,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             };
             setDisplayMessages((prev) => [...prev, displayMessage]);
             setShowCommandPopup(false);
-        } else {
+        } else if (command === 'video-gen') {
+            setInputMessage('/video-gen ');
+            setShowCommandPopup(false);
+        }
+        else {
             setInputMessage(`/${command} `);
             setShowCommandPopup(false);
         }
@@ -1795,85 +1799,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         return await response.json();
     };
 
-    // const processVideoLipsync = async () => {
-    //     // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
-    //     const imageFile = files.find((file) => file.file.type.startsWith('image/'));
-    //     const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
-
-    //     if (!imageFile || !audioFile) {
-    //         toast.error("Please upload one image file and one audio file.");
-    //         return;
-    //     }
-
-    //     // Validate the audio file's duration.
-    //     const isAudioValid = await validateMediaDuration(audioFile.file);
-    //     if (!isAudioValid) {
-    //         toast.error("Audio file must be 15 seconds or shorter.");
-    //         return;
-    //     }
-
-    //     const formData = new FormData();
-    //     formData.append('reference_image', imageFile.file);
-    //     formData.append('input_audio', audioFile.file);
-    //     formData.append('animation_mode', videoLipsyncOption!.toLowerCase());
-
-    //     // Ensure these values match what your API expects (they could come from state or constants)
-    //     formData.append('driving_multiplier', '1.0'); // or your dynamic value
-    //     formData.append('scale', '2.3'); // or your dynamic value
-    //     formData.append('flag_relative_motion','false');
-
-    //     const apiUrlSync = process.env.NEXT_PUBLIC_VIDEO_LIPSYNC;
-
-    //     try {
-    //         const response = await fetch(apiUrlSync, {
-    //             method: 'POST',
-    //             body: formData,
-    //         });
-
-    //         console.log('response', response);
-
-    //         if (!response.ok) {
-    //             const errorText = await response.text();
-    //             throw new Error(errorText);
-    //         }
-
-    //         // Create a URL from the returned video blob.
-    //         const blob = await response.blob();
-    //         const videoUrl = URL.createObjectURL(blob);
-
-    //         const successMessage: Message = {
-    //             role: 'assistant',
-    //             content: (
-    //                 <div>
-    //                     <video src={videoUrl} controls className="w-full h-auto rounded-md" />
-    //                     <a href={videoUrl} download="merged-video.mp4" className="text-blue-500 underline">
-    //                         Download Merged Video
-    //                     </a>
-    //                 </div>
-    //             ),
-    //             type: 'text',
-    //         };
-    //         setDisplayMessages((prev) => [...prev, successMessage]);
-    //     } catch (error: any) {
-    //         const errorMessage: Message = {
-    //             role: 'assistant',
-    //             content: `Error processing your video and audio. Please try again. Error: ${error.message}`,
-    //             type: 'text',
-    //         };
-    //         setDisplayMessages((prev) => [...prev, errorMessage]);
-    //     }
-
-    //     // Clear the uploaded files and reset the input.
-    //     setFiles([]);
-    //     setInputMessage('');
-    //     if (inputRef.current) {
-    //         inputRef.current.style.height = '2.5rem';
-    //     }
-    //     // Reset the option for future submissions.
-    //     setVideoLipsyncOption(null);
-    //     setShowVideoLipsyncOption(false);
-    // };
-
     const compressImageFile = (
         file: File,
         quality = 0.7,
@@ -2070,6 +1995,70 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             pos += 4;
         }
     }
+
+    const processVideoGen = async (prompt: string) => {
+        try {
+            // 1. Send { prompt } to our newly created /api/video-gen route
+            const response = await fetch('/api/video-gen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' , "x-api-key": apiKey,
+          "x-current-credits": credits.toString(),},
+                body: JSON.stringify({ prompt }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Video-gen API failed');
+            }
+
+            // 2. We assume the external returned JSON like { video_url: string }
+            const data = await response.json();
+
+            // 3. If data.video_url is present, show a <video> and download link:
+            if (data.video_url) {
+                const videoUrl = data.video_url as string;
+
+                const assistantMessage: Message = {
+                    role: 'assistant',
+                    content: (
+                        <div>
+                            <video
+                                src={videoUrl}
+                                controls
+                                className="w-full h-auto rounded-md mb-2"
+                            />
+                            <a
+                                href={videoUrl}
+                                download="generated-video.mp4"
+                                className="text-blue-500 underline"
+                            >
+                                Download Video
+                            </a>
+                        </div>
+                    ),
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, assistantMessage]);
+            } else {
+                // If the external returned something else (e.g. a base64 blob), adjust accordingly:
+                const assistantMessage: Message = {
+                    role: 'assistant',
+                    content: 'Unexpected response from video-gen API.',
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, assistantMessage]);
+            }
+        } catch (err: any) {
+            console.error('processVideoGen error:', err);
+            const errorMessage: Message = {
+                role: 'assistant',
+                content: `Error generating video: ${err.message}`,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, errorMessage]);
+        }
+    };
+
 
     const processVideoLipsync = async () => {
         // Look for an image file (jpg/jpeg/png) and an audio file in your uploaded files.
@@ -2914,6 +2903,33 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         //     return;
         // }
 
+
+        if (fullMessage.startsWith('/video-gen')) {
+            // 1. Extract the prompt after the command
+            const promptText = fullMessage.replace('/video-gen', '').trim();
+            if (!promptText) {
+                toast.error('Please provide a prompt after /video-gen.');
+                return;
+            }
+
+            // 2. Show the user’s own message in the chat window
+            const userMessage: Message = {
+                role: 'user',
+                content: fullMessage,
+                type: 'text',
+            };
+            setDisplayMessages((prev) => [...prev, userMessage]);
+
+            // 3. Clear the input & set loading state
+            setInputMessage('');
+            setIsLoading(true);
+
+            // 4. Call our helper to actually hit /api/video-gen
+            await processVideoGen(promptText);
+
+            setIsLoading(false);
+            return;
+        }
 
         if (fullMessage.startsWith('/video-lipsync')) {
             // If no option is chosen, do nothing (the popup should be visible).

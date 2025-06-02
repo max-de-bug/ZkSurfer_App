@@ -102,6 +102,7 @@ const nextConfig = {
     NEXT_PUBLIC_CHAIN: process.env.NEXT_PUBLIC_CHAIN,
     NEXT_PUBLIC_WAN_IMG_TO_VIDEO: process.env.NEXT_PUBLIC_WAN_IMG_TO_VIDEO,
     NEXT_PUBLIC_LANDWOLF_HIGH: process.env.NEXT_PUBLIC_LANDWOLF_HIGH,
+    NEXT_PUBLIC_VIDEO_GEN_ENDPOINT:process.env.NEXT_PUBLIC_VIDEO_GEN_ENDPOINT
   },
   experimental: {
     esmExternals: "loose",
