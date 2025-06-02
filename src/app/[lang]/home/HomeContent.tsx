@@ -67,8 +67,9 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'video-gen';
+type Command = 'image-gen' | 'create-agent' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' | 'video-gen';
 //| 'bridge';
+// |'train' |'post' |'select'|'launch'
 
 interface TickerPopupProps {
     tickers: string[];
@@ -1272,15 +1273,16 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         //     setInputMessage('');
         //     return;
         // }
-        else if (command === 'select') {
-            setInputMessage(`/${command} `);
-            const displayMessage: Message = {
-                role: 'assistant',
-                content: <TickerSelector /> as ReactNode,
-            };
-            setDisplayMessages((prev) => [...prev, displayMessage]);
-            setShowCommandPopup(false);
-        } else if (command === 'video-gen') {
+        // else if (command === 'select') {
+        //     setInputMessage(`/${command} `);
+        //     const displayMessage: Message = {
+        //         role: 'assistant',
+        //         content: <TickerSelector /> as ReactNode,
+        //     };
+        //     setDisplayMessages((prev) => [...prev, displayMessage]);
+        //     setShowCommandPopup(false);
+        // }
+        else if (command === 'video-gen') {
             setInputMessage('/video-gen ');
             setShowCommandPopup(false);
         }
@@ -2001,8 +2003,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             // 1. Send { prompt } to our newly created /api/video-gen route
             const response = await fetch('/api/video-gen', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' , "x-api-key": apiKey,
-          "x-current-credits": credits.toString(),},
+                headers: {
+                    'Content-Type': 'application/json', "x-api-key": apiKey,
+                    "x-current-credits": credits.toString(),
+                },
                 body: JSON.stringify({ prompt }),
             });
 
