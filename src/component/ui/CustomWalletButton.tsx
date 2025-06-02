@@ -206,7 +206,7 @@
 //     // Only show our custom modal
 //     setModalVisible(true);
 
-//     // Check if wallets are installed 
+//     // Check if wallets are installed
 //     const hasPhantom = wallets.some(
 //       (w) =>
 //         (w as any)?.name === 'Phantom' &&
@@ -277,18 +277,19 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useContext } from "react";
+import { useRouter } from "next/navigation";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { BaseWalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { WalletReadyState } from '@solana/wallet-adapter-base';
+import { WalletReadyState } from "@solana/wallet-adapter-base";
 import { toast } from "sonner";
-import { WalletModal } from './WalletModal';
-import { MagicWalletName } from '../MagicWalletAdapter';
-import { PublicKey } from '@solana/web3.js';
-import { MagicAdapterContext } from '../AppWalletProvider';
-import { WalletName } from '@solana/wallet-adapter-base';
+import { WalletModal } from "./WalletModal";
+import { MagicWalletName } from "../MagicWalletAdapter";
+import { PublicKey } from "@solana/web3.js";
+import { MagicAdapterContext } from "../AppWalletProvider";
+import { WalletName } from "@solana/wallet-adapter-base";
+import { useModelStore } from "@/stores/useModel-store";
 
 // Add TypeScript declarations for wallet browser properties
 declare global {
@@ -300,7 +301,7 @@ declare global {
     };
     magic?: any;
     magicAdapter?: any;
-    MagicWalletName?: WalletName<'Magic'>;  // Must match the type from earlier declaration
+    MagicWalletName?: WalletName<"Magic">; // Must match the type from earlier declaration
   }
 }
 const LABELS = {
@@ -316,23 +317,30 @@ const LABELS = {
 export const CustomWalletButton = () => {
   const router = useRouter();
   const { setVisible } = useWalletModal();
-  const { publicKey, wallet, connecting, disconnecting, wallets, select } = useWallet();
+  const { publicKey, wallet, connecting, disconnecting, wallets, select } =
+    useWallet();
   const [isModalVisible, setModalVisible] = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
-  const [storedWalletAddress, setStoredWalletAddress] = useState<string | null>(null);
+  const [storedWalletAddress, setStoredWalletAddress] = useState<string | null>(
+    null
+  );
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [hasCalledAddUser, setHasCalledAddUser] = useState(false);
 
   // Get Magic adapter from context
   const magicAdapter = useContext(MagicAdapterContext);
 
+  //Set credits and keys
+  const { setCredits, setApiKey } = useModelStore();
+
   // Debug available wallets on mount
   useEffect(() => {
     if (wallets && wallets.length > 0) {
-      console.log("CustomWalletButton - Available wallets:",
-        wallets.map(w => ({
-          name: (w as any)?.name || 'unnamed',
-          ready: (w as any)?.readyState
+      console.log(
+        "CustomWalletButton - Available wallets:",
+        wallets.map((w) => ({
+          name: (w as any)?.name || "unnamed",
+          ready: (w as any)?.readyState,
         }))
       );
     }
@@ -345,8 +353,8 @@ export const CustomWalletButton = () => {
     setIsFirstLoad(false);
     console.log("First load completed");
 
-    const storedAddress = localStorage.getItem('connectedWalletAddress');
-    const storedWalletName = localStorage.getItem('walletName');
+    const storedAddress = localStorage.getItem("connectedWalletAddress");
+    const storedWalletName = localStorage.getItem("walletName");
 
     if (storedAddress) {
       setStoredWalletAddress(storedAddress);
@@ -357,7 +365,10 @@ export const CustomWalletButton = () => {
 
         // Try to trigger a wallet selection after a delay
         setTimeout(() => {
-          if (!publicKey && wallets.some(w => (w as any)?.name === MagicWalletName)) {
+          if (
+            !publicKey &&
+            wallets.some((w) => (w as any)?.name === MagicWalletName)
+          ) {
             console.log("Selecting Magic wallet");
             select(MagicWalletName);
           }
@@ -371,7 +382,7 @@ export const CustomWalletButton = () => {
     if (publicKey) {
       const publicKeyString = publicKey.toString();
       setStoredWalletAddress(publicKeyString);
-      localStorage.setItem('connectedWalletAddress', publicKeyString);
+      localStorage.setItem("connectedWalletAddress", publicKeyString);
       console.log("Public key updated:", publicKeyString);
     }
   }, [publicKey]);
@@ -379,11 +390,11 @@ export const CustomWalletButton = () => {
   // Handle wallet disconnection without triggering a refresh
   useEffect(() => {
     if (disconnecting || (!publicKey && !connecting && !isFirstLoad)) {
-      const hasWalletName = localStorage.getItem('walletName');
+      const hasWalletName = localStorage.getItem("walletName");
       if (hasWalletName) {
         console.log("Wallet disconnected, removing walletName");
-        localStorage.removeItem('walletName');
-        localStorage.removeItem('connectedWalletAddress');
+        localStorage.removeItem("walletName");
+        localStorage.removeItem("connectedWalletAddress");
         setStoredWalletAddress(null);
       }
     }
@@ -393,34 +404,48 @@ export const CustomWalletButton = () => {
   const walletAddress = publicKey?.toString() || storedWalletAddress;
 
   // Check connection status
-  const isConnected = !!publicKey || (!!storedWalletAddress && localStorage.getItem('walletName') === MagicWalletName);
-
+  const isConnected =
+    !!publicKey ||
+    (!!storedWalletAddress &&
+      localStorage.getItem("walletName") === MagicWalletName);
 
   useEffect(() => {
     if (
-      isConnected &&              // we’re connected
-      walletAddress &&            // we have an address
-      !hasCalledAddUser           // and haven’t called yet
+      isConnected && // we’re connected
+      walletAddress && // we have an address
+      !hasCalledAddUser // and haven’t called yet
     ) {
       setHasCalledAddUser(true);
 
-      fetch('https://zynapse.zkagi.ai/add-user', {
-        method: 'POST',
+      fetch("https://zynapse.zkagi.ai/add-user", {
+        method: "POST",
         headers: {
-          'api-key': 'zk-123321',
-          'accept': 'application/json',
-          'Content-Type': 'application/json',
+          "api-key": "zk-123321",
+          accept: "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           wallet_address: walletAddress,
         }),
       })
-        .then(async res => {
+        .then(async (res) => {
           const json = await res.json();
-          console.log('add-user response:', json);
+          console.log("add-user response:", json);
+
+          // Update the store with the response data
+          if (json.credit_balance !== undefined) {
+            setCredits(json.credit_balance);
+            console.log("Updated credits:", json.credit_balance);
+          }
+
+          if (json.api_keys && json.api_keys.length > 0) {
+            const firstApiKey = json.api_keys[0];
+            setApiKey(firstApiKey);
+            console.log("Updated API key:", firstApiKey);
+          }
         })
-        .catch(err => {
-          console.error('Error calling add-user:', err);
+        .catch((err) => {
+          console.error("Error calling add-user:", err);
         });
     }
   }, [isConnected, walletAddress, hasCalledAddUser]);
@@ -443,8 +468,8 @@ export const CustomWalletButton = () => {
         }
 
         // Find the Magic adapter in wallet list
-        const adapterFromList = wallets.find(w =>
-          (w as any)?.name === MagicWalletName
+        const adapterFromList = wallets.find(
+          (w) => (w as any)?.name === MagicWalletName
         );
 
         if (adapterFromList) {
@@ -454,8 +479,8 @@ export const CustomWalletButton = () => {
         } else {
           // Fallback to localStorage removal
           console.log("Magic adapter not found, using localStorage fallback");
-          localStorage.removeItem('walletName');
-          localStorage.removeItem('connectedWalletAddress');
+          localStorage.removeItem("walletName");
+          localStorage.removeItem("connectedWalletAddress");
           setStoredWalletAddress(null);
 
           // Force reload to clear the wallet state completely
@@ -501,21 +526,25 @@ export const CustomWalletButton = () => {
     // Only show our custom modal
     setModalVisible(true);
 
-    // Check if wallets are installed 
+    // Check if wallets are installed
     const hasPhantom = wallets.some(
       (w) =>
-        (w as any)?.name === 'Phantom' &&
-        ((w as any)?.readyState === WalletReadyState.Installed || (w as any)?.readyState === WalletReadyState.Loadable)
+        (w as any)?.name === "Phantom" &&
+        ((w as any)?.readyState === WalletReadyState.Installed ||
+          (w as any)?.readyState === WalletReadyState.Loadable)
     );
 
     // If no wallets are detected, show the installation prompt
     if (!hasPhantom) {
-      toast.error('No available Solana wallets found. Please install a wallet to continue.', {
-        action: {
-          label: 'Install Phantom',
-          onClick: () => window.open('https://phantom.app/', '_blank'),
-        },
-      });
+      toast.error(
+        "No available Solana wallets found. Please install a wallet to continue.",
+        {
+          action: {
+            label: "Install Phantom",
+            onClick: () => window.open("https://phantom.app/", "_blank"),
+          },
+        }
+      );
     }
   };
 
