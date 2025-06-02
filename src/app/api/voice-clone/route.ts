@@ -16,10 +16,30 @@ export async function POST(req: NextRequest) {
   try {
     // Extract FormData from the incoming request.
     const body = await req.formData();
+    const apiKey = req.headers.get('x-api-key');
+    const currentCredits = req.headers.get('x-current-credits');
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API key is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!currentCredits || parseInt(currentCredits) <= 0) {
+      return NextResponse.json(
+        { error: "Insufficient credits" },
+        { status: 402 } // Payment Required
+      );
+    }
 
     // Forward the request to the voice clone API endpoint with the same FormData.
     const response = await fetch(endpoint, {
       method: "POST",
+      headers: {
+        "X-API-Key": apiKey,
+        "accept": "application/json",
+      },
       body: body, // FormData is passed directly.
     });
 
@@ -47,3 +67,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

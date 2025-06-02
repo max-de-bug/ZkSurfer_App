@@ -67,7 +67,7 @@ export interface HomeContentProps {
 }
 
 //type Command = 'image-gen' | 'create-agent' | 'content';
-type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone' ;
+type Command = 'image-gen' | 'create-agent' | 'select' | 'post' | 'tokens' | 'tweet' | 'tweets' | 'generate-tweet' | 'generate-tweet-image' | 'generate-tweet-images' | 'save' | 'saves' | 'character-gen' | 'launch' | 'train' | 'video-lipsync' | 'UGC' | 'img-to-video' | 'api' | 'generate-voice-clone';
 //| 'bridge';
 
 interface TickerPopupProps {
@@ -419,7 +419,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     // const { data: walletClient } = useWalletClient();
     // const publicClient = usePublicClient();
 
-    const { selectedModel, setSelectedModel } = useModelStore();
+    const { selectedModel, setSelectedModel, credits, apiKey, setCredits } = useModelStore();
     const [isOpen, setIsOpen] = useState(false);
 
     const [displayMessages, setDisplayMessages] = useState<Message[]>([]); // Array for messages to be displayed
@@ -918,6 +918,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     selectedModel: "Mistral",
+                    credits,
+                    apiKey,
                     messages: [
                         {
                             role: 'user',
@@ -2112,6 +2114,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             const response = await fetch(apiUrlSync, {
                 method: 'POST',
+                headers: {
+                    'x-api-key': apiKey,           // Send from Zustand
+                    'x-current-credits': credits.toString(), // Send from Zustand
+                    'Content-Type': 'application/json',
+                },
                 body: formData,
             });
 
@@ -2292,13 +2299,110 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
         const fullMessage = inputMessage.trim();
 
+        // if (fullMessage.startsWith('/generate-voice-clone')) {
+        //     // Find an audio file among the uploaded files.
+        //     const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
+        //     if (!audioFile) {
+        //         toast.error("Please upload an audio file for voice cloning.");
+        //         return;
+        //     }
+        //     // Extract the text after removing the command prefix.
+        //     const genText = fullMessage.replace('/generate-voice-clone', '').trim();
+        //     if (!genText) {
+        //         toast.error("Please provide text for voice cloning after the command.");
+        //         return;
+        //     }
+
+        //     // Display the user message with command text and a music icon.
+        //     const userDisplayMessage: Message = {
+        //         role: 'user',
+        //         content: (
+        //             <div className="flex flex-col items-center space-x-2">
+        //                 <span>Generate a voice clone with following text: {genText}</span>
+        //                 {/* <FaMusic size={20} className="text-white" /> */}
+        //             </div>
+        //         ),
+        //         type: 'text',
+        //     };
+        //     setDisplayMessages((prev) => [...prev, userDisplayMessage]);
+        //     setInputMessage('');
+        //     setFiles([]);
+        //     setIsLoading(true)
+
+
+        //     // Build FormData with the required payload parameters.
+        //     const formData = new FormData();
+        //     formData.append('ref_audio', audioFile.file); // Pass the audio file as binary.
+        //     formData.append('ref_text', '');             // Send empty value.
+        //     formData.append('gen_text', genText);         // The text for the voice clone.
+        //     formData.append('model', 'F5-TTS');           // Set model (or leave empty if desired).
+        //     formData.append('remove_silence', 'false');   // Boolean value as string.
+        //     formData.append('cross_fade_duration', '0.15'); // Number as string.
+        //     formData.append('nfe_step', '32');            // Integer as string.
+        //     formData.append('speed', '1');                // Number as string.
+
+        //     try {
+        //         // Trigger the API call.
+        //         const response = await fetch('/api/voice-clone', {
+        //             method: 'POST',
+        //             body: formData,
+        //         });
+
+        //         if (!response.ok) {
+        //             throw new Error('Failed to generate voice clone.');
+        //         }
+
+        //         // Read the returned audio as a blob.
+        //         const blob = await response.blob();
+        //         const audioUrl = URL.createObjectURL(blob);
+
+        //         // Build a success message that shows an audio player and download link.
+        //         const successMessage: Message = {
+        //             role: 'assistant',
+        //             content: (
+        //                 <div>
+        //                     <audio controls src={audioUrl} className="w-full" />
+        //                     <a
+        //                         href={audioUrl}
+        //                         download="voice_clone.wav"
+        //                         className="text-blue-500 underline block mt-2"
+        //                     >
+        //                         Download Voice Clone
+        //                     </a>
+        //                 </div>
+        //             ),
+        //             type: 'text',
+        //         };
+        //         setDisplayMessages((prev) => [...prev, successMessage]);
+        //         setIsLoading(false)
+        //     } catch (error: any) {
+        //         console.error("Error in generate-voice-clone:", error);
+        //         toast.error("Error generating voice clone. Please try again.");
+        //     }
+
+        //     return;
+        // }
+
         if (fullMessage.startsWith('/generate-voice-clone')) {
+            // Check credits first
+            if (credits <= 0) {
+                toast.error("Insufficient credits. Please add more credits to continue.");
+                return;
+            }
+
+            // Check API key
+            if (!apiKey) {
+                toast.error("API key is required. Please set your API key in settings.");
+                return;
+            }
+
             // Find an audio file among the uploaded files.
             const audioFile = files.find((file) => file.file.type.startsWith('audio/'));
             if (!audioFile) {
                 toast.error("Please upload an audio file for voice cloning.");
                 return;
             }
+
             // Extract the text after removing the command prefix.
             const genText = fullMessage.replace('/generate-voice-clone', '').trim();
             if (!genText) {
@@ -2306,13 +2410,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 return;
             }
 
-            // Display the user message with command text and a music icon.
+            // Display the user message with command text and credits info.
             const userDisplayMessage: Message = {
                 role: 'user',
                 content: (
                     <div className="flex flex-col items-center space-x-2">
                         <span>Generate a voice clone with following text: {genText}</span>
-                        {/* <FaMusic size={20} className="text-white" /> */}
+                        <span className="text-sm text-gray-500">Credits remaining: {credits}</span>
                     </div>
                 ),
                 type: 'text',
@@ -2320,8 +2424,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             setDisplayMessages((prev) => [...prev, userDisplayMessage]);
             setInputMessage('');
             setFiles([]);
-            setIsLoading(true)
-
+            setIsLoading(true);
 
             // Build FormData with the required payload parameters.
             const formData = new FormData();
@@ -2335,14 +2438,32 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             formData.append('speed', '1');                // Number as string.
 
             try {
-                // Trigger the API call.
+                // Trigger the API call with headers for credit management.
                 const response = await fetch('/api/voice-clone', {
                     method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Current-Credits': credits.toString(),
+                    },
                     body: formData,
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to generate voice clone.');
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || 'Failed to generate voice clone.');
+                }
+
+                // Check if credits should be deducted
+                const shouldDeductCredits = response.headers.get('X-Deduct-Credits');
+                const remainingCredits = response.headers.get('X-Remaining-Credits');
+
+                if (shouldDeductCredits && remainingCredits) {
+                    // Update the store with new credit count
+                    const newCredits = parseInt(remainingCredits);
+                    setCredits(newCredits);
+
+                    // Show credit deduction message
+                    toast.success(`Voice clone generated! ${shouldDeductCredits} credit(s) deducted. ${newCredits} credits remaining.`);
                 }
 
                 // Read the returned audio as a blob.
@@ -2354,6 +2475,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     role: 'assistant',
                     content: (
                         <div>
+                            <div className="mb-2">
+                                <span className="text-sm text-green-600">
+                                    Voice clone generated successfully! Credits remaining: {credits - 1}
+                                </span>
+                            </div>
                             <audio controls src={audioUrl} className="w-full" />
                             <a
                                 href={audioUrl}
@@ -2367,10 +2493,20 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     type: 'text',
                 };
                 setDisplayMessages((prev) => [...prev, successMessage]);
-                setIsLoading(false)
+                setIsLoading(false);
+
             } catch (error: any) {
                 console.error("Error in generate-voice-clone:", error);
-                toast.error("Error generating voice clone. Please try again.");
+                setIsLoading(false);
+
+                // Handle specific error cases
+                if (error.message.includes('Insufficient credits')) {
+                    toast.error("Insufficient credits. Please add more credits to continue.");
+                } else if (error.message.includes('API key')) {
+                    toast.error("Invalid API key. Please check your API key in settings.");
+                } else {
+                    toast.error(`Error generating voice clone: ${error.message}`);
+                }
             }
 
             return;
@@ -3227,6 +3363,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         selectedModel: 'Mistral',
+                        credits,
+                        apiKey,
                         messages: [...apiMessages, apiMessage],
                         directCommand: {
                             type: commandType,
@@ -3454,6 +3592,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         body: JSON.stringify({
                             messages: [...apiMessages, apiMessage],
                             selectedModel: 'Mistral',
+                            credits,
+                            apiKey,
                         }),
                         signal: controller.signal
                     });
@@ -3550,6 +3690,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         body: JSON.stringify({
                             messages: [...apiMessages, { role: 'user', content: inputMessage } as Message],
                             selectedModel,
+                            credits,
+                            apiKey,
                         }),
                         signal: controller.signal,
                     });

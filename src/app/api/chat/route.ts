@@ -104,24 +104,26 @@ async function verifyProof(proof: string) {
     return result;
 }
 
-async function generate_image(prompt: string, seed?: number) {
+async function generate_image(
+    prompt: string,
+    seed: number | undefined,
+    credits: number,
+    clientApiKey: string
+) {
+    // low credits → legacy “landwolf” endpoint
+    if (credits <= 10) {
+        const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
+        if (!landwolfUrl) throw new Error("…missing LANDWOLF URL");
 
-    const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
-    if (!landwolfUrl) {
-        throw new Error("NEXT_PUBLIC_LANDWOLF is not defined in environment variables");
-    }
-
-    try {
-        // Create an AbortController for the timeout.
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120000);
+        const timeout = setTimeout(() => controller.abort(), 120_000);
 
-        // Make the fetch call with the provided prompt.
-        const response = await fetch(landwolfUrl, {
-            method: 'POST',
+        const resp = await fetch(landwolfUrl, {
+            method: "POST",
             headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "X-API-KEY": clientApiKey,
             },
             body: JSON.stringify({
                 prompt,
@@ -129,42 +131,210 @@ async function generate_image(prompt: string, seed?: number) {
                 height: 512,
                 num_steps: 20,
                 guidance: 4,
+                seed,
             }),
             signal: controller.signal,
         });
-
         clearTimeout(timeout);
+        if (!resp.ok) throw new Error(`Landwolf failed: ${resp.statusText}`);
 
-        if (!response.ok) {
-            throw new Error(`Failed to generate image: ${response.statusText}`);
-        }
-
-        // Check the Content-Type of the response.
-        const contentType = response.headers.get('Content-Type');
-
-        if (contentType?.includes('image/')) {
-            // Convert image to base64 string to send to frontend
-            const blob = await response.blob();
-            const arrayBuffer = await blob.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const base64Image = buffer.toString('base64');
-
+        const contentType = resp.headers.get("Content-Type")!;
+        if (contentType.includes("image/")) {
+            const blob = await resp.blob();
+            const buf = Buffer.from(await blob.arrayBuffer());
             return {
-                image: `data:${contentType};base64,${base64Image}`,
-                contentType
+                image: `data:${contentType};base64,${buf.toString("base64")}`,
+                contentType,
             };
-        } else if (contentType?.includes('application/json')) {
-            // If response is JSON, just return it
-            const result = await response.json();
-            return result;
-        } else {
-            throw new Error('Unsupported response type');
         }
-    } catch (error) {
-        console.error(error);
-        throw error;
+        return resp.json();
+    }
+
+    // high credits → new ZKAGI v1 endpoint
+    else if (credits > 10) {
+        const landwolfHigh = process.env.NEXT_PUBLIC_LANDWOLF_HIGH;
+        if (!landwolfHigh) throw new Error("…missing LANDWOLFHIGH URL");
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120_000);
+
+        const resp = await fetch(landwolfHigh, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "X-API-KEY": clientApiKey,
+            },
+            body: JSON.stringify({
+                prompt,
+                width: 512,
+                height: 512,
+                num_steps: 24,
+                guidance: 3.5,
+                seed: 1,
+                strength: 1,
+            }),
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!resp.ok) throw new Error(`Landwolf failed: ${resp.statusText}`);
+
+        const contentType = resp.headers.get("Content-Type")!;
+        if (contentType.includes("image/")) {
+            const blob = await resp.blob();
+            const buf = Buffer.from(await blob.arrayBuffer());
+            return {
+                image: `data:${contentType};base64,${buf.toString("base64")}`,
+                contentType,
+            };
+        }
+        return resp.json();
     }
 }
+
+// async function generate_image(
+//     prompt: string,
+//     seed: number | undefined,
+//     credits: number,
+//     clientApiKey: string
+// ) {
+//     const landwolfHigh = process.env.NEXT_PUBLIC_LANDWOLF_HIGH;
+//     // low credits → legacy “landwolf” endpoint
+//     if (credits <= 10) {
+//         const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF
+//         if (!landwolfUrl) throw new Error("…missing LANDWOLF URL")
+
+//         const controller = new AbortController()
+//         const timeout = setTimeout(() => controller.abort(), 120_000)
+
+//         const resp = await fetch(landwolfUrl, {
+//             method: 'POST',
+//             headers: {
+//                 'Accept': 'application/json',
+//                 'Content-Type': 'application/json',
+//                 'X-API-KEY': clientApiKey,   // pass the stored key
+//             },
+//             body: JSON.stringify({
+//                 prompt,
+//                 width: 512,
+//                 height: 512,
+//                 num_steps: 20,
+//                 guidance: 4,
+//                 seed,
+//             }),
+//             signal: controller.signal,
+//         })
+//         clearTimeout(timeout)
+//         if (!resp.ok) throw new Error(`Landwolf failed: ${resp.statusText}`)
+
+//         // handle image or JSON exactly as before…
+//         const contentType = resp.headers.get('Content-Type')!
+//         if (contentType.includes('image/')) {
+//             const blob = await resp.blob()
+//             const buf = Buffer.from(await blob.arrayBuffer())
+//             return {
+//                 image: `data:${contentType};base64,${buf.toString('base64')}`,
+//                 contentType
+//             }
+//         }
+//         return resp.json()
+//     }
+
+//     if (!landwolfHigh) {
+//         console.error("❌ Missing NEXT_PUBLIC_LANDWOLF_HIGH in environment");
+//         throw new Error("Missing LANDWOLF_HIGH URL");
+//     }
+
+//     // high credits → new ZKAGI v1 endpoint
+//     const resp2 = await fetch(landwolfHigh, {
+//         method: 'POST',
+//         headers: {
+//             'Accept': '*/*',
+//             //'User-Agent': 'ZkAGI-Client',
+//             'X-API-KEY': clientApiKey,      // use the stored key here too
+//             'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//             prompt,
+//             width: 720,
+//             height: 1024,
+//             num_steps: 24,
+//             guidance: 3.5,
+//             seed,
+//             strength: 1
+//         }),
+//     })
+//     if (!resp2.ok) throw new Error(`ZKAGI-v1 failed: ${resp2.statusText}`)
+//     const data = await resp2.json()
+//     // assume `data.image` is a base64 URL or URL string
+//     return {
+//         image: data.image,
+//         contentType: 'image/png',
+//     }
+// }
+
+
+// async function generate_image(prompt: string, seed?: number,) {
+
+//     const landwolfUrl = process.env.NEXT_PUBLIC_LANDWOLF;
+//     if (!landwolfUrl) {
+//         throw new Error("NEXT_PUBLIC_LANDWOLF is not defined in environment variables");
+//     }
+
+//     try {
+//         // Create an AbortController for the timeout.
+//         const controller = new AbortController();
+//         const timeout = setTimeout(() => controller.abort(), 120000);
+
+//         // Make the fetch call with the provided prompt.
+//         const response = await fetch(landwolfUrl, {
+//             method: 'POST',
+//             headers: {
+//                 Accept: 'application/json',
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 prompt,
+//                 width: 512,
+//                 height: 512,
+//                 num_steps: 20,
+//                 guidance: 4,
+//             }),
+//             signal: controller.signal,
+//         });
+
+//         clearTimeout(timeout);
+
+//         if (!response.ok) {
+//             throw new Error(`Failed to generate image: ${response.statusText}`);
+//         }
+
+//         // Check the Content-Type of the response.
+//         const contentType = response.headers.get('Content-Type');
+
+//         if (contentType?.includes('image/')) {
+//             // Convert image to base64 string to send to frontend
+//             const blob = await response.blob();
+//             const arrayBuffer = await blob.arrayBuffer();
+//             const buffer = Buffer.from(arrayBuffer);
+//             const base64Image = buffer.toString('base64');
+
+//             return {
+//                 image: `data:${contentType};base64,${base64Image}`,
+//                 contentType
+//             };
+//         } else if (contentType?.includes('application/json')) {
+//             // If response is JSON, just return it
+//             const result = await response.json();
+//             return result;
+//         } else {
+//             throw new Error('Unsupported response type');
+//         }
+//     } catch (error) {
+//         console.error(error);
+//         throw error;
+//     }
+// }
 
 //
 // ─── STREAMING API ENDPOINT ─────────────────────────────────────────────
@@ -175,7 +345,8 @@ export async function POST(request: Request) {
         console.log('Received request to /api/chat');
 
         // Parse the request body once.
-        const { messages, directCommand, selectedModel } = await request.json();
+        const { messages, directCommand, selectedModel, credits,
+            apiKey: clientApiKey } = await request.json();
         console.log('Parsed messages:', messages);
         console.log('Received selectedModel from frontend:', selectedModel);
 
@@ -188,7 +359,8 @@ export async function POST(request: Request) {
 
         if (directCommand) {
             // Call your image-generation service.
-            const generatedImage = await generate_image(directCommand.prompt, directCommand.seed);
+            const generatedImage = await generate_image(directCommand.prompt, directCommand.seed, credits,
+                clientApiKey);
 
             // Generate and verify proof.
             const proof = await generateProof(directCommand.prompt);

@@ -281,6 +281,7 @@ import { useCharacterStore } from '@/stores/charecter-store';
 import { useFormStore } from '@/stores/form-store';
 import Tooltip from './Tooltip';
 import InfoIcon from './Infoicon';
+import { useModelStore } from '@/stores/useModel-store';
 
 const CharacterGenForm = () => {
   const { selectedTicker, tickerInfo } = useTickerStore();
@@ -289,6 +290,7 @@ const CharacterGenForm = () => {
   const { publicKey } = useWallet();
   const { characterJson, setCharacterJson } = useCharacterStore();
   const [loading, setLoading] = useState(false);
+  const { credits, apiKey } = useModelStore();
 
   // const [formData, setFormData] = useState({
   //   email: '',
@@ -439,6 +441,8 @@ const CharacterGenForm = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            credits,
+            apiKey,
             messages: [
               {
                 role: "system",

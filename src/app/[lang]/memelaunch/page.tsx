@@ -834,7 +834,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-    const { selectedModel, setSelectedModel } = useModelStore();
+    const { selectedModel, setSelectedModel, credits, apiKey } = useModelStore();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -2391,6 +2391,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     selectedModel,
+                    credits,
+                    apiKey,
                     messages: [
                         {
                             role: "system",
@@ -2617,6 +2619,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     selectedModel,
+                    credits,
+                    apiKey,
                     messages: [
                         {
                             role: "system",
