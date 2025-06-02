@@ -1998,70 +1998,126 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         }
     }
 
+
     const processVideoGen = async (prompt: string) => {
-        try {
-            // 1. Send { prompt } to our newly created /api/video-gen route
-            const response = await fetch('/api/video-gen', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json', "x-api-key": apiKey,
-                    "x-current-credits": credits.toString(),
-                },
-                body: JSON.stringify({ prompt }),
-            });
+    try {
+        const response = await fetch('/api/video-gen', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                "x-api-key": apiKey,
+                "x-current-credits": credits.toString(),
+            },
+            body: JSON.stringify({ prompt }),
+        });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Video-gen API failed');
-            }
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Video-gen API failed');
+        }
 
-            // 2. We assume the external returned JSON like { video_url: string }
-            const data = await response.json();
+        // Check content type BEFORE trying to parse as JSON
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType?.includes('video/mp4')) {
+            // Handle MP4 binary response
+            const videoBlob = await response.blob();
+            const videoUrl = URL.createObjectURL(videoBlob);
 
-            // 3. If data.video_url is present, show a <video> and download link:
-            if (data.video_url) {
-                const videoUrl = data.video_url as string;
-
-                const assistantMessage: Message = {
-                    role: 'assistant',
-                    content: (
-                        <div>
-                            <video
-                                src={videoUrl}
-                                controls
-                                className="w-full h-auto rounded-md mb-2"
-                            />
-                            <a
-                                href={videoUrl}
-                                download="generated-video.mp4"
-                                className="text-blue-500 underline"
-                            >
-                                Download Video
-                            </a>
-                        </div>
-                    ),
-                    type: 'text',
-                };
-                setDisplayMessages((prev) => [...prev, assistantMessage]);
-            } else {
-                // If the external returned something else (e.g. a base64 blob), adjust accordingly:
-                const assistantMessage: Message = {
-                    role: 'assistant',
-                    content: 'Unexpected response from video-gen API.',
-                    type: 'text',
-                };
-                setDisplayMessages((prev) => [...prev, assistantMessage]);
-            }
-        } catch (err: any) {
-            console.error('processVideoGen error:', err);
-            const errorMessage: Message = {
+            const assistantMessage: Message = {
                 role: 'assistant',
-                content: `Error generating video: ${err.message}`,
+                content: (
+                    <div>
+                        <video
+                            src={videoUrl}
+                            controls
+                            className="w-full h-auto rounded-md mb-2"
+                        />
+                        <a>
+                            Download Video
+                        </a>
+                    </div>
+                ),
                 type: 'text',
             };
-            setDisplayMessages((prev) => [...prev, errorMessage]);
-        }
-    };
+            setDisplayMessages((prev) => [...prev, assistantMessage]);
+        } 
+    } catch (err: any) {
+        console.error('processVideoGen error:', err);
+        const errorMessage: Message = {
+            role: 'assistant',
+            content: `Error generating video: ${err.message}`,
+            type: 'text',
+        };
+        setDisplayMessages((prev) => [...prev, errorMessage]);
+    }
+};
+
+    // const processVideoGen = async (prompt: string) => {
+    //     try {
+    //         // 1. Send { prompt } to our newly created /api/video-gen route
+    //         const response = await fetch('/api/video-gen', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json', "x-api-key": apiKey,
+    //                 "x-current-credits": credits.toString(),
+    //             },
+    //             body: JSON.stringify({ prompt }),
+    //         });
+
+    //         if (!response.ok) {
+    //             const errorText = await response.text();
+    //             throw new Error(errorText || 'Video-gen API failed');
+    //         }
+
+    //         // 2. We assume the external returned JSON like { video_url: string }
+    //         const data = await response.json();
+
+    //         // 3. If data.video_url is present, show a <video> and download link:
+    //         if (data.video_url) {
+    //             const videoUrl = data.video_url as string;
+
+    //             const assistantMessage: Message = {
+    //                 role: 'assistant',
+    //                 content: (
+    //                     <div>
+    //                         <video
+    //                             src={videoUrl}
+    //                             controls
+    //                             crossOrigin="anonymous"
+    //                             className="w-full h-auto rounded-md mb-2"
+    //                         />
+    //                         <a
+    //                             href={videoUrl}
+    //                             download="generated-video.mp4"
+    //                             className="text-blue-500 underline"
+    //                         >
+    //                             Download Video
+    //                         </a>
+    //                     </div>
+    //                 ),
+    //                 type: 'text',
+    //             };
+    //             setDisplayMessages((prev) => [...prev, assistantMessage]);
+    //         } else {
+    //             // If the external returned something else (e.g. a base64 blob), adjust accordingly:
+    //             const assistantMessage: Message = {
+    //                 role: 'assistant',
+    //                 content: 'Unexpected response from video-gen API.',
+    //                 type: 'text',
+    //             };
+    //             setDisplayMessages((prev) => [...prev, assistantMessage]);
+    //         }
+    //     } catch (err: any) {
+    //         console.error('processVideoGen error:', err);
+    //         const errorMessage: Message = {
+    //             role: 'assistant',
+    //             content: `Error generating video: ${err.message}`,
+    //             type: 'text',
+    //         };
+    //         setDisplayMessages((prev) => [...prev, errorMessage]);
+    //     }
+    // };
 
 
     const processVideoLipsync = async () => {
