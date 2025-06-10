@@ -55,6 +55,7 @@ import { FaMusic } from 'react-icons/fa';
 import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
 import DownloadButton from '@/component/ui/DownloadButton';
 import ImageSelectionModal from '@/component/ui/ImageSelectionModal';
+import NewsSidebar from '@/component/NewsSidebar';
 
 
 interface GeneratedTweet {
@@ -2000,58 +2001,58 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
 
     const processVideoGen = async (prompt: string) => {
-    try {
-        const response = await fetch('/api/video-gen', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                "x-api-key": apiKey,
-                "x-current-credits": credits.toString(),
-            },
-            body: JSON.stringify({ prompt }),
-        });
+        try {
+            const response = await fetch('/api/video-gen', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    "x-api-key": apiKey,
+                    "x-current-credits": credits.toString(),
+                },
+                body: JSON.stringify({ prompt }),
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Video-gen API failed');
-        }
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Video-gen API failed');
+            }
 
-        // Check content type BEFORE trying to parse as JSON
-        const contentType = response.headers.get('content-type');
-        
-        if (contentType?.includes('video/mp4')) {
-            // Handle MP4 binary response
-            const videoBlob = await response.blob();
-            const videoUrl = URL.createObjectURL(videoBlob);
+            // Check content type BEFORE trying to parse as JSON
+            const contentType = response.headers.get('content-type');
 
-            const assistantMessage: Message = {
+            if (contentType?.includes('video/mp4')) {
+                // Handle MP4 binary response
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+
+                const assistantMessage: Message = {
+                    role: 'assistant',
+                    content: (
+                        <div>
+                            <video
+                                src={videoUrl}
+                                controls
+                                className="w-full h-auto rounded-md mb-2"
+                            />
+                            <a>
+                                Download Video
+                            </a>
+                        </div>
+                    ),
+                    type: 'text',
+                };
+                setDisplayMessages((prev) => [...prev, assistantMessage]);
+            }
+        } catch (err: any) {
+            console.error('processVideoGen error:', err);
+            const errorMessage: Message = {
                 role: 'assistant',
-                content: (
-                    <div>
-                        <video
-                            src={videoUrl}
-                            controls
-                            className="w-full h-auto rounded-md mb-2"
-                        />
-                        <a>
-                            Download Video
-                        </a>
-                    </div>
-                ),
+                content: `Error generating video: ${err.message}`,
                 type: 'text',
             };
-            setDisplayMessages((prev) => [...prev, assistantMessage]);
-        } 
-    } catch (err: any) {
-        console.error('processVideoGen error:', err);
-        const errorMessage: Message = {
-            role: 'assistant',
-            content: `Error generating video: ${err.message}`,
-            type: 'text',
-        };
-        setDisplayMessages((prev) => [...prev, errorMessage]);
-    }
-};
+            setDisplayMessages((prev) => [...prev, errorMessage]);
+        }
+    };
 
     // const processVideoGen = async (prompt: string) => {
     //     try {
@@ -4505,16 +4506,30 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             // Assistant responses (text-based, including thoughts)
             if (message.role === 'assistant' && message.type !== 'image') {
-                let parsedContent;
-                try {
-                    parsedContent = JSON.parse(message.content); // Attempt to parse JSON
-                } catch (error) {
-                    console.error("Error parsing message content:", error);
-                    parsedContent = { content: message.content, thought: null }; // Fallback in case of invalid JSON
+
+                // let parsedContent;
+                // try {
+                //     parsedContent = JSON.parse(message.content); // Attempt to parse JSON
+                // } catch (error) {
+                //     console.error("Error parsing message content:", error);
+                //     parsedContent = { content: message.content, thought: null }; // Fallback in case of invalid JSON
+                // }
+
+                // const { content, thought } = parsedContent;
+
+                let parsed: { content: string; thought: string | null }
+                const raw = String(message.content).trim()
+                // only parse if it starts with “{” and ends with “}”
+                if (raw.startsWith('{') && raw.endsWith('}')) {
+                    try {
+                        parsed = JSON.parse(raw)
+                    } catch {
+                        parsed = { content: raw, thought: null }
+                    }
+                } else {
+                    parsed = { content: raw, thought: null }
                 }
-
-                const { content, thought } = parsedContent;
-
+                const { content, thought } = parsed
                 return (
                     <div>
                         {/* Render Thought Below Message (Only for Assistant) */}
@@ -5218,7 +5233,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     </div>
 
                     {/* Chat messages */}
-                    <div className=' flex flex-col justify-between w-full'>
+                    <div className=' flex flex-col justify-between w-3/4'>
                         <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[630px] ">
                             {isInitialView ? (
                                 <div className="flex flex-col items-center justify-center h-full">
@@ -5749,6 +5764,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             </div>
                         </footer>
                     </div >
+                    {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
+                    {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
+                        <NewsSidebar />
+                    </div> */}
                 </div >
             </div >
 

@@ -51,22 +51,22 @@ async function getAIClient() {
     });
 }
 
-async function generateKeys() {
-    console.log('Generating keys...');
-    const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'api-key': `${process.env.API_KEY}`
-        }
-    });
-    if (!response.ok) {
-        throw new Error('Failed to generate keys');
-    }
-    const result = await response.json();
-    console.log('Keys generated successfully:', result);
-    return result;
-}
+// async function generateKeys() {
+//     console.log('Generating keys...');
+//     const response = await fetch('https://zynapse.zkagi.ai/api/generate-keys', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'api-key': `${process.env.API_KEY}`
+//         }
+//     });
+//     if (!response.ok) {
+//         throw new Error('Failed to generate keys');
+//     }
+//     const result = await response.json();
+//     console.log('Keys generated successfully:', result);
+//     return result;
+// }
 
 async function generateProof(text: string) {
     const limitedText = text.substring(0, 500);
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
         }
 
         // Generate keys first.
-        await generateKeys();
+        // await generateKeys();
 
         if (directCommand) {
             // Call your image-generation service.
@@ -363,8 +363,8 @@ export async function POST(request: Request) {
                 clientApiKey);
 
             // Generate and verify proof.
-            const proof = await generateProof(directCommand.prompt);
-            await verifyProof(proof);
+            // const proof = await generateProof(directCommand.prompt);
+            // await verifyProof(proof);
 
             const encoder = new TextEncoder();
 
@@ -380,7 +380,7 @@ export async function POST(request: Request) {
                         type: 'img',
                         prompt: directCommand.prompt,
                         seed: 'null',
-                        proof,
+                      //  proof,
                     });
                     controller.enqueue(encoder.encode(`data: ${finalPayload}\n\n`));
                     controller.close();
@@ -461,14 +461,14 @@ export async function POST(request: Request) {
                         controller.enqueue(encoder.encode(`${buffer}`));
                     }
                     // Once streaming is complete, generate and verify a proof.
-                    if (accumulatedResponse.trim()) {
-                        const proof = await generateProof(accumulatedResponse);
-                        await verifyProof(proof);
-                        // Send a final SSE event with the proof.
-                        //  const proofMessage = `data: [PROOF] ${proof}\n\n`;
-                        const proofMessage = `data: [PROOF] ${JSON.stringify(proof)}\n\n`;
-                        controller.enqueue(encoder.encode(proofMessage));
-                    }
+                    // if (accumulatedResponse.trim()) {
+                    //     const proof = await generateProof(accumulatedResponse);
+                    //     await verifyProof(proof);
+                    //     // Send a final SSE event with the proof.
+                    //     //  const proofMessage = `data: [PROOF] ${proof}\n\n`;
+                    //     const proofMessage = `data: [PROOF] ${JSON.stringify(proof)}\n\n`;
+                    //     controller.enqueue(encoder.encode(proofMessage));
+                    // }
                 } catch (error) {
                     // If an error occurs during streaming, send an SSE error event.
                     controller.enqueue(encoder.encode(`data: [ERROR] ${error}\n\n`));
