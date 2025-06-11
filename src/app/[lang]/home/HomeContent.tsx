@@ -4519,6 +4519,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                 let parsed: { content: string; thought: string | null }
                 const raw = String(message.content).trim()
+                let thoughtStr: string | null = null
+
                 // only parse if it starts with “{” and ends with “}”
                 if (raw.startsWith('{') && raw.endsWith('}')) {
                     try {
@@ -4529,6 +4531,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 } else {
                     parsed = { content: raw, thought: null }
                 }
+
+              if (parsed.thought === null && raw.includes('</think>')) {
+  const [before, ...after] = raw.split('</think>')
+  parsed.thought = before.replace(/<think>/g, '').trim()
+  parsed.content = after.join('</think>').trim()
+}
                 const { content, thought } = parsed
                 return (
                     <div>
