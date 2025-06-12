@@ -57,6 +57,7 @@ import DownloadButton from '@/component/ui/DownloadButton';
 import ImageSelectionModal from '@/component/ui/ImageSelectionModal';
 import NewsSidebar from '@/component/NewsSidebar';
 import ReportSidebar from '@/component/ui/ReportSidebar';
+import Leaderboard from '@/component/ui/Leaderboard';
 import { ReportData } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 
@@ -5831,6 +5832,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </div>
                             </div>
                         </div>
+                        <div> <Leaderboard  /></div>
                     </div>
                 </div >
             </div >
