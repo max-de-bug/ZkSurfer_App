@@ -56,6 +56,9 @@ import WalletConnectPopup from '@/component/ui/ConnectWalletPopup';
 import DownloadButton from '@/component/ui/DownloadButton';
 import ImageSelectionModal from '@/component/ui/ImageSelectionModal';
 import NewsSidebar from '@/component/NewsSidebar';
+import ReportSidebar from '@/component/ui/ReportSidebar';
+import { ReportData } from '@/types/types';
+import { dummyReportData } from '@/data/dummyReportData';
 
 
 interface GeneratedTweet {
@@ -464,10 +467,21 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportData, setReportData] = useState<ReportData | null>(null);
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
 
+    const openReport = async () => {
+        // 1) fetch the data
+        //const data = await fetch('/api/report').then(r => r.json()) as ReportData;
+        setReportData(dummyReportData)
+        //(data);
+        // 2) show panel
+        setIsReportOpen(true);
+    };
 
     // Load ffmpeg dynamically on the client side
     // useEffect(() => {
@@ -4532,11 +4546,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     parsed = { content: raw, thought: null }
                 }
 
-              if (parsed.thought === null && raw.includes('</think>')) {
-  const [before, ...after] = raw.split('</think>')
-  parsed.thought = before.replace(/<think>/g, '').trim()
-  parsed.content = after.join('</think>').trim()
-}
+                if (parsed.thought === null && raw.includes('</think>')) {
+                    const [before, ...after] = raw.split('</think>')
+                    parsed.thought = before.replace(/<think>/g, '').trim()
+                    parsed.content = after.join('</think>').trim()
+                }
                 const { content, thought } = parsed
                 return (
                     <div>
@@ -5776,6 +5790,48 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}
+                    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 border border-white rounded-md">
+                        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
+                            <div className="flex flex-col items-start">
+                                <div className="">
+                                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                        PREDICTION REPORT
+                                    </h2>
+                                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                                        Checkout the latest trends,
+                                        analyze the trading signals and
+                                        trade smarter
+                                    </p>
+                                </div>
+                                <div>
+                                    <div className="flex flex-row items-center justify-center">
+                                        <p className="text-xs">CLICK TO VIEW</p>
+                                        <div className="ml-1 flex items-center">
+                                            <button
+                                                onClick={openReport}
+                                            >
+                                                <Image
+                                                    src="images/RightArrow.svg"
+                                                    alt="logo"
+                                                    width={40}
+                                                    height={40}
+                                                    className='p-2'
+                                                />
+                                            </button>
+
+                                            {reportData && (
+                                                <ReportSidebar
+                                                    isOpen={isReportOpen}
+                                                    onClose={() => setIsReportOpen(false)}
+                                                    data={reportData}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div >
             </div >
 

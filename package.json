@@ -56,6 +56,8 @@
     "fluent-ffmpeg": "^2.1.3",
     "formidable": "^3.5.2",
     "houseform": "^1.13.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "konva": "^9.3.20",
     "lucide-react": "^0.453.0",
     "magic-sdk": "^29.0.5",
@@ -86,6 +88,7 @@
   },
   "devDependencies": {
     "@types/formidable": "^3.4.5",
+    "@types/html2canvas": "^0.5.35",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
