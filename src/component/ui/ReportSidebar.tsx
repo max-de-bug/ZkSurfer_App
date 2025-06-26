@@ -44,16 +44,16 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
 
 
     // 2️⃣ Compute average sentiment
-   const allScores = [
-  ...(data.todaysNews.crypto || []),
-  ...(data.todaysNews.macro || []),
-]
-  .map(n => n.sentimentScore)
-  .filter((score): score is number => score !== undefined && score !== null);
+    const allScores = [
+        ...(data.todaysNews.crypto || []),
+        ...(data.todaysNews.macro || []),
+    ]
+        .map(n => n.sentimentScore)
+        .filter((score): score is number => score !== undefined && score !== null);
 
-const avgSentiment = allScores.length > 0 
-  ? allScores.reduce((s, a) => s + a, 0) / allScores.length 
-  : 0;;
+    const avgSentiment = allScores.length > 0
+        ? allScores.reduce((s, a) => s + a, 0) / allScores.length
+        : 0;;
 
     const isBearish = avgSentiment <= 1.6;
     const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
@@ -287,95 +287,17 @@ const avgSentiment = allScores.length > 0
                                         ...data.todaysNews.macro
                                     ].map(item => (
                                         <NewsCard key={item.news_id} item={item} />
-                                        //   <div
-                                        //     key={item.news_id}
-                                        //     className="relative bg-[#1a2332] rounded-lg p-4 hover:bg-opacity-75 transition cursor-pointer"
-                                        //     onClick={() => window.open(item.link, '_blank')}
-                                        //   >
-                                        //     {/* Sentiment badge */}
-                                        //     <span className={`inline-block px-2 py-1 text-xs font-bold rounded 
-                                        //       ${item.sentimentTag === 'bullish'
-                                        //         ? 'bg-green-500 text-black'
-                                        //         : item.sentimentTag === 'neutral'
-                                        //           ? 'bg-gray-500 text-white'
-                                        //           : 'bg-red-500 text-white'
-                                        //       }`}>
-                                        //       {item.sentimentTag.toUpperCase()}
-                                        //     </span>
-
-                                        //     {/* Info-icon / reason popup */}
-                                        //     <div className="absolute top-2 right-2 group">
-                                        //       <svg
-                                        //         className="w-4 h-4 text-gray-400 cursor-pointer"
-                                        //         viewBox="0 0 24 24"
-                                        //       >
-                                        //         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-                                        //         <text x="12" y="16" fontSize="12" textAnchor="middle" fill="currentColor">i</text>
-                                        //       </svg>
-                                        //       <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded shadow-lg w-40 z-10">
-                                        //         {item.reason}
-                                        //       </div>
-                                        //     </div>
-
-                                        //     {/* Title */}
-                                        //     <h4 className="font-bold text-sm mt-2">{item.title}</h4>
-
-                                        //     {/* Rationale as description */}
-                                        //     <p className="text-xs text-gray-400 mt-1">{item.rationale}</p>
-                                        //   </div>
                                     ))}
                                 </div>
                             </section>
 
-                            {/* <div>
-                                <div className="flex items-center space-x-2 mb-4">
-                                    <span className="text-lg">🚀</span>
-                                    <h3 className="font-bold">TRENDING NEWS</h3>
-                                </div>
 
-                                <div className="space-y-3 max-h-96 overflow-y-auto">
-                                    {data.trendingNews.map((news, i) => (
-                                        <div key={i} className="bg-[#1a2332] rounded-lg p-4">
-                                            <h4 className="font-bold text-sm mb-2">{news.title.toUpperCase()}</h4>
-                                            <p className="text-xs text-gray-400 mb-2">{news.excerpt.toUpperCase()}</p>
-                                            <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${news.impact === 'bullish' ? 'bg-green-500 text-black' :
-                                                news.impact === 'mixed' ? 'bg-blue-500 text-white' :
-                                                    news.impact === 'bearish' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                                                }`}>
-                                                {news.impact.toUpperCase()}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div> */}
                         </div>
 
                         {/* Right Column - 1/3 width: What's New & Recommendations */}
                         {data.whatsNew.length > 0 && data.recommendations.length > 0 && (
                             <div className="flex-1 space-y-6">
-                                {/* What's New */}
-                                {/* <div className="bg-[#1a2332] rounded-lg p-4">
-                                <div className="flex items-center space-x-2 mb-4">
-                                    <span className="text-lg">⚙️</span>
-                                    <h3 className="font-bold">WHAT&#39;S NEW</h3>
-                                </div>
-                                <ul className="space-y-2 text-sm mb-4">
-                                    {data.whatsNew.map((item, i) => (
-                                        <li key={i} className="flex items-start space-x-2">
-                                            <span className="text-green-400">•</span>
-                                            <span>{item.text}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <div className="flex justify-end">
-                                    <Image
-                                        src="/images/tiger.png"
-                                        alt="Attach file"
-                                        width={40}
-                                        height={40}
-                                    />
-                                </div>
-                            </div> */}
+
                                 {/* WHAT’S NEW */}
                                 {data.whatsNew.length > 0 && (
                                     <div className="bg-[#1a2332] rounded-lg p-4">
