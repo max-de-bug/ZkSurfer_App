@@ -58,7 +58,8 @@ import ImageSelectionModal from '@/component/ui/ImageSelectionModal';
 import NewsSidebar from '@/component/NewsSidebar';
 import ReportSidebar from '@/component/ui/ReportSidebar';
 import Leaderboard from '@/component/ui/Leaderboard';
-import { ReportData } from '@/types/types';
+// import { ReportData } from '@/types/types';
+import { FullReportData, CryptoNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 
 
@@ -469,20 +470,131 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isReportOpen, setIsReportOpen] = useState(false);
-    const [reportData, setReportData] = useState<ReportData | null>(null);
+    const [reportData, setReportData] = useState<FullReportData | null>(null);
+
+    const normalizeSentiment = (score: number): 'bearish' | 'neutral' | 'bullish' => {
+        if (score <= 1.6) return 'bearish';
+        if (score <= 3.3) return 'neutral';
+        return 'bullish';
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [displayMessages, isLoading]);
 
+    // const openReport = async () => {
+    //     // 1) fetch the data
+    //     //const data = await fetch('/api/report').then(r => r.json()) as ReportData;
+    //     setReportData(dummyReportData)
+    //     //(data);
+    //     // 2) show panel
+    //     setIsReportOpen(true);
+    // };
+
     const openReport = async () => {
-        // 1) fetch the data
-        //const data = await fetch('/api/report').then(r => r.json()) as ReportData;
-        setReportData(dummyReportData)
-        //(data);
-        // 2) show panel
+        const raw = await fetch('http://103.231.86.182:8006/today')
+            .then(r => r.json());
+        const today = raw.todays_news[0];
+
+
+        const mapNews = (arr: any[]): CryptoNewsItem[] =>
+            arr.map(n => {
+                // 1️⃣ Pull out the JSON between the ```json … ``` fences
+                const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+                let parsed: any;
+
+                if (match) {
+                    try {
+                        parsed = JSON.parse(match[1]);
+                    } catch (e) {
+                        console.warn('Invalid JSON for', n.news_id, e);
+                    }
+                }
+                // 2️⃣ Fallback defaults if JSON didn’t parse
+                parsed = parsed || {
+                    sentiment_score: 0,
+                    investment: { advice: 'Hold', reason: 'No details available' },
+                    rationale: ''
+                };
+
+                // 3️⃣ Naïve symbol extraction from title
+                const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
+
+                return {
+                    news_id: n.news_id,
+                    title: n.title,
+                    link: n.link,
+                    symbol: symbolMatch?.[1] ?? '—',
+                    sentimentScore: parsed.sentiment_score,
+                    sentimentTag: normalizeSentiment(parsed.sentiment_score),
+                    advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+                    reason: parsed.investment.reason,
+                    rationale: parsed.rationale,
+                };
+            });
+
+
+        //   const mapNews = (arr: any[]): CryptoNewsItem[] =>
+        //   arr.map(n => {
+        //     // 1️⃣ Use a regex to pull out the JSON between the ```json … ``` fences
+        //     const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+        //     if (!match) {
+        //       console.warn('Could not parse analysis JSON for', n.news_id);
+        //       return {
+        //         news_id: n.news_id,
+        //         title:   n.title,
+        //         link:    n.link,
+        //         // defaults if parsing fails
+        //         sentimentScore: 0,
+        //         sentimentTag:   'bearish',
+        //         advice:         'Hold',
+        //         reason:         'No details available',
+        //         rationale:      '',
+        //       };
+        //     }
+
+        //     // 2️⃣ Parse the captured group
+        //     const parsed = JSON.parse(match[1]);
+
+        //     return {
+        //       news_id:        n.news_id,
+        //       title:          n.title,
+        //       link:           n.link,
+        //       sentimentScore: parsed.sentiment_score,
+        //       sentimentTag:   normalizeSentiment(parsed.sentiment_score),
+        //       advice:         parsed.investment.advice as 'Buy'|'Hold'|'Sell',
+        //       reason:         parsed.investment.reason,
+        //       rationale:      parsed.rationale,
+        //     };
+        //   });
+
+
+        const report: FullReportData = {
+            // --- YOUR EXISTING ReportData FIELDS ---
+            predictionAccuracy: dummyReportData.predictionAccuracy,
+            predictionSeries: dummyReportData.predictionSeries,
+            priceStats: dummyReportData.priceStats,
+            marketSentiment: dummyReportData.marketSentiment,
+            avoidTokens: dummyReportData.avoidTokens,
+            newsImpact: dummyReportData.newsImpact,
+            volatility: dummyReportData.volatility,
+            liquidity: dummyReportData.liquidity,
+            trendingNews: dummyReportData.trendingNews,
+            whatsNew: dummyReportData.whatsNew,
+            recommendations: dummyReportData.recommendations,
+            // --- NEW SECTIONS FROM API ---
+            todaysNews: {
+                crypto: mapNews(today.crypto_news),
+                macro: mapNews(today.macro_news),
+            },
+            forecastNext3Days: raw.forecast_next_3_days,
+            priceHistoryLast7Days: raw.price_history_last_7_days,
+        };
+
+        setReportData(report);
         setIsReportOpen(true);
     };
+
 
     // Load ffmpeg dynamically on the client side
     // useEffect(() => {
@@ -5832,7 +5944,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </div>
                             </div>
                         </div>
-                        <div> <Leaderboard  /></div>
+                        <div> <Leaderboard /></div>
                     </div>
                 </div >
             </div >

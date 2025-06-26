@@ -1,12 +1,17 @@
-import { FC, useEffect, useRef } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import { IoMdClose } from 'react-icons/io';
-import { ReportData } from '@/types/types';
+// import { ReportData } from '@/types/types';
 import Image from 'next/image';
+import { FullReportData } from '@/types/types';
+import NewsCard from '@/component/ui/NewsCard';
+import Gauge from '@/component/ui/Gauge';
+import PriceChart from '@/component/ui/PriceChart';
+
 
 interface ReportSidebarProps {
     isOpen: boolean;
     onClose: () => void;
-    data: ReportData;
+    data: FullReportData;
 }
 
 const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
@@ -17,6 +22,71 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         'border-red-500': '#ef4444',
         'border-yellow-500': '#eab308',
     };
+
+     const [btcPrice, setBtcPrice] = useState<number | null>(null);
+     const [btcChange, setBtcChange] = useState<number | null>(null);
+  const [loadingBtc, setLoadingBtc] = useState(true);
+
+
+useEffect(() => {
+  fetch(
+    'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'
+  )
+    .then(r => r.json())
+    .then((arr: any[]) => {
+      const btc = arr[0];
+      setBtcPrice(btc.current_price);
+      setBtcChange(btc.price_change_percentage_24h);
+    })
+    .catch(console.error)
+    .finally(() => setLoadingBtc(false));
+}, []);
+
+
+  // 2️⃣ Compute average sentiment
+  const allScores = [
+    ...data.todaysNews.crypto,
+    ...data.todaysNews.macro,
+  ].map(n => n.sentimentScore);
+  const avgSentiment = allScores.reduce((s,a) => s + a, 0) / allScores.length;
+
+    const isBearish = avgSentiment <= 1.6;
+  const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
+  const isBullish = avgSentiment > 3.2;
+
+  // 3️⃣ Decide emoji + label
+const marketEmoji = isBearish
+  ? '😢'
+  : isNeutral
+    ? '😐'
+    : '🤩';
+
+const marketLabel = isBearish
+  ? 'BEARISH'
+  : isNeutral
+    ? 'NEUTRAL'
+    : 'BULLISH';
+
+// assign tailwind text-color class
+const marketColor = isBearish
+  ? 'text-red-500'
+  : isNeutral
+    ? 'text-yellow-500'
+    : 'text-green-500';
+
+  // 4️⃣ Gauge color (red <3, green ≥3)
+  const gaugeColor = isBearish ? '#ef4444' : '#10b981';
+
+  const getCurrentDate = () => {
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
+  return now.toLocaleDateString('en-US', options).toUpperCase();
+};
+
 
     // Close on outside click
     useEffect(() => {
@@ -40,7 +110,10 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
             </span>
         );
     }
-
+console.log('Price history data:', data.priceHistoryLast7Days);
+console.log('Forecast data:', data.forecastNext3Days);
+console.log('First price point:', data.priceHistoryLast7Days?.[0]);
+console.log('First forecast point:', data.forecastNext3Days?.[0]);
     return (
         <>
             {/* overlay */}
@@ -78,7 +151,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
                             <h2 className="text-lg font-bold">DAILY PREDICTION REPORT</h2>
-                            <p className="text-sm text-gray-400">JUNE 11, 2025</p>
+                           <p className="text-sm text-gray-400">{getCurrentDate()}</p>
                         </div>
                         <button onClick={onClose} className="text-gray-400 hover:text-white">
                             <IoMdClose size={24} />
@@ -88,83 +161,75 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6" data-pdf-content>
                     {/* Top Section: Prediction Accuracy and 4 Cards Side by Side */}
-                    <section className="flex gap-6">
-                        {/* Prediction Accuracy Chart - Left Side */}
-                        <div className="flex-1 bg-[#1a2332] rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-4">
-                                <span className="text-sm text-gray-300">Prediction Accuracy</span>
-                                <span className="text-green-400 font-bold">{data.predictionAccuracy}%</span>
-                            </div>
 
-                            {/* Chart area */}
-                            <div className="h-32 relative mb-4">
-                                <div className="absolute inset-0 flex items-end justify-between px-2">
-                                    {data.predictionSeries.map((point, i) => (
-                                        <div key={i} className={`w-1 ${i >= data.predictionSeries.length - 2 ? 'bg-green-500' : 'bg-gray-600'} h-${8 + i * 4}`}></div>
-                                    ))}
-                                </div>
-                            </div>
+<section className="flex gap-6">
+    {/* Prediction Accuracy Chart - Left Side */}
+    <div className="flex-1 bg-[#1a2332] rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-gray-300">Prediction Accuracy</span>
+            <span className="text-green-400 font-bold">{data.predictionAccuracy}%</span>
+        </div>
 
-                            {/* Chart labels */}
-                            <div className="flex justify-between text-xs text-gray-400">
-                                {data.predictionSeries.map((point, i) => (
-                                    <span key={i}>{point.label}</span>
-                                ))}
-                            </div>
+        {/* 🔥 New lightweight‐charts histogram */}
+        <PriceChart
+            priceHistory={data.priceHistoryLast7Days || []}     
+            forecast={data.forecastNext3Days || []}  
+        />
+    </div>
 
-                            {/* Deviation info */}
-                            <div className="flex justify-between text-xs text-gray-400 mt-2">
-                                <span>Deviation</span>
-                                <span>BTC +2.7%</span>
-                                <span>ETH +3.1%</span>
-                                <span>SOL +4.2%</span>
-                            </div>
-                        </div>
+    {/* 4 Cards - Right Side - FULL HEIGHT MATCH */}
+    <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full">
 
-                        {/* 4 Cards - Right Side */}
-                        <div className="flex-1 grid grid-cols-2 gap-4">
-                            {/* Price Stats Cards - Top Row */}
-                            {data.priceStats.map((stat, i) => (
-                                <div key={i} className="bg-[#1a2332] rounded-lg p-4 text-center">
-                                    {stat.symbol === 'BTC' ? (
-                                        <>
-                                            <div className="text-2xl font-bold">{stat.value}</div>
-                                            <div className="text-green-400 text-sm">{stat.change}</div>
-                                            <div className="text-xs text-gray-400">{stat.symbol}</div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="text-2xl font-bold">{stat.symbol}</div>
-                                            <div className="text-green-400 text-sm">{stat.value}</div>
-                                            <div className="text-xs text-gray-400">{stat.sentiment?.toUpperCase()}</div>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
+        {/* ── BTC PRICE CARD ── */}
+        <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
+            {loadingBtc ? (
+                <div className="text-gray-400">Loading…</div>
+            ) : (
+                <>
+                    {/* Current price */}
+                    <div className="text-2xl font-bold">
+                        ${btcPrice?.toLocaleString()}
+                    </div>
 
-                            {/* Market Sentiment Card - Bottom Left */}
-                            <div className="bg-[#1a2332] rounded-lg p-4 text-center">
-                                <div className={`w-12 h-12  rounded-full flex items-center justify-center mx-auto `}>
-                                    <span className="text-3xl">
-                                        {data.marketSentiment === 'bearish' ? '😢' : '🤩'}
-                                    </span>
-                                </div>
-                                <div className={`${data.marketSentiment === 'bearish' ? 'text-yellow-500' : 'text-green-500'} font-bold text-sm`}>
-                                    {data.marketSentiment.toUpperCase()}
-                                </div>
-                                <div className="text-xs text-gray-400">MARKET SENTIMENT</div>
-                            </div>
+                    {/* 24 h % change */}
+                    <div
+                        className={`text-sm ${
+                            (btcChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}
+                    >
+                        {btcChange! >= 0 ? '+' : ''}
+                        {btcChange?.toFixed(2)}%
+                    </div>
+                </>
+            )}
+            <div className="text-xs text-gray-400">BTC</div>
+        </div>
 
-                            {/* Avoid Tokens Card - Bottom Right */}
-                            <div className="bg-[#1a2332] rounded-lg p-4 text-center">
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto ">
-                                    <span className="text-white text-3xl">🛑</span>
-                                </div>
-                                <div className="text-red-500 font-bold text-sm">AVOID</div>
-                                <div className="text-xs text-gray-400">{data.avoidTokens.join(', ')}</div>
-                            </div>
-                        </div>
-                    </section>
+        {/* MARKET SENTIMENT */}
+        <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
+            {/* Emoji */}
+            <div className="text-3xl">{marketEmoji}</div>
+
+            {/* Label */}
+            <div className={`${marketColor} font-bold text-sm`}>
+                {marketLabel}
+            </div>
+
+            {/* Sub-label */}
+            <div className="text-xs text-gray-400">MARKET SENTIMENT</div>
+        </div>
+
+        {/* FEAR / GREED GAUGE (spans both columns and both rows) */}
+        <div className="col-span-2 bg-[#1a2332] rounded-lg p-2 flex flex-col items-center justify-center">
+            <Gauge 
+                value={avgSentiment}
+                min={0}
+                max={5}
+                size={280}
+            />
+        </div>
+    </div>
+</section>
 
                     {/* Bottom Section: 2 Columns */}
                     <section className="flex gap-6">
@@ -206,7 +271,59 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                             </div>
 
                             {/* Trending News */}
-                            <div>
+                            <section className="mt-10">
+                                <div className="flex items-center space-x-2 my-4">
+                                    <span className="text-lg">🚀</span>
+                                    <h3 className="font-bold">TRENDING NEWS</h3>
+                                </div>
+
+                                <div className="space-y-3 max-h-96 overflow-y-auto">
+                                    {[
+                                        ...data.todaysNews.crypto,
+                                        ...data.todaysNews.macro
+                                    ].map(item => (
+                                        <NewsCard key={item.news_id} item={item} />
+                                        //   <div
+                                        //     key={item.news_id}
+                                        //     className="relative bg-[#1a2332] rounded-lg p-4 hover:bg-opacity-75 transition cursor-pointer"
+                                        //     onClick={() => window.open(item.link, '_blank')}
+                                        //   >
+                                        //     {/* Sentiment badge */}
+                                        //     <span className={`inline-block px-2 py-1 text-xs font-bold rounded 
+                                        //       ${item.sentimentTag === 'bullish'
+                                        //         ? 'bg-green-500 text-black'
+                                        //         : item.sentimentTag === 'neutral'
+                                        //           ? 'bg-gray-500 text-white'
+                                        //           : 'bg-red-500 text-white'
+                                        //       }`}>
+                                        //       {item.sentimentTag.toUpperCase()}
+                                        //     </span>
+
+                                        //     {/* Info-icon / reason popup */}
+                                        //     <div className="absolute top-2 right-2 group">
+                                        //       <svg
+                                        //         className="w-4 h-4 text-gray-400 cursor-pointer"
+                                        //         viewBox="0 0 24 24"
+                                        //       >
+                                        //         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+                                        //         <text x="12" y="16" fontSize="12" textAnchor="middle" fill="currentColor">i</text>
+                                        //       </svg>
+                                        //       <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded shadow-lg w-40 z-10">
+                                        //         {item.reason}
+                                        //       </div>
+                                        //     </div>
+
+                                        //     {/* Title */}
+                                        //     <h4 className="font-bold text-sm mt-2">{item.title}</h4>
+
+                                        //     {/* Rationale as description */}
+                                        //     <p className="text-xs text-gray-400 mt-1">{item.rationale}</p>
+                                        //   </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* <div>
                                 <div className="flex items-center space-x-2 mb-4">
                                     <span className="text-lg">🚀</span>
                                     <h3 className="font-bold">TRENDING NEWS</h3>
@@ -226,13 +343,14 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
 
                         {/* Right Column - 1/3 width: What's New & Recommendations */}
-                        <div className="flex-1 space-y-6">
-                            {/* What's New */}
-                            <div className="bg-[#1a2332] rounded-lg p-4">
+                        {data.whatsNew.length > 0 && data.recommendations.length > 0 && (
+                            <div className="flex-1 space-y-6">
+                                {/* What's New */}
+                                {/* <div className="bg-[#1a2332] rounded-lg p-4">
                                 <div className="flex items-center space-x-2 mb-4">
                                     <span className="text-lg">⚙️</span>
                                     <h3 className="font-bold">WHAT&#39;S NEW</h3>
@@ -253,35 +371,56 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                         height={40}
                                     />
                                 </div>
-                            </div>
-
-                            {/* Trading Recommendations */}
-                            <div className="space-y-4">
-                                {data.recommendations.map((rec, i) => (
-                                    <div
-                                        key={i}
-                                        className={`bg-[#1a2332] rounded-lg p-4 border-l-4 ${rec.borderClass}`}
-                                    >
-                                        <div className="flex items-center space-x-2 mb-2">
-                                            {/* colored bullet */}
-                                            <span className={`w-2 h-2 rounded-full ${rec.dotClass}`}></span>
-                                            {/* heading */}
-                                            <span className={`font-bold ${rec.textClass}`}>
-                                                {rec.label}
-                                            </span>
+                            </div> */}
+                                {/* WHAT’S NEW */}
+                                {data.whatsNew.length > 0 && (
+                                    <div className="bg-[#1a2332] rounded-lg p-4">
+                                        <div className="flex items-center space-x-2 mb-4">
+                                            <span className="text-lg">⚙️</span>
+                                            <h3 className="font-bold">WHAT&#39;S NEW</h3>
                                         </div>
-                                        {/* list of targets */}
-                                        <ul className="text-xs space-y-1">
-                                            {rec.items.map((item, idx) => (
-                                                <li key={idx}>
-                                                    {item.symbol} – TARGET: {item.target}
+                                        <ul className="space-y-2 text-sm mb-4">
+                                            {data.whatsNew.map((item, i) => (
+                                                <li key={i} className="flex items-start space-x-2">
+                                                    <span className="text-green-400">•</span>
+                                                    <span>{item.text}</span>
                                                 </li>
                                             ))}
                                         </ul>
+                                        <div className="flex justify-end">
+                                            <Image src="/images/tiger.png" alt="" width={40} height={40} />
+                                        </div>
                                     </div>
-                                ))}
+                                )}
+
+
+                                {/* Trading Recommendations */}
+                                {/* RECOMMENDATIONS */}
+                                {data.recommendations.length > 0 && (
+                                    <div className="space-y-4">
+                                        {data.recommendations.map((rec, i) => (
+                                            <div
+                                                key={i}
+                                                className={`bg-[#1a2332] rounded-lg p-4 border-l-4 ${rec.borderClass}`}
+                                            >
+                                                <div className="flex items-center space-x-2 mb-2">
+                                                    <span className={`w-2 h-2 rounded-full ${rec.dotClass}`}></span>
+                                                    <span className={`font-bold ${rec.textClass}`}>{rec.label}</span>
+                                                </div>
+                                                <ul className="text-xs space-y-1">
+                                                    {rec.items.map((item, idx) => (
+                                                        <li key={idx}>
+                                                            {item.symbol} – TARGET: {item.target}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
                             </div>
-                        </div>
+                        )}
                     </section>
                 </div>
 
@@ -322,14 +461,12 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                 header.innerHTML = `
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #374151; padding-bottom: 15px;">
                                         <div style="display: flex; align-items: center;">
-                                            <div style="width: 32px; height: 32px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                <span style="color: black; font-weight: bold; font-size: 14px;">🐅</span>
-                                            </div>
+                                            <img src="${logoSrc}" alt="logo" style="width: 32px; height: 32px; margin-right: 12px;" />
                                             <h1 style="font-size: 18px; font-weight: bold; margin: 0;">ZkAGI Newsroom</h1>
                                         </div>
                                         <div style="text-align: right;">
                                             <h2 style="font-size: 18px; font-weight: bold; margin: 0;">DAILY PREDICTION REPORT</h2>
-                                            <p style="font-size: 12px; color: #9ca3af; margin: 0;">JUNE 11, 2025</p>
+                                            <p style="font-size: 12px; color: #9ca3af; margin: 0;">{getCurrentDate()}</p>
                                         </div>
                                     </div>
                                 `;
@@ -451,4 +588,5 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     );
 };
 
-export default ReportSidebar; 
+export default ReportSidebar;
+

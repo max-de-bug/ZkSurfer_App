@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { getDictionary } from "../i18n/dictionaries";
 import { locales, Locale } from "../i18n/settings";
 import MultiWalletProvider from '../../component/MulttiWalletProvider';
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -74,6 +75,11 @@ export default async function RootLayout({
     <html lang={params.lang} dir="ltr">
       <head />
       <body className={inter.className}>
+        <Script
+          src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"
+          strategy="beforeInteractive"
+        />
+        
         <Providers>
           <MultiWalletProvider>
             <AppWalletProvider>

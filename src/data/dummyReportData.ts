@@ -49,40 +49,40 @@ export const dummyReportData: ReportData = {
     },
   ],
   whatsNew: [
-    { text: 'New token: MoonCat (MOON) launched – Airdrop ongoing' },
-    { text: 'Ethereum consensus upgrade scheduled June 15' },
-    { text: 'Solana mobile beta live' },
+    // { text: 'New token: MoonCat (MOON) launched – Airdrop ongoing' },
+    // { text: 'Ethereum consensus upgrade scheduled June 15' },
+    // { text: 'Solana mobile beta live' },
   ],
   recommendations: [
-    {
-      label: 'STRONG BUY',
-      items: [
-        { symbol: 'BTC', target: '$110K' },
-        { symbol: 'ETH', target: '$7K' },
-        { symbol: 'SOL', target: '$250' },
-      ],
-      borderClass: 'border-green-500',
-      textClass: 'text-green-500',
-      dotClass: 'bg-green-500',
-    },
-    {
-      label: 'SELL/AVOID',
-      items: [
-        { symbol: 'SOL', target: '$120' },
-      ],
-      borderClass: 'border-red-500',
-      textClass: 'text-red-500',
-      dotClass: 'bg-red-500',
-    },
-    {
-      label: 'HOLD',
-      items: [
-        { symbol: 'BTC', target: '$100K' },
-        { symbol: 'SOL', target: '$200' },
-      ],
-      borderClass: 'border-yellow-500',
-      textClass: 'text-yellow-500',
-      dotClass: 'bg-yellow-500',
-    },
+    // {
+    //   label: 'STRONG BUY',
+    //   items: [
+    //     { symbol: 'BTC', target: '$110K' },
+    //     { symbol: 'ETH', target: '$7K' },
+    //     { symbol: 'SOL', target: '$250' },
+    //   ],
+    //   borderClass: 'border-green-500',
+    //   textClass: 'text-green-500',
+    //   dotClass: 'bg-green-500',
+    // },
+    // {
+    //   label: 'SELL/AVOID',
+    //   items: [
+    //     { symbol: 'SOL', target: '$120' },
+    //   ],
+    //   borderClass: 'border-red-500',
+    //   textClass: 'text-red-500',
+    //   dotClass: 'bg-red-500',
+    // },
+    // {
+    //   label: 'HOLD',
+    //   items: [
+    //     { symbol: 'BTC', target: '$100K' },
+    //     { symbol: 'SOL', target: '$200' },
+    //   ],
+    //   borderClass: 'border-yellow-500',
+    //   textClass: 'text-yellow-500',
+    //   dotClass: 'bg-yellow-500',
+    // },
   ],
 };
