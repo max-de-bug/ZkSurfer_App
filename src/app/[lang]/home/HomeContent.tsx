@@ -62,12 +62,15 @@ import Leaderboard from '@/component/ui/Leaderboard';
 import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 // import MobileTabLayout from '@/components/MobileTabLayout';
+import PastPredictions from '@/component/ui/PastPredictions';
 
 
 interface GeneratedTweet {
     tweet: string;
     id?: number;
 }
+
+interface PastPredictionData { fetched_date: string; crypto_news: Array<{ news_id: string; title: string; link: string; analysis: string; sentimentScore?: number; sentimentTag?: 'bearish' | 'neutral' | 'bullish'; advice?: 'Buy' | 'Hold' | 'Sell'; reason?: string; rationale?: string; }>; macro_news: Array<{ news_id: string; title: string; link: string; description?: string; analysis: string; sentimentScore?: number; sentimentTag?: 'bearish' | 'neutral' | 'bullish'; advice?: 'Buy' | 'Hold' | 'Sell'; reason?: string; rationale?: string; }>; }
 
 export interface HomeContentProps {
     dictionary?: Dictionary;
@@ -472,7 +475,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isReportOpen, setIsReportOpen] = useState(false);
-    const [reportData, setReportData] = useState<FullReportData | null>(null);
+    const [reportData, setReportData] = useState<FullReportData | PastPredictionData | null>(null);
 
     // const [activeMobileTab, setActiveMobileTab] = useState<'terminal' | 'prediction'>('terminal');
 
@@ -1795,6 +1798,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     function getByteSize(str: any) {
         return new TextEncoder().encode(str).length;
     }
+
+    const transformPastDataToCurrentFormat = (pastData: PastPredictionData): FullReportData => { const allNews = [...pastData.crypto_news, ...pastData.macro_news]; const sentimentScores = allNews.map(item => item.sentimentScore).filter((score): score is number => score !== undefined && score !== null); const avgSentiment = sentimentScores.length > 0 ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length : 2.5; const getMarketSentiment = (score: number): 'bullish' | 'bearish' => { return score > 3.2 ? 'bullish' : 'bearish'; }; const getVolatility = (): 'low' | 'moderate' | 'high' => { return 'moderate'; }; return { predictionAccuracy: 85, predictionSeries: [], priceStats: [], marketSentiment: getMarketSentiment(avgSentiment), avoidTokens: [], newsImpact: [{ title: allNews[0]?.title || "No major news", sentiment: avgSentiment > 3.2 ? 'bullish' : avgSentiment < 1.6 ? 'bearish' : 'neutral' }], volatility: getVolatility(), liquidity: "high", trendingNews: [], whatsNew: [{ text: `Historical report from ${new Date(pastData.fetched_date).toLocaleDateString()}` }], recommendations: [], todaysNews: { crypto: pastData.crypto_news.map(item => ({ news_id: item.news_id, title: item.title, link: item.link, analysis: item.analysis, sentimentScore: item.sentimentScore || 2.5, sentimentTag: item.sentimentTag || 'neutral', advice: item.advice || 'Hold', reason: item.reason || '', rationale: item.rationale || '' })), macro: pastData.macro_news.map(item => ({ news_id: item.news_id, title: item.title, link: item.link, description: item.description || '', analysis: item.analysis, sentimentScore: item.sentimentScore || 2.5, sentimentTag: item.sentimentTag || 'neutral', advice: item.advice || 'Hold', reason: item.reason || '', rationale: item.rationale || '' })) }, forecastNext3Days: [], priceHistoryLast7Days: [] }; };
 
     const handleTweetCommand = async (message: string) => {
         const { selectedTicker } = useTickerStore.getState();
@@ -5899,7 +5904,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </footer>
                             </>
                         )}
-                        {isMobile && activeMobileTab === 'prediction' && (
+                        {/* {isMobile && activeMobileTab === 'prediction' && (
                             <div className="flex-grow overflow-y-auto p-4 ">
                                 <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto">
                                     <div className="flex flex-col items-start">
@@ -5939,7 +5944,69 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        )} */}
+                        {isMobile && activeMobileTab === 'prediction' && (
+    <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        {/* Current Prediction Report Card (Your existing card) */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto">
+            <div className="flex flex-col items-start">
+                <div className="">
+                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        PREDICTION REPORT
+                    </h2>
+                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                        Checkout the latest trends,
+                        analyze the trading signals and
+                        trade smarter
+                    </p>
+                </div>
+                <div>
+                    <div className="flex flex-row items-center justify-center">
+                        <p className="text-xs">CLICK TO VIEW</p>
+                        <div className="ml-1 flex items-center">
+                            <button onClick={openReport}>
+                                <Image
+                                    src="images/RightArrow.svg"
+                                    alt="logo"
+                                    width={40}
+                                    height={40}
+                                    className='p-2'
+                                />
+                            </button>
+                            {reportData && (
+                                <ReportSidebar
+                                    isOpen={isReportOpen}
+                                    onClose={() => setIsReportOpen(false)}
+                                    data={reportData}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Past Predictions Section */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
+            <div className="mb-4">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    PAST PREDICTIONS
+                </h3>
+                <p className="text-gray-300 text-xs">
+                    View historical prediction reports
+                </p>
+            </div>
+            
+            <PastPredictions 
+                onViewReport={(pastData) => {
+                    setReportData(pastData);
+                    setIsReportOpen(true);
+                }}
+                isMobile={true}
+            />
+        </div>
+    </div>
+)}
                         {isMobile && (
                             <div className="flex bg-[#08121f] border-b border-gray-600">
                                 <button
@@ -5967,51 +6034,72 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}
-                    {!isMobile && (
-                        <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md">
-                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
-                                <div className="flex flex-col items-start">
-                                    <div className="">
-                                        <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                                            PREDICTION REPORT
-                                        </h2>
-                                        <p className="text-gray-300 text-xs mb-8 leading-relaxed">
-                                            Checkout the latest trends,
-                                            analyze the trading signals and
-                                            trade smarter
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <div className="flex flex-row items-center justify-center">
-                                            <p className="text-xs">CLICK TO VIEW</p>
-                                            <div className="ml-1 flex items-center">
-                                                <button
-                                                    onClick={openReport}
-                                                >
-                                                    <Image
-                                                        src="images/RightArrow.svg"
-                                                        alt="logo"
-                                                        width={40}
-                                                        height={40}
-                                                        className='p-2'
-                                                    />
-                                                </button>
-
-                                                {reportData && (
-                                                    <ReportSidebar
-                                                        isOpen={isReportOpen}
-                                                        onClose={() => setIsReportOpen(false)}
-                                                        data={reportData}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* <div> <Leaderboard /></div> */}
+                 
+{!isMobile && (
+    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md space-y-4">
+        {/* Current Prediction Report Card (Your existing card) */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
+            <div className="flex flex-col items-start">
+                <div className="">
+                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        PREDICTION REPORT
+                    </h2>
+                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                        Checkout the latest trends,
+                        analyze the trading signals and
+                        trade smarter
+                    </p>
+                </div>
+                <div>
+                    <div className="flex flex-row items-center justify-center">
+                        <p className="text-xs">CLICK TO VIEW</p>
+                        <div className="ml-1 flex items-center">
+                            <button onClick={openReport}>
+                                <Image
+                                    src="images/RightArrow.svg"
+                                    alt="logo"
+                                    width={40}
+                                    height={40}
+                                    className='p-2'
+                                />
+                            </button>
+                            {reportData && (
+                                <ReportSidebar
+                                    isOpen={isReportOpen}
+                                    onClose={() => setIsReportOpen(false)}
+                                    data={reportData}
+                                />
+                            )}
                         </div>
-                    )}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Past Predictions Section */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
+            <div className="mb-4">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    PAST PREDICTIONS
+                </h3>
+                <p className="text-gray-300 text-xs">
+                    View historical prediction reports
+                </p>
+            </div>
+            
+            <div className="max-h-[500px] overflow-y-auto">
+                <PastPredictions 
+                    onViewReport={(pastData) => {
+                        setReportData(pastData);
+                        setIsReportOpen(true);
+                    }}
+                    isMobile={false}
+                />
+            </div>
+        </div>
+    </div>
+)}
+                    
                 </div >
             </div >
 
