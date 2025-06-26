@@ -61,7 +61,6 @@ import Leaderboard from '@/component/ui/Leaderboard';
 // import { ReportData } from '@/types/types';
 import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
-// import MobileTabLayout from '@/components/MobileTabLayout';
 import PastPredictions from '@/component/ui/PastPredictions';
 
 
