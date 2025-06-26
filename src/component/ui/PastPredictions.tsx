@@ -139,11 +139,11 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
       try {
         setLoading(true);
 
-        if (!NEXT_PUBLIC_PAST_PREDICTION_API) {
+        if (!process.env.NEXT_PUBLIC_PAST_PREDICTION_API) {
           throw new Error('API URL not configured');
         }
 
-        const response = await fetch(NEXT_PUBLIC_PAST_PREDICTION_API, {
+        const response = await fetch(process.env.NEXT_PUBLIC_PAST_PREDICTION_API, {
           method: 'GET',
           headers: {
             'accept': 'application/json'
