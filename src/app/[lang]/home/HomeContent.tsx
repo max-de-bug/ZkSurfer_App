@@ -61,6 +61,7 @@ import Leaderboard from '@/component/ui/Leaderboard';
 // import { ReportData } from '@/types/types';
 import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
+// import MobileTabLayout from '@/components/MobileTabLayout';
 
 
 interface GeneratedTweet {
@@ -393,6 +394,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
 
     const popUpRef = useRef<HTMLDivElement | null>(null);
+    const [activeMobileTab, setActiveMobileTab] = useState('zkterminal');
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -471,6 +473,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportData, setReportData] = useState<FullReportData | null>(null);
+
+    // const [activeMobileTab, setActiveMobileTab] = useState<'terminal' | 'prediction'>('terminal');
+
 
     const normalizeSentiment = (score: number): 'bearish' | 'neutral' | 'bullish' => {
         if (score <= 1.6) return 'bearish';
@@ -4889,9 +4894,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                 <div className="sticky top-0 z-50">
                     {isMobile ? (
-                        // Mobile header: two groups—left and right
+
                         <div
-                            className="w-full bg-[#08121f] px-4 py-2"
+                            className="w-full bg-[#08121f] px-4 py-2 flex-shrink-0"
                             onTouchStart={handleTouchStart}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={handleTouchEnd}
@@ -4947,6 +4952,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </div>
                             </div>
                         </div>
+
                     ) : (
                         // Desktop header: your original one (or adjusted as needed)
                         <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
@@ -5358,12 +5364,15 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     </div>
 
                     {/* Chat messages */}
-                    <div className=' flex flex-col justify-between w-3/4'>
-                        <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[630px] ">
-                            {isInitialView ? (
-                                <div className="flex flex-col items-center justify-center h-full">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
-                                        {/* {sampleCommands.map((cmd, index) => (
+                    <div className=' flex flex-col justify-between md:w-3/4 w-full'>
+
+                        {(!isMobile || activeMobileTab === 'zkterminal') && (
+                            <>
+                                <div className="flex-grow overflow-x-auto px-4 py-8 max-h-[630px] ">
+                                    {isInitialView ? (
+                                        <div className="flex flex-col items-center justify-center h-full">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
+                                                {/* {sampleCommands.map((cmd, index) => (
                                             <div
                                                 key={index}
                                                 className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300"
@@ -5377,51 +5386,51 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                 </p>
                                             </div>
                                         ))} */}
-                                        {dictionary?.commands.map((cmd, index) => (
-                                            <div className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
-                                                <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
-                                                <p className="text-sm text-gray-300 text-center">{cmd.description}</p>
-                                            </div>
-                                        ))}
-
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    {/* Render chat messages */}
-                                    {displayMessages.map((message, index) => {
-                                        const thought = thoughtsMap?.[index];
-                                        const isOpen = openThoughtsMap[index] ?? true;
-                                        return (
-                                            <div key={index} className="mb-4 flex justify-start w-full">
-                                                <div key={index} className="mb-4 flex justify-start w-full">
-                                                    <div className="flex-shrink-0 mr-3">
-                                                        <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
-                                                            {message.role === 'user' ? (
-                                                                <span>U</span>
-                                                            ) : (
-                                                                <Image
-                                                                    src="images/tiger.svg"
-                                                                    alt="logo"
-                                                                    width={40}
-                                                                    height={40}
-                                                                    className='p-2'
-                                                                />
-                                                            )}
-                                                        </div>
+                                                {dictionary?.commands.map((cmd, index) => (
+                                                    <div className="flex flex-col justify-center items-center bg-gray-800 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transition duration-300" key={index} onClick={() => handleCommandBoxClick(cmd.command)}>
+                                                        <h3 className="text-xl font-bold mb-2">{cmd.label}</h3>
+                                                        <p className="text-sm text-gray-300 text-center">{cmd.description}</p>
                                                     </div>
-                                                    <div className="flex flex-col items-start">
-                                                        <div className="flex items-center justify-between w-full mt-2">
+                                                ))}
 
-                                                            <span
-                                                                className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
-                                                                    'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
-                                                                    } ${!isMobile ? `mt-0.5` : ``}`}
-                                                            >
-                                                                {message.role === 'user' ? 'User' : 'ZkTerminal'}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            {/* Render chat messages */}
+                                            {displayMessages.map((message, index) => {
+                                                const thought = thoughtsMap?.[index];
+                                                const isOpen = openThoughtsMap[index] ?? true;
+                                                return (
+                                                    <div key={index} className="mb-4 flex justify-start w-full">
+                                                        <div key={index} className="mb-4 flex justify-start w-full">
+                                                            <div className="flex-shrink-0 mr-3">
+                                                                <div className="w-10 h-10 rounded-full bg-[#171D3D] border flex items-center justify-center">
+                                                                    {message.role === 'user' ? (
+                                                                        <span>U</span>
+                                                                    ) : (
+                                                                        <Image
+                                                                            src="images/tiger.svg"
+                                                                            alt="logo"
+                                                                            width={40}
+                                                                            height={40}
+                                                                            className='p-2'
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col items-start">
+                                                                <div className="flex items-center justify-between w-full mt-2">
 
-                                                            </span>
-                                                            {/* {message.role !== 'user' && (
+                                                                    <span
+                                                                        className={`flex justify-between items-center text-md text-gray-400 font-sourceCode ${message.role !== 'user' &&
+                                                                            'bg-gradient-to-br from-zkIndigo via-zkLightPurple to-zkPurple bg-clip-text text-transparent'
+                                                                            } ${!isMobile ? `mt-0.5` : ``}`}
+                                                                    >
+                                                                        {message.role === 'user' ? 'User' : 'ZkTerminal'}
+
+                                                                    </span>
+                                                                    {/* {message.role !== 'user' && (
                                                                 <div className="flex space-x-2">
                                                                     <button className="text-white rounded-lg" onClick={() => {
                                                                         const imageContent = message.content;
@@ -5457,9 +5466,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                 </div>
                                                             )} */}
 
-                                                            {message.role !== 'user' && (
-                                                                <div className="flex space-x-2">
-                                                                    {/* <button
+                                                                    {message.role !== 'user' && (
+                                                                        <div className="flex space-x-2">
+                                                                            {/* <button
                                                                         className="text-white rounded-lg"
                                                                         onClick={() => {
                                                                             if (typeof message.content === 'string') {
@@ -5494,17 +5503,17 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                             height={20}
                                                                         />
                                                                     </button> */}
-                                                                    <DownloadButton message={{ content: message.content }} />
+                                                                            <DownloadButton message={{ content: message.content }} />
 
-                                                                    <button className="text-white rounded-lg">
-                                                                        <Image
-                                                                            src="images/share.svg"
-                                                                            alt="Share"
-                                                                            width={20}
-                                                                            height={20}
-                                                                        />
-                                                                    </button>
-                                                                    {/* <button
+                                                                            <button className="text-white rounded-lg">
+                                                                                <Image
+                                                                                    src="images/share.svg"
+                                                                                    alt="Share"
+                                                                                    width={20}
+                                                                                    height={20}
+                                                                                />
+                                                                            </button>
+                                                                            {/* <button
                                                                         onClick={() => {
                                                                             // Store the image URL (assumed to be in message.content) then open the modal
                                                                             if (typeof message.content === 'string' && message.content.startsWith('data:image/')) {
@@ -5518,319 +5527,319 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                     >
                                                                         <Image src="images/select.svg" alt="Select" width={20} height={20} />
                                                                     </button> */}
+                                                                        </div>
+                                                                    )}
+
+
                                                                 </div>
-                                                            )}
+                                                                {message.role === 'assistant' &&
 
+                                                                    (typeof message.content === 'string' && message.content.startsWith('data:image')) ? (
+                                                                    <ResultBlock
+                                                                        content={message.content}
+                                                                        type="image"
+                                                                        onMintNFT={handleMintNFT}
+                                                                        onDownloadProof={handleDownload}
+                                                                        imageResultType={message.command}
+                                                                        // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
+                                                                        // onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
+                                                                        onLaunchMemeCoin={
+                                                                            message.command === "create-agent"
+                                                                                ? () => setShowCreateAgentModal(true)
+                                                                                : undefined
+                                                                        }
 
-                                                        </div>
-                                                        {message.role === 'assistant' &&
-
-                                                            (typeof message.content === 'string' && message.content.startsWith('data:image')) ? (
-                                                            <ResultBlock
-                                                                content={message.content}
-                                                                type="image"
-                                                                onMintNFT={handleMintNFT}
-                                                                onDownloadProof={handleDownload}
-                                                                imageResultType={message.command}
-                                                                // onLaunchMemeCoin={message.command === 'meme-coin' ? () => router.push('/memelaunch') : undefined}
-                                                                // onLaunchMemeCoin={message.command === 'create-agent' ? handleLaunchMemeCoin : undefined}
-                                                                onLaunchMemeCoin={
-                                                                    message.command === "create-agent"
-                                                                        ? () => setShowCreateAgentModal(true)
-                                                                        : undefined
-                                                                }
-
-                                                                // onLaunchMemeCoin={
-                                                                //     message.command === 'create-agent'
-                                                                //         ? () => {
-                                                                //             handleLaunchMemeCoin();
-                                                                //             handleLaunchAgent();
-                                                                //         }
-                                                                //         : undefined
-                                                                // }
-                                                                loading={loading}
-                                                            //   loading={message.command === "create-agent" ? loading : loading}
-                                                            />
-                                                        ) : (
-                                                            <div className="inline-block p-1 rounded-lg text-white">
-                                                                {renderMessageContent(message)}
+                                                                        // onLaunchMemeCoin={
+                                                                        //     message.command === 'create-agent'
+                                                                        //         ? () => {
+                                                                        //             handleLaunchMemeCoin();
+                                                                        //             handleLaunchAgent();
+                                                                        //         }
+                                                                        //         : undefined
+                                                                        // }
+                                                                        loading={loading}
+                                                                    //   loading={message.command === "create-agent" ? loading : loading}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="inline-block p-1 rounded-lg text-white">
+                                                                        {renderMessageContent(message)}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        )
-                                    }
-                                    )}
-                                    <div ref={messagesEndRef} />
+                                                )
+                                            }
+                                            )}
+                                            <div ref={messagesEndRef} />
 
-                                    {isLoading && (
-                                        processingCommand ? (
-                                            // Custom loader for /create-agent and /image-gen
-                                            <ResultBlock type="image" processing={true}
-                                                onDownloadProof={handleDownload} imageResultType={imageResultType} onMintNFT={handleMintNFT} onLaunchMemeCoin={openCreateAgentModal} />
-                                        ) : (
-                                            // Default loader
-                                            <div className="text-center">
-                                                <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
-                                                <p>Processing your query. This may take up to 2 minutes...</p>
-                                            </div>
-                                        )
+                                            {isLoading && (
+                                                processingCommand ? (
+                                                    // Custom loader for /create-agent and /image-gen
+                                                    <ResultBlock type="image" processing={true}
+                                                        onDownloadProof={handleDownload} imageResultType={imageResultType} onMintNFT={handleMintNFT} onLaunchMemeCoin={openCreateAgentModal} />
+                                                ) : (
+                                                    // Default loader
+                                                    <div className="text-center">
+                                                        <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
+                                                        <p>Processing your query. This may take up to 2 minutes...</p>
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                            )}
-                        </div>
 
-                        <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
-                            <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
-                                <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
-                                    {files.length > 0 && (
-                                        // <div className="flex flex-wrap gap-2 p-2">
-                                        //     {files.map((file, index) => (
-                                        //         <div key={index} className="relative w-20 h-20">
-                                        //             {file.isPdf ? (
-                                        //                 <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
-                                        //                     {file.file.name}
-                                        //                 </div>
-                                        //             ) : (
-                                        //                 <Image
-                                        //                     src={file.preview}
-                                        //                     alt={`Preview ${index}`}
-                                        //                     width={500}
-                                        //                     height={500}
-                                        //                     className="w-full h-full object-cover rounded-lg"
-                                        //                     layout="responsive"
-                                        //                 />
-                                        //             )}
-                                        //             <button
-                                        //                 onClick={() => removeFile(index)}
-                                        //                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                                        //                 type="button"
-                                        //             >
-                                        //                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        //                     <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        //                     <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        //                 </svg>
-                                        //             </button>
-                                        //         </div>
-                                        //     ))}
-                                        // </div>
-                                        <div className="flex flex-wrap gap-2 p-2">
-                                            {files.map((file, index) => (
-                                                <div key={index} className="relative w-20 h-20">
-                                                    {file.isPdf ? (
-                                                        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-xs text-white rounded-lg">
-                                                            {file.file.name}
-                                                        </div>
-                                                    ) : file.isVideoOrAudio ? (
-                                                        <div className="w-full h-full">
-                                                            {file.file.type.startsWith('video/') ? (
-                                                                <video
+                                <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
+                                    <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
+                                        <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+                                            {files.length > 0 && (
+                                                // <div className="flex flex-wrap gap-2 p-2">
+                                                //     {files.map((file, index) => (
+                                                //         <div key={index} className="relative w-20 h-20">
+                                                //             {file.isPdf ? (
+                                                //                 <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
+                                                //                     {file.file.name}
+                                                //                 </div>
+                                                //             ) : (
+                                                //                 <Image
+                                                //                     src={file.preview}
+                                                //                     alt={`Preview ${index}`}
+                                                //                     width={500}
+                                                //                     height={500}
+                                                //                     className="w-full h-full object-cover rounded-lg"
+                                                //                     layout="responsive"
+                                                //                 />
+                                                //             )}
+                                                //             <button
+                                                //                 onClick={() => removeFile(index)}
+                                                //                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                //                 type="button"
+                                                //             >
+                                                //                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                //                     <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                //                     <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                //                 </svg>
+                                                //             </button>
+                                                //         </div>
+                                                //     ))}
+                                                // </div>
+                                                <div className="flex flex-wrap gap-2 p-2">
+                                                    {files.map((file, index) => (
+                                                        <div key={index} className="relative w-20 h-20">
+                                                            {file.isPdf ? (
+                                                                <div className="w-full h-full flex items-center justify-center bg-gray-800 text-xs text-white rounded-lg">
+                                                                    {file.file.name}
+                                                                </div>
+                                                            ) : file.isVideoOrAudio ? (
+                                                                <div className="w-full h-full">
+                                                                    {file.file.type.startsWith('video/') ? (
+                                                                        <video
+                                                                            src={file.preview}
+                                                                            controls
+                                                                            className="w-full h-full object-cover rounded-lg"
+                                                                        />
+                                                                    ) : (
+                                                                        <audio
+                                                                            src={file.preview}
+                                                                            controls
+                                                                            className="w-full object-cover rounded-lg"
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <img
                                                                     src={file.preview}
-                                                                    controls
+                                                                    alt={`Preview ${index}`}
                                                                     className="w-full h-full object-cover rounded-lg"
                                                                 />
-                                                            ) : (
-                                                                <audio
-                                                                    src={file.preview}
-                                                                    controls
-                                                                    className="w-full object-cover rounded-lg"
-                                                                />
                                                             )}
+                                                            <button
+                                                                onClick={() => removeFile(index)}
+                                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                                type="button"
+                                                            >
+                                                                ✖
+                                                            </button>
                                                         </div>
-                                                    ) : (
-                                                        <img
-                                                            src={file.preview}
-                                                            alt={`Preview ${index}`}
-                                                            className="w-full h-full object-cover rounded-lg"
-                                                        />
+                                                    ))}
+                                                </div>
+
+                                            )}
+
+
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="file"
+                                                    onChange={handleFileChange}
+                                                    //accept="image/*,.pdf"
+                                                    accept="image/*,.pdf,video/*,audio/*"
+                                                    className="hidden"
+                                                    id="fileInput"
+                                                    multiple
+                                                    disabled={!wallet.connected}
+                                                />
+                                                <label
+                                                    htmlFor="fileInput"
+                                                    className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                                        }`}
+                                                    style={{
+                                                        height: '2.5rem', // Match the initial height of the textarea
+                                                    }}
+                                                >
+                                                    <Image
+                                                        src="/images/Attach.svg"
+                                                        alt="Attach file"
+                                                        width={20}
+                                                        height={20}
+                                                    />
+                                                </label>
+
+                                                {/* Textarea for input */}
+                                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
+                                                    <textarea
+                                                        ref={inputRef}
+                                                        value={inputMessage}
+                                                        onChange={handleInputChange}
+                                                        // onKeyDown={(e) => {
+                                                        //     if (e.key === 'Enter' && !e.shiftKey) {
+                                                        //         e.preventDefault(); // Prevent default new line
+                                                        //         handleSubmit(e); // Pass the event to handleSubmit
+                                                        //     }
+                                                        // }}
+                                                        onKeyDown={(e) => {
+                                                            if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+                                                                // Only submit if there's non-whitespace content
+                                                                if (!inputMessage.trim()) {
+                                                                    e.preventDefault();
+                                                                    return; // Prevent submission when empty
+                                                                }
+                                                                e.preventDefault();
+                                                                handleSubmit(e);
+                                                            }
+                                                        }}
+                                                        placeholder={dictionary?.inputPlaceholder}
+                                                        className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
+                                                        style={{
+                                                            lineHeight: '1.5',
+                                                            height: '2.5rem', // Same initial height as the label
+                                                            maxHeight: '10rem', // Limit height to 10rem
+                                                            boxSizing: 'border-box',
+                                                        }}
+                                                        onInput={(e) => {
+                                                            const target = e.target as HTMLTextAreaElement;
+                                                            target.style.height = '2.5rem'; // Reset to the default height
+                                                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
+                                                        }}
+                                                        disabled={!wallet.connected}
+                                                    />
+                                                    {/* {showAgentTypePopup && <AgentTypePopup onSelect={handleAgentTypeSelect} />} */}
+
+                                                    {showCommandPopup && (
+                                                        <div ref={commandPopupRef}>
+                                                            <CommandPopup onSelect={handleCommandSelect} />
+                                                        </div>
                                                     )}
-                                                    <button
-                                                        onClick={() => removeFile(index)}
-                                                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                                                        type="button"
-                                                    >
-                                                        ✖
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                    {showTickerPopup && (
+                                                        <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
+                                                    )}
 
-                                    )}
+                                                    {showImgToVideoPopup && (
+                                                        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
+                                                            <p className="mb-2 text-sm text-white">Choose your /img-to-video mode:</p>
+                                                            <div className="flex flex-col gap-2">
+                                                                <button
+                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                                    onClick={() => {
+                                                                        setWan2Choice('with');
+                                                                        setShowImgToVideoPopup(false);
+                                                                        // The user typed /img-to-video, we’ll let them finish the prompt
+                                                                        // or we can do it automatically:
+                                                                        // setInputMessage('/img-to-video with Wan2.0 ');
+                                                                        // Optionally show the video length modal right away:
+                                                                        // setShowVideoLengthModal(true);
+                                                                        setInputMessage('/img-to-video with Wan2.0 ');
+                                                                    }}
+                                                                >
+                                                                    With Wan2.0
+                                                                </button>
 
+                                                                <button
+                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                                    onClick={() => {
+                                                                        setWan2Choice('without');
+                                                                        setShowImgToVideoPopup(false);
+                                                                        // Optionally set a default message:
+                                                                        // setInputMessage('/img-to-video without Wan2.0 ');
+                                                                    }}
+                                                                >
+                                                                    Without Wan2.0
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
 
-                                    <div className="flex items-center">
-                                        <input
-                                            type="file"
-                                            onChange={handleFileChange}
-                                            //accept="image/*,.pdf"
-                                            accept="image/*,.pdf,video/*,audio/*"
-                                            className="hidden"
-                                            id="fileInput"
-                                            multiple
-                                            disabled={!wallet.connected}
-                                        />
-                                        <label
-                                            htmlFor="fileInput"
-                                            className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                                                }`}
-                                            style={{
-                                                height: '2.5rem', // Match the initial height of the textarea
-                                            }}
-                                        >
-                                            <Image
-                                                src="/images/Attach.svg"
-                                                alt="Attach file"
-                                                width={20}
-                                                height={20}
-                                            />
-                                        </label>
-
-                                        {/* Textarea for input */}
-                                        <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
-                                            <textarea
-                                                ref={inputRef}
-                                                value={inputMessage}
-                                                onChange={handleInputChange}
-                                                // onKeyDown={(e) => {
-                                                //     if (e.key === 'Enter' && !e.shiftKey) {
-                                                //         e.preventDefault(); // Prevent default new line
-                                                //         handleSubmit(e); // Pass the event to handleSubmit
-                                                //     }
-                                                // }}
-                                                onKeyDown={(e) => {
-                                                    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-                                                        // Only submit if there's non-whitespace content
-                                                        if (!inputMessage.trim()) {
-                                                            e.preventDefault();
-                                                            return; // Prevent submission when empty
-                                                        }
-                                                        e.preventDefault();
-                                                        handleSubmit(e);
-                                                    }
-                                                }}
-                                                placeholder={dictionary?.inputPlaceholder}
-                                                className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
-                                                style={{
-                                                    lineHeight: '1.5',
-                                                    height: '2.5rem', // Same initial height as the label
-                                                    maxHeight: '10rem', // Limit height to 10rem
-                                                    boxSizing: 'border-box',
-                                                }}
-                                                onInput={(e) => {
-                                                    const target = e.target as HTMLTextAreaElement;
-                                                    target.style.height = '2.5rem'; // Reset to the default height
-                                                    target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
-                                                }}
-                                                disabled={!wallet.connected}
-                                            />
-                                            {/* {showAgentTypePopup && <AgentTypePopup onSelect={handleAgentTypeSelect} />} */}
-
-                                            {showCommandPopup && (
-                                                <div ref={commandPopupRef}>
-                                                    <CommandPopup onSelect={handleCommandSelect} />
-                                                </div>
-                                            )}
-                                            {showTickerPopup && (
-                                                <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
-                                            )}
-
-                                            {showImgToVideoPopup && (
-                                                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
-                                                    <p className="mb-2 text-sm text-white">Choose your /img-to-video mode:</p>
-                                                    <div className="flex flex-col gap-2">
-                                                        <button
-                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                            onClick={() => {
-                                                                setWan2Choice('with');
-                                                                setShowImgToVideoPopup(false);
-                                                                // The user typed /img-to-video, we’ll let them finish the prompt
-                                                                // or we can do it automatically:
-                                                                // setInputMessage('/img-to-video with Wan2.0 ');
-                                                                // Optionally show the video length modal right away:
-                                                                // setShowVideoLengthModal(true);
-                                                                setInputMessage('/img-to-video with Wan2.0 ');
-                                                            }}
-                                                        >
-                                                            With Wan2.0
-                                                        </button>
-
-                                                        <button
-                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                            onClick={() => {
-                                                                setWan2Choice('without');
-                                                                setShowImgToVideoPopup(false);
-                                                                // Optionally set a default message:
-                                                                // setInputMessage('/img-to-video without Wan2.0 ');
-                                                            }}
-                                                        >
-                                                            Without Wan2.0
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {showVideoLengthModal && wan2Choice === 'with' && (
-                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                                    <div className="bg-[#171D3D] p-6 rounded-lg shadow-lg relative w-80">
-                                                        <button
-                                                            className="absolute top-2 right-2 text-white"
-                                                            onClick={() => setShowVideoLengthModal(false)}
-                                                        >
-                                                            ✖
-                                                        </button>
-                                                        <h2 className="text-xl text-white mb-4">Enter Video Length</h2>
-                                                        <input
-                                                            type="number"
-                                                            className="w-full bg-gray-800 text-white p-2 rounded mb-4"
-                                                            value={videoLength}
-                                                            onChange={(e) => setVideoLength(e.target.value)}
-                                                        />
-                                                        <button
-                                                            className="px-4 py-2 bg-blue-500 text-white rounded w-full"
-                                                            onClick={() => {
-                                                                setShowVideoLengthModal(false);
-                                                                // Now call the function to execute the API call for "with Wan2.0"
-                                                                handleSubmitImgToVideoWan2();
-                                                            }}
-                                                        >
-                                                            Submit
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                                    {showVideoLengthModal && wan2Choice === 'with' && (
+                                                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                                                            <div className="bg-[#171D3D] p-6 rounded-lg shadow-lg relative w-80">
+                                                                <button
+                                                                    className="absolute top-2 right-2 text-white"
+                                                                    onClick={() => setShowVideoLengthModal(false)}
+                                                                >
+                                                                    ✖
+                                                                </button>
+                                                                <h2 className="text-xl text-white mb-4">Enter Video Length</h2>
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full bg-gray-800 text-white p-2 rounded mb-4"
+                                                                    value={videoLength}
+                                                                    onChange={(e) => setVideoLength(e.target.value)}
+                                                                />
+                                                                <button
+                                                                    className="px-4 py-2 bg-blue-500 text-white rounded w-full"
+                                                                    onClick={() => {
+                                                                        setShowVideoLengthModal(false);
+                                                                        // Now call the function to execute the API call for "with Wan2.0"
+                                                                        handleSubmitImgToVideoWan2();
+                                                                    }}
+                                                                >
+                                                                    Submit
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
 
 
 
-                                            {showVideoLipsyncOption && (
-                                                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
-                                                    <p className="mb-2 text-sm text-white">Select animation type:</p>
-                                                    <div className="flex flex-col gap-2">
-                                                        <button
-                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                            onClick={() => {
-                                                                // Set option and update the input field.
-                                                                setVideoLipsyncOption('Animal');
-                                                                setInputMessage('/video-lipsync animation mode animal');
-                                                                setShowVideoLipsyncOption(false);
-                                                            }}
-                                                        >
-                                                            Animal
-                                                        </button>
-                                                        <button
-                                                            className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                            onClick={() => {
-                                                                setVideoLipsyncOption('Human');
-                                                                setInputMessage('/video-lipsync animation mode human');
-                                                                setShowVideoLipsyncOption(false);
-                                                            }}
-                                                        >
-                                                            Human
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {/* {showBridgePopup && (
+                                                    {showVideoLipsyncOption && (
+                                                        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
+                                                            <p className="mb-2 text-sm text-white">Select animation type:</p>
+                                                            <div className="flex flex-col gap-2">
+                                                                <button
+                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                                    onClick={() => {
+                                                                        // Set option and update the input field.
+                                                                        setVideoLipsyncOption('Animal');
+                                                                        setInputMessage('/video-lipsync animation mode animal');
+                                                                        setShowVideoLipsyncOption(false);
+                                                                    }}
+                                                                >
+                                                                    Animal
+                                                                </button>
+                                                                <button
+                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                                                                    onClick={() => {
+                                                                        setVideoLipsyncOption('Human');
+                                                                        setInputMessage('/video-lipsync animation mode human');
+                                                                        setShowVideoLipsyncOption(false);
+                                                                    }}
+                                                                >
+                                                                    Human
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {/* {showBridgePopup && (
                                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                                                     <div className="bg-white p-4 rounded-lg relative">
                                                         <button
@@ -5847,95 +5856,162 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                 </div>
                                             )} */}
 
-                                            {showImageSelectModal && selectedImage && (
-                                                <ImageSelectionModal
-                                                    imageUrl={selectedImage}
-                                                    onClose={() => {
-                                                        setShowImageSelectModal(false);
-                                                        setSelectedImage(null);
+                                                    {showImageSelectModal && selectedImage && (
+                                                        <ImageSelectionModal
+                                                            imageUrl={selectedImage}
+                                                            onClose={() => {
+                                                                setShowImageSelectModal(false);
+                                                                setSelectedImage(null);
+                                                            }}
+                                                        />
+                                                    )}
+
+                                                    {showVideoEditModal && videoToEdit && (
+                                                        <VideoEditModal
+                                                            videoUrl={videoToEdit}
+                                                            onClose={() => setShowVideoEditModal(false)}
+                                                            onSaveTrimmed={handleSaveTrimmed}
+                                                            onSaveCaption={handleSaveCaption}
+                                                        />
+                                                    )}
+
+
+
+
+                                                </div>
+
+                                                {/* Submit button */}
+                                                <button
+                                                    type="submit"
+                                                    className="bg-white text-black p-1 m-1 rounded-md font-bold"
+                                                    style={{
+                                                        height: '1.5rem', // Same height as the textarea
                                                     }}
-                                                />
-                                            )}
-
-                                            {showVideoEditModal && videoToEdit && (
-                                                <VideoEditModal
-                                                    videoUrl={videoToEdit}
-                                                    onClose={() => setShowVideoEditModal(false)}
-                                                    onSaveTrimmed={handleSaveTrimmed}
-                                                    onSaveCaption={handleSaveCaption}
-                                                />
-                                            )}
+                                                    disabled={isLoading || !wallet.connected}
+                                                >
+                                                    <BsArrowReturnLeft />
+                                                </button>
+                                            </div>
 
 
-
-
-                                        </div>
-
-                                        {/* Submit button */}
-                                        <button
-                                            type="submit"
-                                            className="bg-white text-black p-1 m-1 rounded-md font-bold"
-                                            style={{
-                                                height: '1.5rem', // Same height as the textarea
-                                            }}
-                                            disabled={isLoading || !wallet.connected}
-                                        >
-                                            <BsArrowReturnLeft />
-                                        </button>
+                                        </form>
                                     </div>
-
-
-                                </form>
+                                </footer>
+                            </>
+                        )}
+                        {isMobile && activeMobileTab === 'prediction' && (
+                            <div className="flex-grow overflow-y-auto p-4 ">
+                                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto">
+                                    <div className="flex flex-col items-start">
+                                        <div className="">
+                                            <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                                PREDICTION REPORT
+                                            </h2>
+                                            <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                                                Checkout the latest trends,
+                                                analyze the trading signals and
+                                                trade smarter
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <div className="flex flex-row items-center justify-center">
+                                                <p className="text-xs">CLICK TO VIEW</p>
+                                                <div className="ml-1 flex items-center">
+                                                    <button onClick={openReport}>
+                                                        <Image
+                                                            src="images/RightArrow.svg"
+                                                            alt="logo"
+                                                            width={40}
+                                                            height={40}
+                                                            className='p-2'
+                                                        />
+                                                    </button>
+                                                    {reportData && (
+                                                        <ReportSidebar
+                                                            isOpen={isReportOpen}
+                                                            onClose={() => setIsReportOpen(false)}
+                                                            data={reportData}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </footer>
+                        )}
+                        {isMobile && (
+                            <div className="flex bg-[#08121f] border-b border-gray-600">
+                                <button
+                                    className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${activeMobileTab === 'zkterminal'
+                                        ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    onClick={() => setActiveMobileTab('zkterminal')}
+                                >
+                                    ZkTerminal
+                                </button>
+                                <button
+                                    className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${activeMobileTab === 'prediction'
+                                        ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    onClick={() => setActiveMobileTab('prediction')}
+                                >
+                                    Prediction
+                                </button>
+                            </div>
+                        )}
                     </div >
                     {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}
-                    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md">
-                        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
-                            <div className="flex flex-col items-start">
-                                <div className="">
-                                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                                        PREDICTION REPORT
-                                    </h2>
-                                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
-                                        Checkout the latest trends,
-                                        analyze the trading signals and
-                                        trade smarter
-                                    </p>
-                                </div>
-                                <div>
-                                    <div className="flex flex-row items-center justify-center">
-                                        <p className="text-xs">CLICK TO VIEW</p>
-                                        <div className="ml-1 flex items-center">
-                                            <button
-                                                onClick={openReport}
-                                            >
-                                                <Image
-                                                    src="images/RightArrow.svg"
-                                                    alt="logo"
-                                                    width={40}
-                                                    height={40}
-                                                    className='p-2'
-                                                />
-                                            </button>
+                    {!isMobile && (
+                        <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md">
+                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
+                                <div className="flex flex-col items-start">
+                                    <div className="">
+                                        <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                            PREDICTION REPORT
+                                        </h2>
+                                        <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                                            Checkout the latest trends,
+                                            analyze the trading signals and
+                                            trade smarter
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <div className="flex flex-row items-center justify-center">
+                                            <p className="text-xs">CLICK TO VIEW</p>
+                                            <div className="ml-1 flex items-center">
+                                                <button
+                                                    onClick={openReport}
+                                                >
+                                                    <Image
+                                                        src="images/RightArrow.svg"
+                                                        alt="logo"
+                                                        width={40}
+                                                        height={40}
+                                                        className='p-2'
+                                                    />
+                                                </button>
 
-                                            {reportData && (
-                                                <ReportSidebar
-                                                    isOpen={isReportOpen}
-                                                    onClose={() => setIsReportOpen(false)}
-                                                    data={reportData}
-                                                />
-                                            )}
+                                                {reportData && (
+                                                    <ReportSidebar
+                                                        isOpen={isReportOpen}
+                                                        onClose={() => setIsReportOpen(false)}
+                                                        data={reportData}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            {/* <div> <Leaderboard /></div> */}
                         </div>
-                        {/* <div> <Leaderboard /></div> */}
-                    </div>
+                    )}
                 </div >
             </div >
 
@@ -5954,6 +6030,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     generatedTweet={tweets}
                 />
             </div> */}
+
 
 
         </div >

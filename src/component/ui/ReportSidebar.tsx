@@ -11,11 +11,23 @@ import PriceChart from '@/component/ui/PriceChart';
 interface ReportSidebarProps {
     isOpen: boolean;
     onClose: () => void;
-    data: FullReportData;
+    data: FullReportData | null;
 }
 
 const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const panelRef = useRef<HTMLDivElement>(null);
+
+    const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+    const checkMobile = () => {
+        setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+}, []);
 
     const colorMap: Record<string, string> = {
         'border-green-500': '#10b981',
@@ -43,6 +55,38 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     }, []);
 
 
+     // Early return if data is null
+    if (!data || !data.todaysNews) {
+        return (
+            <>
+                {/* overlay */}
+                <div
+                    className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity ${
+                        isOpen ? 'opacity-100 z-40' : 'opacity-0 -z-10'
+                    }`}
+                    aria-hidden
+                />
+                {/* sliding panel */}
+                <div
+                    ref={panelRef}
+                    className={`
+                        fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-3/5'} bg-[#0a1628] 
+                        transform transition-transform duration-300 ease-in-out
+                        ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+                        flex flex-col shadow-xl z-50 text-white
+                    `}
+                >
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mb-4"></div>
+                            <p>Loading report data...</p>
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
+    
     // 2️⃣ Compute average sentiment
     const allScores = [
         ...(data.todaysNews.crypto || []),
@@ -131,7 +175,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
             <div
                 ref={panelRef}
                 className={`
-                    fixed inset-y-0 right-0 w-3/5 bg-[#0a1628] 
+                    fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-3/5'} bg-[#0a1628] 
                     transform transition-transform duration-300 ease-in-out
                     ${isOpen ? 'translate-x-0' : 'translate-x-full'}
                     flex flex-col shadow-xl z-50 text-white
@@ -167,7 +211,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6" data-pdf-content>
                     {/* Top Section: Prediction Accuracy and 4 Cards Side by Side */}
 
-                    <section className="flex gap-6">
+                    <section className={`${isMobile ? 'flex-col space-y-4' : 'flex gap-6'}`}>
                         {/* Prediction Accuracy Chart - Left Side */}
                         <div className="flex-1 bg-[#1a2332] rounded-lg p-4">
                             <div className="flex items-center justify-between mb-4">
@@ -183,7 +227,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                         </div>
 
                         {/* 4 Cards - Right Side - FULL HEIGHT MATCH */}
-                        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full">
+                        <div className={`flex-1 ${isMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 grid-rows-2 gap-4 h-full'}`}>
 
                             {/* ── BTC PRICE CARD ── */}
                             <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
@@ -236,7 +280,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                     </section>
 
                     {/* Bottom Section: 2 Columns */}
-                    <section className="flex gap-6">
+                    <section className= {`${isMobile ? 'flex-col space-y-4' : 'flex gap-6'}`}>
                         {/* Left Column - 2/3 width: News Impact & Trending News */}
                         <div className="flex-[2] space-y-6">
                             {/* News Impact */}
@@ -246,7 +290,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                     <h3 className="font-bold">NEWS IMPACT</h3>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-4 mb-4 h-16">
+                                <div className={`${isMobile ? 'grid grid-cols-1 gap-2 mb-4' : 'grid grid-cols-4 gap-4 mb-4 h-16'}`}>
                                     {/* SOL Surges Card - Takes 2 columns */}
                                     <div className="col-span-2 bg-[#1a2332] rounded-lg p-4 h-full flex items-center justify-between">
                                         <TwoLineTitle>
