@@ -488,7 +488,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     }, [displayMessages, isLoading]);
 
     const openReport = async () => {
-        const raw = await fetch('http://103.231.86.182:8006/today')
+        const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
             .then(r => r.json());
         const today = raw.todays_news[0];
 
