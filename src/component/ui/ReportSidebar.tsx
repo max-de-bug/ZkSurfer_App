@@ -19,15 +19,15 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
 
     const [isMobile, setIsMobile] = useState(false);
 
-useEffect(() => {
-    const checkMobile = () => {
-        setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-}, []);
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const colorMap: Record<string, string> = {
         'border-green-500': '#10b981',
@@ -54,16 +54,26 @@ useEffect(() => {
             .finally(() => setLoadingBtc(false));
     }, []);
 
+    // Close on outside click
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        }
+        if (isOpen) document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [isOpen, onClose]);
 
-     // Early return if data is null
+
+    // Early return if data is null
     if (!data || !data.todaysNews) {
         return (
             <>
                 {/* overlay */}
                 <div
-                    className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity ${
-                        isOpen ? 'opacity-100 z-40' : 'opacity-0 -z-10'
-                    }`}
+                    className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity ${isOpen ? 'opacity-100 z-40' : 'opacity-0 -z-10'
+                        }`}
                     aria-hidden
                 />
                 {/* sliding panel */}
@@ -86,7 +96,7 @@ useEffect(() => {
             </>
         );
     }
-    
+
     // 2️⃣ Compute average sentiment
     const allScores = [
         ...(data.todaysNews.crypto || []),
@@ -136,17 +146,6 @@ useEffect(() => {
         return now.toLocaleDateString('en-US', options).toUpperCase();
     };
 
-
-    // Close on outside click
-    useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-                onClose();
-            }
-        }
-        if (isOpen) document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, [isOpen, onClose]);
 
     function TwoLineTitle({ children }: { children: string }) {
         const words = children.split(' ');
@@ -280,7 +279,7 @@ useEffect(() => {
                     </section>
 
                     {/* Bottom Section: 2 Columns */}
-                    <section className= {`${isMobile ? 'flex-col space-y-4' : 'flex gap-6'}`}>
+                    <section className={`${isMobile ? 'flex-col space-y-4' : 'flex gap-6'}`}>
                         {/* Left Column - 2/3 width: News Impact & Trending News */}
                         <div className="flex-[2] space-y-6">
                             {/* News Impact */}

@@ -64,7 +64,7 @@ export function TradingChart({ width = 800, height = 400 }) {
     const chart = createChart(container.current, {
       width,
       height,
-      layout: { background: '#1e1e2e', textColor: '#d1d4dc' },
+      // layout: { background: '#1e1e2e', textColor: '#d1d4dc' },
       grid: {
         vertLines: { color: '#2f2f3f' },
         horzLines: { color: '#2f2f3f' },
@@ -112,7 +112,7 @@ export function TradingChart({ width = 800, height = 400 }) {
     const sma14 = SMA.calculate({ period: 14, values: closes })
     const ema14 = EMA.calculate({ period: 14, values: closes })
     const rsi14 = RSI.calculate({ period: 14, values: closes })
-    const macd = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 })
+    // const macd = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 })
     const bb = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 })
     const atr14 = ATR.calculate({ period: 14, high: highs, low: lows, close: closes })
 
@@ -128,11 +128,11 @@ export function TradingChart({ width = 800, height = 400 }) {
         chart.addSeries(LineSeries, { color: '#2ecc71' }).setData(shift(rsi14))
       if (ind.name === 'ATR')
         chart.addSeries(LineSeries, { color: '#e74c3c' }).setData(shift(atr14))
-      if (ind.name === 'MACD') {
-        chart.addSeries(LineSeries, { color: '#e67e22' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.MACD })))
-        chart.addSeries(LineSeries, { color: '#3498db' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.signal })))
-        chart.addSeries(HistogramSeries, { color: '#95a5a6' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.histogram })))
-      }
+      // if (ind.name === 'MACD') {
+      //   chart.addSeries(LineSeries, { color: '#e67e22' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.MACD })))
+      //   chart.addSeries(LineSeries, { color: '#3498db' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.signal })))
+      //   chart.addSeries(HistogramSeries, { color: '#95a5a6' }).setData(macd.map((m, i) => ({ time: candles[i + (candles.length - macd.length)].time, value: m.histogram })))
+      // }
       if (ind.name === 'Bollinger Bands') {
         chart.addSeries(LineSeries, { color: '#bdc3c7' }).setData(bb.map((b, i) => ({ time: candles[i + (candles.length - bb.length)].time, value: b.upper })))
         chart.addSeries(LineSeries, { color: '#bdc3c7' }).setData(bb.map((b, i) => ({ time: candles[i + (candles.length - bb.length)].time, value: b.lower })))
