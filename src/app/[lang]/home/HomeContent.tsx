@@ -59,7 +59,7 @@ import NewsSidebar from '@/component/NewsSidebar';
 import ReportSidebar from '@/component/ui/ReportSidebar';
 import Leaderboard from '@/component/ui/Leaderboard';
 // import { ReportData } from '@/types/types';
-import { FullReportData, CryptoNewsItem } from '@/types/types';
+import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 
 
@@ -496,8 +496,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             .then(r => r.json());
         const today = raw.todays_news[0];
 
-
-        const mapNews = (arr: any[]): CryptoNewsItem[] =>
+        // Create separate mapping functions for crypto and macro news
+        const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
             arr.map(n => {
                 // 1️⃣ Pull out the JSON between the ```json … ``` fences
                 const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
@@ -510,7 +510,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         console.warn('Invalid JSON for', n.news_id, e);
                     }
                 }
-                // 2️⃣ Fallback defaults if JSON didn’t parse
+                // 2️⃣ Fallback defaults if JSON didn't parse
                 parsed = parsed || {
                     sentiment_score: 0,
                     investment: { advice: 'Hold', reason: 'No details available' },
@@ -524,6 +524,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     news_id: n.news_id,
                     title: n.title,
                     link: n.link,
+                    analysis: n.analysis, // Include the original analysis string
                     symbol: symbolMatch?.[1] ?? '—',
                     sentimentScore: parsed.sentiment_score,
                     sentimentTag: normalizeSentiment(parsed.sentiment_score),
@@ -532,6 +533,77 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     rationale: parsed.rationale,
                 };
             });
+
+        const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
+            arr.map(n => {
+                // 1️⃣ Pull out the JSON between the ```json … ``` fences
+                const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+                let parsed: any;
+
+                if (match) {
+                    try {
+                        parsed = JSON.parse(match[1]);
+                    } catch (e) {
+                        console.warn('Invalid JSON for', n.news_id, e);
+                    }
+                }
+                // 2️⃣ Fallback defaults if JSON didn't parse
+                parsed = parsed || {
+                    sentiment_score: 0,
+                    investment: { advice: 'Hold', reason: 'No details available' },
+                    rationale: ''
+                };
+
+                return {
+                    news_id: n.news_id,
+                    title: n.title,
+                    link: n.link,
+                    description: n.description || '', // Include description for macro news
+                    analysis: n.analysis, // Include the original analysis string
+                    sentimentScore: parsed.sentiment_score,
+                    sentimentTag: normalizeSentiment(parsed.sentiment_score),
+                    advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+                    reason: parsed.investment.reason,
+                    rationale: parsed.rationale,
+                };
+            });
+
+
+        // const mapNews = (arr: any[]): CryptoNewsItem[] =>
+        //     arr.map(n => {
+        //         // 1️⃣ Pull out the JSON between the ```json … ``` fences
+        //         const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+        //         let parsed: any;
+
+        //         if (match) {
+        //             try {
+        //                 parsed = JSON.parse(match[1]);
+        //             } catch (e) {
+        //                 console.warn('Invalid JSON for', n.news_id, e);
+        //             }
+        //         }
+        //         // 2️⃣ Fallback defaults if JSON didn’t parse
+        //         parsed = parsed || {
+        //             sentiment_score: 0,
+        //             investment: { advice: 'Hold', reason: 'No details available' },
+        //             rationale: ''
+        //         };
+
+        //         // 3️⃣ Naïve symbol extraction from title
+        //         const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
+
+        //         return {
+        //             news_id: n.news_id,
+        //             title: n.title,
+        //             link: n.link,
+        //             symbol: symbolMatch?.[1] ?? '—',
+        //             sentimentScore: parsed.sentiment_score,
+        //             sentimentTag: normalizeSentiment(parsed.sentiment_score),
+        //             advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+        //             reason: parsed.investment.reason,
+        //             rationale: parsed.rationale,
+        //         };
+        //     });
 
 
         //   const mapNews = (arr: any[]): CryptoNewsItem[] =>
@@ -583,10 +655,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
             whatsNew: dummyReportData.whatsNew,
             recommendations: dummyReportData.recommendations,
             // --- NEW SECTIONS FROM API ---
-            todaysNews: {
-                crypto: mapNews(today.crypto_news),
-                macro: mapNews(today.macro_news),
-            },
+           todaysNews: {
+            crypto: mapCryptoNews(today.crypto_news),
+            macro: mapMacroNews(today.macro_news), 
+        },
             forecastNext3Days: raw.forecast_next_3_days,
             priceHistoryLast7Days: raw.price_history_last_7_days,
         };
@@ -5903,7 +5975,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}
-                    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 border border-white rounded-md">
+                    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md">
                         <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
                             <div className="flex flex-col items-start">
                                 <div className="">
@@ -5944,7 +6016,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </div>
                             </div>
                         </div>
-                        <div> <Leaderboard /></div>
+                        {/* <div> <Leaderboard /></div> */}
                     </div>
                 </div >
             </div >

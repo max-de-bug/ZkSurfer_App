@@ -23,69 +23,74 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         'border-yellow-500': '#eab308',
     };
 
-     const [btcPrice, setBtcPrice] = useState<number | null>(null);
-     const [btcChange, setBtcChange] = useState<number | null>(null);
-  const [loadingBtc, setLoadingBtc] = useState(true);
+    const [btcPrice, setBtcPrice] = useState<number | null>(null);
+    const [btcChange, setBtcChange] = useState<number | null>(null);
+    const [loadingBtc, setLoadingBtc] = useState(true);
 
 
-useEffect(() => {
-  fetch(
-    'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'
-  )
-    .then(r => r.json())
-    .then((arr: any[]) => {
-      const btc = arr[0];
-      setBtcPrice(btc.current_price);
-      setBtcChange(btc.price_change_percentage_24h);
-    })
-    .catch(console.error)
-    .finally(() => setLoadingBtc(false));
-}, []);
+    useEffect(() => {
+        fetch(
+            'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'
+        )
+            .then(r => r.json())
+            .then((arr: any[]) => {
+                const btc = arr[0];
+                setBtcPrice(btc.current_price);
+                setBtcChange(btc.price_change_percentage_24h);
+            })
+            .catch(console.error)
+            .finally(() => setLoadingBtc(false));
+    }, []);
 
 
-  // 2️⃣ Compute average sentiment
-  const allScores = [
-    ...data.todaysNews.crypto,
-    ...data.todaysNews.macro,
-  ].map(n => n.sentimentScore);
-  const avgSentiment = allScores.reduce((s,a) => s + a, 0) / allScores.length;
+    // 2️⃣ Compute average sentiment
+   const allScores = [
+  ...(data.todaysNews.crypto || []),
+  ...(data.todaysNews.macro || []),
+]
+  .map(n => n.sentimentScore)
+  .filter((score): score is number => score !== undefined && score !== null);
+
+const avgSentiment = allScores.length > 0 
+  ? allScores.reduce((s, a) => s + a, 0) / allScores.length 
+  : 0;;
 
     const isBearish = avgSentiment <= 1.6;
-  const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
-  const isBullish = avgSentiment > 3.2;
+    const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
+    const isBullish = avgSentiment > 3.2;
 
-  // 3️⃣ Decide emoji + label
-const marketEmoji = isBearish
-  ? '😢'
-  : isNeutral
-    ? '😐'
-    : '🤩';
+    // 3️⃣ Decide emoji + label
+    const marketEmoji = isBearish
+        ? '😢'
+        : isNeutral
+            ? '😐'
+            : '🤩';
 
-const marketLabel = isBearish
-  ? 'BEARISH'
-  : isNeutral
-    ? 'NEUTRAL'
-    : 'BULLISH';
+    const marketLabel = isBearish
+        ? 'BEARISH'
+        : isNeutral
+            ? 'NEUTRAL'
+            : 'BULLISH';
 
-// assign tailwind text-color class
-const marketColor = isBearish
-  ? 'text-red-500'
-  : isNeutral
-    ? 'text-yellow-500'
-    : 'text-green-500';
+    // assign tailwind text-color class
+    const marketColor = isBearish
+        ? 'text-red-500'
+        : isNeutral
+            ? 'text-yellow-500'
+            : 'text-green-500';
 
-  // 4️⃣ Gauge color (red <3, green ≥3)
-  const gaugeColor = isBearish ? '#ef4444' : '#10b981';
+    // 4️⃣ Gauge color (red <3, green ≥3)
+    const gaugeColor = isBearish ? '#ef4444' : '#10b981';
 
-  const getCurrentDate = () => {
-  const now = new Date();
-  const options: Intl.DateTimeFormatOptions = { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  };
-  return now.toLocaleDateString('en-US', options).toUpperCase();
-};
+    const getCurrentDate = () => {
+        const now = new Date();
+        const options: Intl.DateTimeFormatOptions = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        };
+        return now.toLocaleDateString('en-US', options).toUpperCase();
+    };
 
 
     // Close on outside click
@@ -110,10 +115,10 @@ const marketColor = isBearish
             </span>
         );
     }
-console.log('Price history data:', data.priceHistoryLast7Days);
-console.log('Forecast data:', data.forecastNext3Days);
-console.log('First price point:', data.priceHistoryLast7Days?.[0]);
-console.log('First forecast point:', data.forecastNext3Days?.[0]);
+    console.log('Price history data:', data.priceHistoryLast7Days);
+    console.log('Forecast data:', data.forecastNext3Days);
+    console.log('First price point:', data.priceHistoryLast7Days?.[0]);
+    console.log('First forecast point:', data.forecastNext3Days?.[0]);
     return (
         <>
             {/* overlay */}
@@ -151,7 +156,7 @@ console.log('First forecast point:', data.forecastNext3Days?.[0]);
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
                             <h2 className="text-lg font-bold">DAILY PREDICTION REPORT</h2>
-                           <p className="text-sm text-gray-400">{getCurrentDate()}</p>
+                            <p className="text-sm text-gray-400">{getCurrentDate()}</p>
                         </div>
                         <button onClick={onClose} className="text-gray-400 hover:text-white">
                             <IoMdClose size={24} />
@@ -162,74 +167,73 @@ console.log('First forecast point:', data.forecastNext3Days?.[0]);
                 <div className="flex-1 overflow-y-auto p-6 space-y-6" data-pdf-content>
                     {/* Top Section: Prediction Accuracy and 4 Cards Side by Side */}
 
-<section className="flex gap-6">
-    {/* Prediction Accuracy Chart - Left Side */}
-    <div className="flex-1 bg-[#1a2332] rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-300">Prediction Accuracy</span>
-            <span className="text-green-400 font-bold">{data.predictionAccuracy}%</span>
-        </div>
+                    <section className="flex gap-6">
+                        {/* Prediction Accuracy Chart - Left Side */}
+                        <div className="flex-1 bg-[#1a2332] rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-sm text-gray-300">Prediction Accuracy</span>
+                                <span className="text-green-400 font-bold">{data.predictionAccuracy}%</span>
+                            </div>
 
-        {/* 🔥 New lightweight‐charts histogram */}
-        <PriceChart
-            priceHistory={data.priceHistoryLast7Days || []}     
-            forecast={data.forecastNext3Days || []}  
-        />
-    </div>
+                            {/* 🔥 New lightweight‐charts histogram */}
+                            <PriceChart
+                                priceHistory={data.priceHistoryLast7Days || []}
+                                forecast={data.forecastNext3Days || []}
+                            />
+                        </div>
 
-    {/* 4 Cards - Right Side - FULL HEIGHT MATCH */}
-    <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full">
+                        {/* 4 Cards - Right Side - FULL HEIGHT MATCH */}
+                        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full">
 
-        {/* ── BTC PRICE CARD ── */}
-        <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
-            {loadingBtc ? (
-                <div className="text-gray-400">Loading…</div>
-            ) : (
-                <>
-                    {/* Current price */}
-                    <div className="text-2xl font-bold">
-                        ${btcPrice?.toLocaleString()}
-                    </div>
+                            {/* ── BTC PRICE CARD ── */}
+                            <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
+                                {loadingBtc ? (
+                                    <div className="text-gray-400">Loading…</div>
+                                ) : (
+                                    <>
+                                        {/* Current price */}
+                                        <div className="text-2xl font-bold">
+                                            ${btcPrice?.toLocaleString()}
+                                        </div>
 
-                    {/* 24 h % change */}
-                    <div
-                        className={`text-sm ${
-                            (btcChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}
-                    >
-                        {btcChange! >= 0 ? '+' : ''}
-                        {btcChange?.toFixed(2)}%
-                    </div>
-                </>
-            )}
-            <div className="text-xs text-gray-400">BTC</div>
-        </div>
+                                        {/* 24 h % change */}
+                                        <div
+                                            className={`text-sm ${(btcChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                                                }`}
+                                        >
+                                            {btcChange! >= 0 ? '+' : ''}
+                                            {btcChange?.toFixed(2)}%
+                                        </div>
+                                    </>
+                                )}
+                                <div className="text-xs text-gray-400">BTC</div>
+                            </div>
 
-        {/* MARKET SENTIMENT */}
-        <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
-            {/* Emoji */}
-            <div className="text-3xl">{marketEmoji}</div>
+                            {/* MARKET SENTIMENT */}
+                            <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
+                                {/* Emoji */}
+                                <div className="text-3xl">{marketEmoji}</div>
 
-            {/* Label */}
-            <div className={`${marketColor} font-bold text-sm`}>
-                {marketLabel}
-            </div>
+                                {/* Label */}
+                                <div className={`${marketColor} font-bold text-sm`}>
+                                    {marketLabel}
+                                </div>
 
-            {/* Sub-label */}
-            <div className="text-xs text-gray-400">MARKET SENTIMENT</div>
-        </div>
+                                {/* Sub-label */}
+                                <div className="text-xs text-gray-400">MARKET SENTIMENT</div>
+                            </div>
 
-        {/* FEAR / GREED GAUGE (spans both columns and both rows) */}
-        <div className="col-span-2 bg-[#1a2332] rounded-lg p-2 flex flex-col items-center justify-center">
-            <Gauge 
-                value={avgSentiment}
-                min={0}
-                max={5}
-                size={280}
-            />
-        </div>
-    </div>
-</section>
+                            {/* FEAR / GREED GAUGE (spans both columns and both rows) */}
+                            <div className="col-span-2 bg-[#1a2332] rounded-lg p-2 flex flex-col items-center justify-center">
+                                <Gauge
+                                    value={avgSentiment}
+                                    min={0}
+                                    max={5}
+                                    size={280}
+                                />
+                            </div>
+                        </div>
+                    </section>
 
                     {/* Bottom Section: 2 Columns */}
                     <section className="flex gap-6">
@@ -456,6 +460,10 @@ console.log('First forecast point:', data.forecastNext3Days?.[0]);
                                 pdfContainer.style.padding = '20px';
                                 pdfContainer.style.boxSizing = 'border-box';
 
+                                const existingLogo = document.querySelector('img[alt="logo"]') as HTMLImageElement;
+                                const logoSrc = existingLogo?.src || '/images/tiger.svg';
+                                const currentDate = getCurrentDate();
+
                                 // Add header to PDF
                                 const header = document.createElement('div');
                                 header.innerHTML = `
@@ -466,7 +474,7 @@ console.log('First forecast point:', data.forecastNext3Days?.[0]);
                                         </div>
                                         <div style="text-align: right;">
                                             <h2 style="font-size: 18px; font-weight: bold; margin: 0;">DAILY PREDICTION REPORT</h2>
-                                            <p style="font-size: 12px; color: #9ca3af; margin: 0;">{getCurrentDate()}</p>
+                                            <p style="font-size: 12px; color: #9ca3af; margin: 0;">${currentDate}</p>
                                         </div>
                                     </div>
                                 `;
