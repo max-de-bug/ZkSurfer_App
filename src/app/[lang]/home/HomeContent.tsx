@@ -612,9 +612,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 };
             });
 
+            const firstFc = raw.forecast_next_3_days[0] || { overall_accuracy_percent: 0 };
+const accRaw = firstFc.overall_accuracy_percent;
+const accNum = typeof accRaw === 'string' ? parseFloat(accRaw) : accRaw;
+
         const report: FullReportData = {
             // --- YOUR EXISTING ReportData FIELDS ---
-            predictionAccuracy: dummyReportData.predictionAccuracy,
+            predictionAccuracy: Number.isNaN(accNum) ? 0 : accNum,
             predictionSeries: dummyReportData.predictionSeries,
             priceStats: dummyReportData.priceStats,
             marketSentiment: dummyReportData.marketSentiment,

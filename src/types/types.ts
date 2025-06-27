@@ -87,6 +87,8 @@ export interface ForecastPoint {
     80: [number, number];
     90: [number, number];
   };
+  deviation_percent?: number | string;
+  overall_accuracy_percent?: number | string;
 }
 
 export interface PriceHistoryPoint {
