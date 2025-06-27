@@ -42,6 +42,7 @@
     "@solana/web3.js": "^1.98.0",
     "@tanstack/react-query": "^5.69.0",
     "@textea/json-viewer": "^4.0.1",
+    "@transak/transak-sdk": "^3.2.0",
     "@tronweb3/tronwallet-adapter-tronlink": "^1.1.12",
     "@walletconnect/client": "^1.8.0",
     "@walletconnect/qrcode-modal": "^1.8.0",
