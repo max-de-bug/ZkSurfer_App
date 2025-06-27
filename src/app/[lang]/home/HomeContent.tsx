@@ -497,28 +497,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //     setShowSubscriptionModal(true);
     // };
 
-     useEffect(() => {
-    const API_URL = 'http://103.231.86.182:8006/today';
-
-    fetch(API_URL)
-      .then((response) => {
-        console.log('Response status:', response.status);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((json) => {
-        console.log('Response data:', json);
-        setData(json);
-      })
-      .catch((err: Error) => {
-        console.error('Fetch error:', err);
-        setError(err.message);
-      });
-  }, []);
-
-
     const openReport = async () => {
         // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
         //     .then(r => r.json());

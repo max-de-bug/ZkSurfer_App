@@ -67,12 +67,12 @@
 //   for (const url of sdkUrls) {
 //     try {
 //       console.log(`Attempting to load Transak SDK from: ${url}`);
-      
+
 //       const script = document.createElement('script');
 //       script.src = url;
 //       script.async = true;
 //       script.crossOrigin = 'anonymous';
-      
+
 //       // Add integrity check bypass for CDN issues
 //       script.setAttribute('data-transak-sdk', 'true');
 
@@ -86,13 +86,13 @@
 //           console.log(`Successfully loaded Transak SDK from: ${url}`);
 //           resolve();
 //         };
-        
+
 //         script.onerror = (error) => {
 //           clearTimeout(timeout);
 //           console.error(`Failed to load from ${url}:`, error);
 //           reject(new Error(`Failed to load from ${url}`));
 //         };
-        
+
 //         document.head.appendChild(script);
 //       });
 
@@ -359,13 +359,13 @@
 //             : `${selectedFiatCurrencyData?.symbol}${amounts.userPays.toFixed(2)} payment successful! $${amounts.businessReceives} USD will be deposited to your business bank account.`;
 
 //           toast.success(successMessage);
-          
+
 //           if (isSingleReport) {
 //             onSingleReportSuccess?.(processedOrderData, amounts.businessReceives);
 //           } else {
 //             onSubscriptionSuccess?.(selectedPlan, processedOrderData, amounts.businessReceives);
 //           }
-          
+
 //           setIsProcessing(false);
 //           onClose();
 //         });
@@ -388,7 +388,7 @@
 
 //       } catch (sdkError) {
 //         console.error('SDK loading failed, trying direct payment method:', sdkError);
-        
+
 //         // Fallback: Use direct payment method
 //         if (sdkLoadAttempts <= 2) {
 //           toast.info('Using alternative payment method...');
@@ -401,7 +401,7 @@
 
 //     } catch (error) {
 //       console.error('All payment methods failed:', error);
-      
+
 //       // Provide user-friendly error messages
 //       if (error.message.includes('Timeout')) {
 //         toast.error('Payment service is taking too long to load. Please check your internet connection and try again.');
@@ -410,7 +410,7 @@
 //       } else {
 //         toast.error('Payment system error. Please try again or contact support.');
 //       }
-      
+
 //       setIsProcessing(false);
 //     }
 //   };
@@ -479,13 +479,13 @@
 //             : `${amounts.userPays.toFixed(6)} ${selectedCrypto} payment successful! $${amounts.businessReceives} USD will be deposited to your business bank account.`;
 
 //           toast.success(successMessage);
-          
+
 //           if (isSingleReport) {
 //             onSingleReportSuccess?.(processedOrderData, amounts.businessReceives);
 //           } else {
 //             onSubscriptionSuccess?.(selectedPlan, processedOrderData, amounts.businessReceives);
 //           }
-          
+
 //           setIsProcessing(false);
 //           onClose();
 //         });
@@ -512,7 +512,7 @@
 
 //       } catch (sdkError) {
 //         console.error('SDK loading failed for crypto payment:', sdkError);
-        
+
 //         if (sdkLoadAttempts <= 2) {
 //           toast.info('Using alternative crypto payment method...');
 //           await initDirectTransakPayment(paymentConfig);
@@ -874,7 +874,7 @@ const TRANSAK_ENDPOINTS = {
     widget: 'https://staging-global.transak.com'
   },
   production: {
-    api: 'https://api.transak.com', 
+    api: 'https://api.transak.com',
     widget: 'https://global.transak.com'
   }
 };
@@ -920,16 +920,16 @@ class SafeExchangeRates {
 const getTransakApiKey = () => {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const isStaging = process.env.NODE_ENV !== 'production';
-  
+
   if (isDevelopment || isStaging) {
     // Use staging key for development/staging
-    return process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING || 
-           process.env.NEXT_PUBLIC_TRANSAK_API_KEY || 
-           '59cddac6-357e-4c47-b3a6-9b7669ad210d';
+    return process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING ||
+      process.env.NEXT_PUBLIC_TRANSAK_API_KEY ||
+      '59cddac6-357e-4c47-b3a6-9b7669ad210d';
   } else {
     // Use production key for production
-    return process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION || 
-           '9c373071-2ac2-4983-91dd-fcb53699509d';
+    return process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION ||
+      '9c373071-2ac2-4983-91dd-fcb53699509d';
   }
 };
 
@@ -941,17 +941,17 @@ const getTransakEnvironment = () => {
 const validateTransakConfig = () => {
   const apiKey = getTransakApiKey();
   const environment = getTransakEnvironment();
-  
+
   if (!apiKey || apiKey === 'your-transak-api-key') {
     throw new Error('Transak API key not configured properly');
   }
-  
+
   return { apiKey, environment };
 };
 
 // Enhanced SDK Loading Function
 async function loadTransakSDK(): Promise<void> {
-  if (window.TransakSDK || window.Transak) {
+  if (window.TransakSDK) {
     console.log('Transak SDK already loaded');
     return;
   }
@@ -973,21 +973,21 @@ async function loadTransakSDK(): Promise<void> {
     script.onload = () => {
       clearTimeout(timeout);
       console.log(`Successfully loaded Transak SDK from: ${TRANSAK_CDN_URL}`);
-      
+
       // Check if SDK is actually available
-      if (window.TransakSDK || window.Transak) {
+      if (window.TransakSDK) {
         resolve();
       } else {
         reject(new Error('SDK loaded but Transak not available on window'));
       }
     };
-    
+
     script.onerror = (error) => {
       clearTimeout(timeout);
       console.error(`Failed to load from ${TRANSAK_CDN_URL}:`, error);
       reject(new Error(`Failed to load from ${TRANSAK_CDN_URL}`));
     };
-    
+
     document.head.appendChild(script);
   });
 }
@@ -995,9 +995,9 @@ async function loadTransakSDK(): Promise<void> {
 // Direct Payment Method using proper URLs
 async function createTransakDirectURL(config: any): Promise<string> {
   const { apiKey, environment } = validateTransakConfig();
-  
-  const baseURL = environment === 'PRODUCTION' 
-    ? TRANSAK_ENDPOINTS.production.widget 
+
+  const baseURL = environment === 'PRODUCTION'
+    ? TRANSAK_ENDPOINTS.production.widget
     : TRANSAK_ENDPOINTS.staging.widget;
 
   const params = new URLSearchParams({
@@ -1186,7 +1186,7 @@ export default function SubscriptionModal({
         hideMenu: true,
         productsAvailed: 'SELL',
         receivingMethod: 'bank_transfer',
-        webhookUrl: isSingleReport 
+        webhookUrl: isSingleReport
           ? `${window.location.origin}/api/transak-webhook-single-report`
           : `${window.location.origin}/api/transak-webhook-fiat`,
       };
@@ -1197,8 +1197,9 @@ export default function SubscriptionModal({
       if (integrationMethod === 'sdk') {
         try {
           await loadTransakSDK();
-          
-          const transak = new window.TransakSDK.default(transakConfig);
+
+          const transak = new (window.TransakSDK as any)(transakConfig);
+          transak.init();
 
           transak.on(transak.EVENTS.TRANSAK_ORDER_SUCCESSFUL, (orderData: any) => {
             const processedOrderData = {
@@ -1215,18 +1216,18 @@ export default function SubscriptionModal({
               isSingleReport: isSingleReport,
             };
 
-            const successMessage = isSingleReport 
+            const successMessage = isSingleReport
               ? `${selectedFiatCurrencyData?.symbol}${amounts.userPays.toFixed(2)} payment successful! You now have 24-hour access to premium reports.`
               : `${selectedFiatCurrencyData?.symbol}${amounts.userPays.toFixed(2)} payment successful! $${amounts.businessReceives} USD will be transferred to your account.`;
 
             toast.success(successMessage);
-            
+
             if (isSingleReport) {
               onSingleReportSuccess?.(processedOrderData, amounts.businessReceives);
             } else {
               onSubscriptionSuccess?.(selectedPlan, processedOrderData, amounts.businessReceives);
             }
-            
+
             setIsProcessing(false);
             onClose();
           });
@@ -1251,7 +1252,7 @@ export default function SubscriptionModal({
 
         } catch (sdkError) {
           console.error('SDK method failed, trying direct payment method:', sdkError);
-          
+
           if (sdkLoadAttempts <= 2) {
             toast.info('Using alternative payment method...');
             await initDirectTransakPayment(transakConfig);
@@ -1265,7 +1266,7 @@ export default function SubscriptionModal({
       // Fallback: Direct redirect method
       if (integrationMethod === 'redirect') {
         const redirectURL = await createTransakDirectURL(transakConfig);
-        
+
         const popup = window.open(
           redirectURL,
           'TransakPayment',
@@ -1297,17 +1298,17 @@ export default function SubscriptionModal({
 
     } catch (error) {
       console.error('All payment methods failed:', error);
-      
-      if (error.message.includes('Invalid API key')) {
-        toast.error('Invalid API key configuration. Please check your environment settings.');
-      } else if (error.message.includes('Timeout')) {
-        toast.error('Payment service is taking too long to load. Please check your internet connection and try again.');
-      } else if (error.message.includes('Failed to load')) {
-        toast.error('Payment service temporarily unavailable. Please try again in a few minutes.');
-      } else {
-        toast.error('Payment system error. Please try again or contact support.');
-      }
-      
+
+      // if (error.message.includes('Invalid API key')) {
+      //   toast.error('Invalid API key configuration. Please check your environment settings.');
+      // } else if (error.message.includes('Timeout')) {
+      //   toast.error('Payment service is taking too long to load. Please check your internet connection and try again.');
+      // } else if (error.message.includes('Failed to load')) {
+      //   toast.error('Payment service temporarily unavailable. Please try again in a few minutes.');
+      // } else {
+      //   toast.error('Payment system error. Please try again or contact support.');
+      // }
+
       setIsProcessing(false);
     }
   };
@@ -1316,7 +1317,7 @@ export default function SubscriptionModal({
   async function initDirectTransakPayment(paymentConfig: any): Promise<void> {
     try {
       const redirectURL = await createTransakDirectURL(paymentConfig);
-      
+
       const popup = window.open(
         redirectURL,
         'TransakDirectPayment',
@@ -1372,7 +1373,7 @@ export default function SubscriptionModal({
         hideMenu: true,
         productsAvailed: 'SELL',
         receivingMethod: 'bank_transfer',
-        webhookUrl: isSingleReport 
+        webhookUrl: isSingleReport
           ? `${window.location.origin}/api/transak-webhook-single-report-crypto`
           : `${window.location.origin}/api/transak-webhook-crypto`,
       };
@@ -1380,7 +1381,8 @@ export default function SubscriptionModal({
       try {
         await loadTransakSDK();
 
-        const transak = new window.TransakSDK.default(transakConfig);
+        const transak = new (window.TransakSDK as any)(transakConfig);
+        transak.init();
 
         transak.on(transak.EVENTS.TRANSAK_ORDER_SUCCESSFUL, (orderData: any) => {
           const processedOrderData = {
@@ -1397,18 +1399,18 @@ export default function SubscriptionModal({
             isSingleReport: isSingleReport,
           };
 
-          const successMessage = isSingleReport 
+          const successMessage = isSingleReport
             ? `${amounts.userPays.toFixed(6)} ${selectedCrypto} payment successful! You now have 24-hour access to premium reports.`
             : `${amounts.userPays.toFixed(6)} ${selectedCrypto} payment successful! $${amounts.businessReceives} USD will be deposited to your business bank account.`;
 
           toast.success(successMessage);
-          
+
           if (isSingleReport) {
             onSingleReportSuccess?.(processedOrderData, amounts.businessReceives);
           } else {
             onSubscriptionSuccess?.(selectedPlan, processedOrderData, amounts.businessReceives);
           }
-          
+
           setIsProcessing(false);
           onClose();
         });
@@ -1435,7 +1437,7 @@ export default function SubscriptionModal({
 
       } catch (sdkError) {
         console.error('SDK loading failed for crypto payment:', sdkError);
-        
+
         if (sdkLoadAttempts <= 2) {
           toast.info('Using alternative crypto payment method...');
           await initDirectTransakPayment(transakConfig);
@@ -1467,7 +1469,7 @@ export default function SubscriptionModal({
                 💰 {isSingleReport ? 'Single Report Access' : 'Fixed USD Pricing Subscription'}
               </h2>
               <p className="text-gray-400">
-                {isSingleReport 
+                {isSingleReport
                   ? 'Try our premium reports for just $5 • 24-hour access'
                   : 'Pay with any currency/crypto worldwide • Unlimited access'
                 }
@@ -1507,11 +1509,10 @@ export default function SubscriptionModal({
 
                   {plan.badge && (
                     <div className="absolute -top-3 right-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        plan.id === 'single-report' 
-                          ? 'bg-orange-600 text-white' 
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${plan.id === 'single-report'
+                          ? 'bg-orange-600 text-white'
                           : 'bg-green-600 text-white'
-                      }`}>
+                        }`}>
                         {plan.badge}
                       </span>
                     </div>
@@ -1519,9 +1520,8 @@ export default function SubscriptionModal({
 
                   <div className="text-center mb-6">
                     <h4 className="text-xl font-bold text-white mb-2">{plan.name}</h4>
-                    <div className={`text-3xl font-bold mb-1 ${
-                      plan.id === 'single-report' ? 'text-orange-400' : 'text-green-400'
-                    }`}>
+                    <div className={`text-3xl font-bold mb-1 ${plan.id === 'single-report' ? 'text-orange-400' : 'text-green-400'
+                      }`}>
                       ${plan.usdPrice} USD
                     </div>
                     <div className="text-sm text-gray-400 mb-2">{plan.duration}</div>
@@ -1535,9 +1535,8 @@ export default function SubscriptionModal({
                   <ul className="space-y-3 text-sm">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center text-gray-300">
-                        <span className={`mr-2 ${
-                          plan.id === 'single-report' ? 'text-orange-400' : 'text-green-400'
-                        }`}>✓</span>
+                        <span className={`mr-2 ${plan.id === 'single-report' ? 'text-orange-400' : 'text-green-400'
+                          }`}>✓</span>
                         {feature}
                       </li>
                     ))}
@@ -1586,7 +1585,7 @@ export default function SubscriptionModal({
                   : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
                   }`}
               >
-                🌍 Fiat Currency 
+                🌍 Fiat Currency
               </button>
               <button
                 onClick={() => setPaymentMethod('crypto')}
@@ -1595,7 +1594,7 @@ export default function SubscriptionModal({
                   : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
                   }`}
               >
-                🪙 Cryptocurrency 
+                🪙 Cryptocurrency
               </button>
             </div>
           </div>
@@ -1692,9 +1691,8 @@ export default function SubscriptionModal({
                 <div className="flex justify-between">
                   <span className="text-gray-400">Business Receives:</span>
                   <div className="text-right">
-                    <div className={`font-bold text-lg ${
-                      isSingleReport ? 'text-orange-400' : 'text-green-400'
-                    }`}>
+                    <div className={`font-bold text-lg ${isSingleReport ? 'text-orange-400' : 'text-green-400'
+                      }`}>
                       ${amounts.businessReceives} USD
                     </div>
                   </div>
@@ -1706,7 +1704,7 @@ export default function SubscriptionModal({
                   <div className="flex items-center text-orange-300 text-sm">
                     <span className="mr-2">💡</span>
                     <span>
-                      After payment, you'll get immediate access to view one premium report. 
+                      After payment, you&apos;ll get immediate access to view one premium report.
                       Access expires after 24 hours.
                     </span>
                   </div>
@@ -1736,11 +1734,10 @@ export default function SubscriptionModal({
                 w-full py-4 px-6 rounded-xl font-bold text-lg
                 transition-all duration-200 shadow-lg
                 ${!isProcessing && !isPriceLoading
-                  ? `bg-gradient-to-r ${
-                      isSingleReport 
-                        ? 'from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700' 
-                        : 'from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700'
-                    } text-white hover:shadow-xl transform hover:scale-105`
+                  ? `bg-gradient-to-r ${isSingleReport
+                    ? 'from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
+                    : 'from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700'
+                  } text-white hover:shadow-xl transform hover:scale-105`
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 }
               `}
@@ -1766,7 +1763,7 @@ export default function SubscriptionModal({
                   <div className="font-semibold mb-2">🔧 Connection Issues Detected</div>
                   <div className="space-y-1 text-xs">
                     <div>• Multiple fallback methods are being used</div>
-                    <div>• If payment window doesn't open, try disabling ad blockers</div>
+                    <div>• If payment window doesn&apos;t open, try disabling ad blockers</div>
                     <div>• Ensure JavaScript is enabled in your browser</div>
                     <div>• Try refreshing the page if issues persist</div>
                   </div>

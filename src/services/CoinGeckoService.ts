@@ -161,7 +161,7 @@ class CoinGeckoService {
       }
 
       const data = await response.json();
-      
+
       const prices: Record<string, number> = {};
       for (const [id, priceData] of Object.entries(data)) {
         prices[id] = (priceData as any)?.usd || 0;
@@ -193,4 +193,4 @@ class CoinGeckoService {
 export const coinGeckoService = new CoinGeckoService();
 
 // Export types
-export type { ExchangeRates };
+// export type { ExchangeRates };
