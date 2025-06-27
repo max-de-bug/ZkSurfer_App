@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { getDictionary } from "../i18n/dictionaries";
 import { locales, Locale } from "../i18n/settings";
 import MultiWalletProvider from '../../component/MulttiWalletProvider';
+import { AarcConnector } from "@/component/AarcColnnectors";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -77,8 +78,10 @@ export default async function RootLayout({
         <Providers>
           <MultiWalletProvider>
             <AppWalletProvider>
-              {children}
-              <Toaster position="top-right" richColors />
+              <AarcConnector>
+                {children}
+                <Toaster position="top-right" richColors />
+              </AarcConnector>
             </AppWalletProvider>
           </MultiWalletProvider>
         </Providers>
