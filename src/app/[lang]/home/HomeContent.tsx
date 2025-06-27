@@ -506,8 +506,14 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     }, [displayMessages, isLoading]);
 
     const openReport = async () => {
-        const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
-            .then(r => r.json());
+        // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
+        //     .then(r => r.json());
+        const raw = await fetch("/api/today-prediction")
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            });
+
         const today = raw.todays_news[0];
 
         // Create separate mapping functions for crypto and macro news

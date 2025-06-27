@@ -13,7 +13,7 @@ interface PastNewsItem {
   rationale?: string;
 }
 
-interface PastCryptoNews extends PastNewsItem {}
+interface PastCryptoNews extends PastNewsItem { }
 
 interface PastMacroNews extends PastNewsItem {
   description?: string;
@@ -46,9 +46,9 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
   const sentimentScores = allNews
     .map(item => item.sentimentScore)
     .filter((score): score is number => score !== undefined && score !== null);
-  
-  const avgSentiment = sentimentScores.length > 0 
-    ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length 
+
+  const avgSentiment = sentimentScores.length > 0
+    ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length
     : 0;
 
   const getSentimentInfo = (score: number) => {
@@ -71,7 +71,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
   };
 
   return (
-    <div 
+    <div
       className={`bg-[#1a2332] rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-all cursor-pointer hover:bg-[#1e2636] ${isMobile ? '' : 'text-sm'}`}
       onClick={() => onViewReport(data)}
     >
@@ -143,19 +143,21 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           throw new Error('API URL not configured');
         }
 
-        const response = await fetch(process.env.NEXT_PUBLIC_PAST_PREDICTION_API, {
-          method: 'GET',
-          headers: {
-            'accept': 'application/json'
-          }
-        });
+        // const response = await fetch(process.env.NEXT_PUBLIC_PAST_PREDICTION_API, {
+        //   method: 'GET',
+        //   headers: {
+        //     'accept': 'application/json'
+        //   }
+        // });
+
+        const response = await fetch("/api/past-prediction");
 
         if (!response.ok) {
           throw new Error(`Failed to fetch past predictions: ${response.statusText}`);
         }
 
         const data: PastPredictionsResponse = await response.json();
-        
+
         // Process the data to add sentiment analysis to each news item
         const processedData = data.past_news.map(dayData => ({
           ...dayData,
@@ -221,7 +223,7 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
       <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 text-center">
         <p className="text-red-400">Error loading past predictions</p>
         <p className="text-sm text-gray-400 mt-1">{error}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
         >
@@ -250,7 +252,7 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           <span className="text-xs text-gray-400">({pastData.length})</span>
         </div>
       )}
-      
+
       {isMobile && (
         <div className="flex items-center space-x-2 mb-4">
           <Calendar className="w-5 h-5 text-blue-400" />
@@ -258,10 +260,10 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           <span className="text-sm text-gray-400">({pastData.length} reports)</span>
         </div>
       )}
-      
+
       <div className={`
-        ${isMobile 
-          ? 'grid grid-cols-1 gap-3' 
+        ${isMobile
+          ? 'grid grid-cols-1 gap-3'
           : 'space-y-2'
         }
       `}>
@@ -274,7 +276,7 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           />
         ))}
       </div>
-      
+
       {pastData.length > 0 && (
         <div className={`text-center mt-4 p-3 bg-gray-800/30 rounded-lg ${isMobile ? '' : 'text-xs'}`}>
           <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-400`}>
