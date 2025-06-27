@@ -1,5 +1,5 @@
 'use client';
-import { FC, useState, useEffect, useRef, useMemo } from 'react';
+import { FC, useState, useEffect, useRef } from 'react';
 import { BiMenuAltLeft, BiMenuAltRight } from 'react-icons/bi';
 import { BsArrowReturnLeft } from 'react-icons/bs';
 import { FaCreditCard, FaPen } from 'react-icons/fa';
@@ -62,8 +62,6 @@ import Leaderboard from '@/component/ui/Leaderboard';
 import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 import PastPredictions from '@/component/ui/PastPredictions';
-import { makeAarcConfig } from '@/lib/aarcConfig';
-import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
 
 
 interface GeneratedTweet {
@@ -479,20 +477,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const [reportData, setReportData] = useState<FullReportData | PastPredictionData | null>(null);
 
     // const [activeMobileTab, setActiveMobileTab] = useState<'terminal' | 'prediction'>('terminal');
-
-    const aarcModal = useMemo(() => {
-        if (!walletAddress) return null;
-        const config = makeAarcConfig(walletAddress);
-        return new AarcFundKitModal(config);
-    }, [walletAddress]);
-
-    // 3️⃣ somewhere in your JSX, trigger it:
-    //    (e.g. in a button click handler)
-    const openAarc = () => {
-        if (!aarcModal) return;
-        aarcModal.openModal();
-    };
-
 
 
     const normalizeSentiment = (score: number): 'bearish' | 'neutral' | 'bullish' => {
@@ -5616,16 +5600,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                     )}
                                 </div>
 
-                                {/* {walletAddress && (
-                                    <button
-                                        onClick={openAarc}
-                                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
-                                    >
-                                        Deposit via Aarc
-                                    </button>
-                                )} */}
-
-
                                 <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
                                     <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
                                         <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
@@ -5977,67 +5951,67 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             </div>
                         )} */}
                         {isMobile && activeMobileTab === 'prediction' && (
-                            <div className="flex-grow overflow-y-auto p-4 space-y-4">
-                                {/* Current Prediction Report Card (Your existing card) */}
-                                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto">
-                                    <div className="flex flex-col items-start">
-                                        <div className="">
-                                            <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                                                PREDICTION REPORT
-                                            </h2>
-                                            <p className="text-gray-300 text-xs mb-8 leading-relaxed">
-                                                Checkout the latest trends,
-                                                analyze the trading signals and
-                                                trade smarter
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <div className="flex flex-row items-center justify-center">
-                                                <p className="text-xs">CLICK TO VIEW</p>
-                                                <div className="ml-1 flex items-center">
-                                                    <button onClick={openReport}>
-                                                        <Image
-                                                            src="images/RightArrow.svg"
-                                                            alt="logo"
-                                                            width={40}
-                                                            height={40}
-                                                            className='p-2'
-                                                        />
-                                                    </button>
-                                                    {reportData && (
-                                                        <ReportSidebar
-                                                            isOpen={isReportOpen}
-                                                            onClose={() => setIsReportOpen(false)}
-                                                            data={reportData}
-                                                        />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+    <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        {/* Current Prediction Report Card (Your existing card) */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto">
+            <div className="flex flex-col items-start">
+                <div className="">
+                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        PREDICTION REPORT
+                    </h2>
+                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                        Checkout the latest trends,
+                        analyze the trading signals and
+                        trade smarter
+                    </p>
+                </div>
+                <div>
+                    <div className="flex flex-row items-center justify-center">
+                        <p className="text-xs">CLICK TO VIEW</p>
+                        <div className="ml-1 flex items-center">
+                            <button onClick={openReport}>
+                                <Image
+                                    src="images/RightArrow.svg"
+                                    alt="logo"
+                                    width={40}
+                                    height={40}
+                                    className='p-2'
+                                />
+                            </button>
+                            {reportData && (
+                                <ReportSidebar
+                                    isOpen={isReportOpen}
+                                    onClose={() => setIsReportOpen(false)}
+                                    data={reportData}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                                {/* Past Predictions Section */}
-                                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
-                                    <div className="mb-4">
-                                        <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                                            PAST PREDICTIONS
-                                        </h3>
-                                        <p className="text-gray-300 text-xs">
-                                            View historical prediction reports
-                                        </p>
-                                    </div>
-
-                                    <PastPredictions
-                                        onViewReport={(pastData) => {
-                                            setReportData(pastData);
-                                            setIsReportOpen(true);
-                                        }}
-                                        isMobile={true}
-                                    />
-                                </div>
-                            </div>
-                        )}
+        {/* Past Predictions Section */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
+            <div className="mb-4">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    PAST PREDICTIONS
+                </h3>
+                <p className="text-gray-300 text-xs">
+                    View historical prediction reports
+                </p>
+            </div>
+            
+            <PastPredictions 
+                onViewReport={(pastData) => {
+                    setReportData(pastData);
+                    setIsReportOpen(true);
+                }}
+                isMobile={true}
+            />
+        </div>
+    </div>
+)}
                         {isMobile && (
                             <div className="flex bg-[#08121f] border-b border-gray-600">
                                 <button
@@ -6065,72 +6039,72 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}
-
-                    {!isMobile && (
-                        <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md space-y-4">
-                            {/* Current Prediction Report Card (Your existing card) */}
-                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
-                                <div className="flex flex-col items-start">
-                                    <div className="">
-                                        <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                                            PREDICTION REPORT
-                                        </h2>
-                                        <p className="text-gray-300 text-xs mb-8 leading-relaxed">
-                                            Checkout the latest trends,
-                                            analyze the trading signals and
-                                            trade smarter
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <div className="flex flex-row items-center justify-center">
-                                            <p className="text-xs">CLICK TO VIEW</p>
-                                            <div className="ml-1 flex items-center">
-                                                <button onClick={openReport}>
-                                                    <Image
-                                                        src="images/RightArrow.svg"
-                                                        alt="logo"
-                                                        width={40}
-                                                        height={40}
-                                                        className='p-2'
-                                                    />
-                                                </button>
-                                                {reportData && (
-                                                    <ReportSidebar
-                                                        isOpen={isReportOpen}
-                                                        onClose={() => setIsReportOpen(false)}
-                                                        data={reportData}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Past Predictions Section */}
-                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
-                                <div className="mb-4">
-                                    <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                                        PAST PREDICTIONS
-                                    </h3>
-                                    <p className="text-gray-300 text-xs">
-                                        View historical prediction reports
-                                    </p>
-                                </div>
-
-                                <div className="max-h-[500px] overflow-y-auto">
-                                    <PastPredictions
-                                        onViewReport={(pastData) => {
-                                            setReportData(pastData);
-                                            setIsReportOpen(true);
-                                        }}
-                                        isMobile={false}
-                                    />
-                                </div>
-                            </div>
+                 
+{!isMobile && (
+    <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md space-y-4">
+        {/* Current Prediction Report Card (Your existing card) */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl">
+            <div className="flex flex-col items-start">
+                <div className="">
+                    <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        PREDICTION REPORT
+                    </h2>
+                    <p className="text-gray-300 text-xs mb-8 leading-relaxed">
+                        Checkout the latest trends,
+                        analyze the trading signals and
+                        trade smarter
+                    </p>
+                </div>
+                <div>
+                    <div className="flex flex-row items-center justify-center">
+                        <p className="text-xs">CLICK TO VIEW</p>
+                        <div className="ml-1 flex items-center">
+                            <button onClick={openReport}>
+                                <Image
+                                    src="images/RightArrow.svg"
+                                    alt="logo"
+                                    width={40}
+                                    height={40}
+                                    className='p-2'
+                                />
+                            </button>
+                            {reportData && (
+                                <ReportSidebar
+                                    isOpen={isReportOpen}
+                                    onClose={() => setIsReportOpen(false)}
+                                    data={reportData}
+                                />
+                            )}
                         </div>
-                    )}
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        {/* Past Predictions Section */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl">
+            <div className="mb-4">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    PAST PREDICTIONS
+                </h3>
+                <p className="text-gray-300 text-xs">
+                    View historical prediction reports
+                </p>
+            </div>
+            
+            <div className="max-h-[500px] overflow-y-auto">
+                <PastPredictions 
+                    onViewReport={(pastData) => {
+                        setReportData(pastData);
+                        setIsReportOpen(true);
+                    }}
+                    isMobile={false}
+                />
+            </div>
+        </div>
+    </div>
+)}
+                    
                 </div >
             </div >
 

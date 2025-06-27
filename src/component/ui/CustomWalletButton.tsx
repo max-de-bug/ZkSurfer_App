@@ -277,7 +277,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useContext, useMemo } from "react";
+import { useEffect, useState, useCallback, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { BaseWalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -290,8 +290,6 @@ import { PublicKey } from "@solana/web3.js";
 import { MagicAdapterContext } from "../AppWalletProvider";
 import { WalletName } from "@solana/wallet-adapter-base";
 import { useModelStore } from "@/stores/useModel-store";
-import { AarcFundKitModal } from "@aarc-xyz/fundkit-web-sdk";
-import { makeAarcConfig } from "@/lib/aarcConfig";
 
 // Add TypeScript declarations for wallet browser properties
 declare global {
@@ -549,11 +547,6 @@ export const CustomWalletButton = () => {
       );
     }
   };
-
-  const aarcModal = useMemo(() => {
-    if (!walletAddress) return null;
-    return new AarcFundKitModal(makeAarcConfig(walletAddress));
-  }, [walletAddress]);
 
   return (
     <div className="flex items-center justify-center relative">
