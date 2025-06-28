@@ -21,6 +21,7 @@ const Gauge: React.FC<GaugeProps> = ({
   size = 200,
   color,
 }) => {
+  console.log('Raw value received:', value, typeof value);
   // Define segments with their ranges and colors
   const segments = [
     { name: 'EXTREME\nFEAR', min: 0, max: 0.5, color: '#dc2626', value: 0.5 },
@@ -32,10 +33,10 @@ const Gauge: React.FC<GaugeProps> = ({
 
   // Clamp value
   const v = Math.max(min, Math.min(max, value));
-  
+
   // Find current segment
   const currentSegment = segments.find(seg => v >= seg.min && v <= seg.max);
-  
+
   // Get label based on value
   const getLabel = (val: number): string => {
     if (val < 0.5) return 'EXTREME FEAR';
@@ -52,7 +53,7 @@ const Gauge: React.FC<GaugeProps> = ({
   const centerX = size / 2;
   const centerY = size / 2;
   const needleLength = size * 0.38;
-  
+
   // Calculate needle position
   const needleX = centerX + needleLength * Math.cos((needleAngle * Math.PI) / 180);
   const needleY = centerY - needleLength * Math.sin((needleAngle * Math.PI) / 180);
@@ -60,8 +61,8 @@ const Gauge: React.FC<GaugeProps> = ({
   return (
     <div className="flex flex-col items-center" style={{ width: size, height: size * 0.75 }}>
       <div className="relative overflow-hidden" style={{ width: size, height: size / 2 }}>
-        <PieChart 
-          width={size} 
+        <PieChart
+          width={size}
           height={size}
           margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
         >
@@ -77,19 +78,19 @@ const Gauge: React.FC<GaugeProps> = ({
             stroke="none"
           >
             {segments.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
+              <Cell
+                key={`cell-${index}`}
                 fill={entry.color}
                 opacity={currentSegment?.name === entry.name ? 1 : 0.7}
               />
             ))}
           </Pie>
         </PieChart>
-        
+
         {/* Needle */}
-        <svg 
+        <svg
           className="absolute top-0 left-0 pointer-events-none"
-          width={size} 
+          width={size}
           height={size / 2}
           style={{ overflow: 'visible' }}
         >
@@ -105,13 +106,13 @@ const Gauge: React.FC<GaugeProps> = ({
           <circle cx={centerX} cy={centerY} r={3} fill="#ffffff" />
         </svg>
       </div>
-      
+
       {/* Center value and labels */}
       <div className="text-center -mt-4">
         <div className="text-xl font-bold text-white mb-1">
           {v.toFixed(2)}
         </div>
-        <div 
+        <div
           className="text-base font-bold mb-1"
           style={{ color: currentSegment?.color || '#ffffff' }}
         >

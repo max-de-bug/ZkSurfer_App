@@ -203,12 +203,17 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         ...(reportData.todaysNews.crypto || []),
         ...(reportData.todaysNews.macro || []),
     ]
-        .map(n => n.sentimentScore)
-        .filter((score): score is number => score !== undefined && score !== null);
+        // .map(n => n.sentimentScore)
+        // .filter((score): score is number => score !== undefined && score !== null);
+        .map(n => Number(n.sentimentScore))
+  // keep only real, finite numbers (drops NaN, Infinity, undefined)
+  .filter(score => Number.isFinite(score));
 
     const avgSentiment = allScores.length > 0
         ? allScores.reduce((s, a) => s + a, 0) / allScores.length
-        : 0;
+        : 2.5;
+
+        console.log('avg',avgSentiment)
 
     const isBearish = avgSentiment <= 1.6;
     const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
