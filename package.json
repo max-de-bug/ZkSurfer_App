@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aarc-xyz/eth-connector": "^0.2.0",
+    "@aarc-xyz/fundkit-web-sdk": "^0.2.0",
     "@auth/core": "^0.34.2",
     "@coral-xyz/anchor": "^0.29",
     "@dynamic-labs/sdk-react-core": "^2.3.7",
@@ -31,7 +33,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-toast": "^1.2.2",
-    "@rainbow-me/rainbowkit": "^2.2.4",
+    "@rainbow-me/rainbowkit": "^2.2.8",
     "@react-pdf/renderer": "^4.0.0",
     "@serwist/next": "^9.0.7",
     "@serwist/sw": "^9.0.7",
@@ -40,7 +42,7 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.33",
     "@solana/web3.js": "^1.98.0",
-    "@tanstack/react-query": "^5.69.0",
+    "@tanstack/react-query": "^5.81.5",
     "@textea/json-viewer": "^4.0.1",
     "@transak/transak-sdk": "^3.2.0",
     "@tronweb3/tronwallet-adapter-tronlink": "^1.1.12",
@@ -85,8 +87,8 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "technicalindicators": "^3.1.0",
-    "viem": "^2.21.32",
-    "wagmi": "^2.14.15",
+    "viem": "^2.31.4",
+    "wagmi": "^2.15.6",
     "webp-hero": "^0.0.2",
     "zod": "^3.24.1",
     "zustand": "^5.0.0"

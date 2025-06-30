@@ -110,6 +110,7 @@ const nextConfig = {
       process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING,
     NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION:
       process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION,
+    NEXT_PUBLIC_RECEIVING_WALLET  :process.env.NEXT_PUBLIC_RECEIVING_WALLET,
   },
   experimental: {
     esmExternals: "loose",
