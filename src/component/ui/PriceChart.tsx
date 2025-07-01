@@ -89,6 +89,29 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const [latest, setLatest] = useState<{
+    deviation_percent?: number | string;
+    overall_accuracy_percent?: number | string;
+  } | null>(null);
+
+  // 2️⃣ Fetch it once on mount
+  useEffect(() => {
+    fetch("/api/past-prediction", {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
+      .then(r => r.json())
+      .then(past => {
+        const entry = past.latest_forecast?.[0];
+        setLatest({
+          deviation_percent: entry?.deviation_percent,
+          overall_accuracy_percent: entry?.overall_accuracy_percent
+        });
+      })
+      .catch(console.error);
+  }, []);
+
+
   // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
@@ -411,8 +434,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
     );
   };
 
+  const firstFc = latest;
 
-  const firstFc = forecast?.[0];
+  // const firstFc = forecast?.[0];
 
   // Format deviation: prepend "+" if >=0, two decimals, or '—' if missing
   const rawDev = firstFc?.deviation_percent;

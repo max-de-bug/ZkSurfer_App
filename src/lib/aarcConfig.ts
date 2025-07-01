@@ -83,7 +83,7 @@ export function createFundKitConfig(
         enabled: true,
         fetchOnlyDestinationBalance: false,
         routeType: 'Value',
-        connectors: [SourceConnectorName.ETHEREUM],
+        connectors: [SourceConnectorName.WEB_REOWN],
       },
     },
     destination: {
