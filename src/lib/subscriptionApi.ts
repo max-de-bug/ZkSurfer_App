@@ -21,7 +21,7 @@ export interface SubscriptionResponse {
 }
 
 export interface VerificationResponse {
-    subscribed: boolean;
+    success: boolean;
     subscription_type?: string;
     expiresAt?: string;
     createdAt?: string;
@@ -75,7 +75,7 @@ export const verifySubscription = async (walletAddress: string): Promise<Verific
         return data;
     } catch (error) {
         console.error('❌ Error verifying subscription:', error);
-        return { subscribed: false };
+        return { success: false };
     }
 };
 

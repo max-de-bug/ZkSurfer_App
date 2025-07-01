@@ -47,7 +47,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             setSubscriptionStatus: (data) => {
                 console.log('📱 Setting subscription status:', data);
                 set({
-                    isSubscribed: data.subscribed,
+                    isSubscribed: data.success,
                     subscriptionType: data.subscription_type || null,
                     expiresAt: data.expiresAt || null,
                     createdAt: data.createdAt || null,

@@ -511,6 +511,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const openReport = async () => {
         // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
         //     .then(r => r.json());
+        console.log('isSubscribed',isSubscribed)
         if (isSubscribed) {
             const raw = await fetch("/api/today-prediction", {
                 method: "GET",
