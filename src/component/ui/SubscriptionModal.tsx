@@ -2436,7 +2436,7 @@ export default function SubscriptionModal({
                   <div className="flex items-center text-orange-300 text-sm">
                     <span className="mr-2">💡</span>
                     <span>
-                      After payment, you'll get immediate access to view one premium report.
+                      After payment, you&apos;ll get immediate access to view one premium report.
                       Access expires after 24 hours. KYC issues have been resolved.
                     </span>
                   </div>
@@ -2501,7 +2501,7 @@ export default function SubscriptionModal({
                   <div className="font-semibold mb-2">🔧 KYC Troubleshooting Guide</div>
                   <div className="space-y-1 text-xs">
                     <div>• Document Quality: Ensure photos are clear, well-lit, and readable</div>
-                    <div>• ID Requirements: Use government-issued photo ID (passport, driver's license)</div>
+                    <div>• ID Requirements: Use government-issued photo ID (passport, driver&apos;s license)</div>
                     <div>• Selfie Tips: Face camera directly, ensure good lighting, remove accessories</div>
                     <div>• Address Proof: Bank statement, utility bill (less than 3 months old)</div>
                     <div>• Browser Issues: Try incognito mode, different browser, or mobile device</div>
@@ -2519,7 +2519,7 @@ export default function SubscriptionModal({
                   <div className="space-y-1 text-xs">
                     <div>• Trying backup payment methods with KYC fixes</div>
                     <div>• CSP/CORS errors are normal (Transak internal logging)</div>
-                    <div>• If payment window doesn't open, try disabling ad blockers</div>
+                    <div>• If payment window doesn&apos;t open, try disabling ad blockers</div>
                     <div>• Ensure JavaScript is enabled in your browser</div>
                     <div>• KYC redirect loops have been resolved in this version</div>
                   </div>
@@ -2538,7 +2538,7 @@ export default function SubscriptionModal({
                   <div>• ✅ Fixed: Webhook configuration issues</div>
                   <div>• ✅ Enhanced: KYC event handling and error recovery</div>
                   <div>• LogRocket/New Relic 403 errors: Normal Transak internal logging</div>
-                  <div>• CSP script violations: Normal security policy, doesn't affect payments</div>
+                  <div>• CSP script violations: Normal security policy, doesn&apos;t affect payments</div>
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ import {
   polygon
 } from 'viem/chains';
 import { phantomWallet } from '@rainbow-me/rainbowkit/wallets';
+import AarcProvider from './ui/AarcProvider';
 
 // Wagmi Configuration for Ethereum Wallets
 const config = getDefaultConfig({
@@ -34,6 +35,7 @@ const config = getDefaultConfig({
   ssr: true,
 });
 
+
 // Create a query client
 const queryClient = new QueryClient();
 
@@ -49,8 +51,10 @@ const MultiWalletProvider = ({ children }: { children: React.ReactNode }) => {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
+          {/* <AarcProvider> */}
           {/* Solana providers are removed from here - they're now only in AppWalletProvider */}
           {children}
+          {/* </AarcProvider> */}
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
@@ -58,3 +62,5 @@ const MultiWalletProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default MultiWalletProvider;
+
+

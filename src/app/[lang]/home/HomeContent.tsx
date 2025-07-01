@@ -65,7 +65,6 @@ import PastPredictions from '@/component/ui/PastPredictions';
 import TransakWidget from '@/component/ui/TransakWidgit';
 import DynamicSubscriptionWidgit from '@/component/ui/DynamicSubscriptionWidgit';
 import SubscriptionModal from '@/component/ui/SubscriptionModal';
-import USDCPayment from '@/component/ui/USDCPayment'
 import ReportPaymentModal from '@/component/ui/ReportPaymentModal';
 
 
@@ -5675,6 +5674,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                         isOpen={showSubscriptionModal}
                                         onClose={() => setShowSubscriptionModal(false)}
                                         receivingWallet="0x5Bd41Fa2AD9238BE534F1AFe1cAb0EE337D5A73E"
+                                        connectedWallet={publicKey?.toString()}
                                     />
 
                                 )}
@@ -5693,7 +5693,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                         }}
                                     />
                                 )} */}
-                                {/* <USDCPayment/> */}
 
                                 <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
                                     <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
