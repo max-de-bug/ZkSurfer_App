@@ -83,8 +83,8 @@ export const verifySubscription = async (walletAddress: string): Promise<Verific
 export const getSubscriptionType = (planId: string): string => {
     const planMap: Record<string, string> = {
         'single-day': 'basic',
-        'quarterly': 'premium',
-        'yearly': 'premium_yearly',
+        'quarterly': 'monthly',
+        'yearly': 'yearly',
     };
 
     return planMap[planId] || 'premium';

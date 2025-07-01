@@ -295,7 +295,7 @@ export default function ReportPaymentModal({
   isOpen,
   onClose,
   onPaymentSuccess,
-  receivingWallet = '0x5Bd41Fa2AD9238BE534F1AFe1cAb0EE337D5A73E',
+  receivingWallet = '0x01e919a01a7beff155bcEa5F42eF140881EF5E3a',
   connectedWallet, // Connected user wallet
 }: ReportPaymentModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<string>('');
