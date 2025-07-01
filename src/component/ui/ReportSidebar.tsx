@@ -47,6 +47,31 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const [btcChange, setBtcChange] = useState<number | null>(null);
     const [loadingBtc, setLoadingBtc] = useState(true);
 
+     const [latest, setLatest] = useState<{
+    deviation_percent?: number | string;
+    overall_accuracy_percent?: number | string;
+  } | null>(null);
+
+  // 2️⃣ Fetch it once on mount
+  useEffect(() => {
+    fetch("/api/past-prediction", {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
+      .then(r => r.json())
+      .then(past => {
+        const entry = past.latest_forecast?.[0];
+        setLatest({
+          deviation_percent: entry?.deviation_percent,
+          overall_accuracy_percent: entry?.overall_accuracy_percent
+        });
+      })
+      .catch(console.error);
+  }, []);
+
+  const firstFc = latest;
+  const rawAcc = firstFc?.overall_accuracy_percent;
+
     // Check if data is past prediction data
     const isPastData = (data: any): data is PastPredictionData => {
         return data && 'fetched_date' in data && !('predictionAccuracy' in data);
@@ -213,8 +238,6 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         ? allScores.reduce((s, a) => s + a, 0) / allScores.length
         : 2.5;
 
-        console.log('avg',avgSentiment)
-
     const isBearish = avgSentiment <= 1.6;
     const isNeutral = avgSentiment > 1.6 && avgSentiment <= 3.2;
     const isBullish = avgSentiment > 3.2;
@@ -321,7 +344,12 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                     {isPastData(data) ? 'Historical Analysis' : 'Prediction Accuracy'}
                                 </span>
                                 <span className="text-green-400 font-bold">
-                                    {isPastData(data) ? 'ARCHIVE' : `${reportData.predictionAccuracy}%`}
+                                    {/* {isPastData(data) ? 'ARCHIVE' : `${rawAcc}%`} */}
+                                     {isPastData(data)
+    ? 'ARCHIVE'
+    : rawAcc != null
+      ? `${rawAcc.toFixed(2)}%`
+      : ''}
                                 </span>
                             </div>
 

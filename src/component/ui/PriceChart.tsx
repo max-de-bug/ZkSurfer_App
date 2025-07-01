@@ -434,6 +434,13 @@ const PriceChart: React.FC<PriceChartProps> = ({
     );
   };
 
+  if (!latest) {
+  return (
+    <div className="p-4 text-gray-400">
+      Loading deviation & accuracy…
+    </div>
+  );
+}
   const firstFc = latest;
 
   // const firstFc = forecast?.[0];
@@ -456,6 +463,8 @@ const PriceChart: React.FC<PriceChartProps> = ({
         ? rawAcc
         : '—';
 
+
+        
   return (
     <div className={`bg-[#0a1628] rounded-lg p-4 ${className}`}>
       {/* Header Controls - Mobile responsive */}
