@@ -286,6 +286,18 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         );
     }
 
+    // above your return
+const formattedAccuracyDisplay = 
+  typeof rawAcc === 'number'
+    ? `${rawAcc.toFixed(2)}%`
+    : typeof rawAcc === 'string'
+      // if the API already gave you a string like "99.687", just append "%"
+      ? rawAcc.endsWith('%')
+          ? rawAcc
+          : `${rawAcc}%`
+      : '';
+
+
     return (
         <>
             {/* overlay */}
@@ -345,11 +357,9 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                                 </span>
                                 <span className="text-green-400 font-bold">
                                     {/* {isPastData(data) ? 'ARCHIVE' : `${rawAcc}%`} */}
-                                     {isPastData(data)
+                                      {isPastData(data)
     ? 'ARCHIVE'
-    : rawAcc != null
-      ? `${rawAcc.toFixed(2)}%`
-      : ''}
+    : formattedAccuracyDisplay}
                                 </span>
                             </div>
 
