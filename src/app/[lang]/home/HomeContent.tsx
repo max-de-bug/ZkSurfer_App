@@ -511,7 +511,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const openReport = async () => {
         // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
         //     .then(r => r.json());
-        console.log('isSubscribed',isSubscribed)
+        console.log('openReport called on mobile:', isMobile);
+
+        console.log('isSubscribed', isSubscribed)
         if (isSubscribed) {
             const raw = await fetch("/api/today-prediction", {
                 method: "GET",
@@ -6095,6 +6097,15 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                             isOpen={isReportOpen}
                                                             onClose={() => setIsReportOpen(false)}
                                                             data={reportData}
+                                                        />
+                                                    )}
+                                                    {showSubscriptionModal && (
+                                                        <ReportPaymentModal
+                                                            isOpen={showSubscriptionModal}
+                                                            onClose={() => setShowSubscriptionModal(false)}
+                                                            receivingWallet="0x01e919a01a7beff155bcEa5F42eF140881EF5E3a"
+                                                            connectedWallet={publicKey?.toString()}
+                                                        // isMobile={isMobile} // Pass mobile flag
                                                         />
                                                     )}
                                                 </div>
