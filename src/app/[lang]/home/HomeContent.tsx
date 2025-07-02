@@ -528,7 +528,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 },
             })
                 .then(r => {
-                   // if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    // if (!r.ok) throw new Error(`HTTP ${r.status}`);
                     return r.json();
                 });
 
@@ -5434,7 +5434,15 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                     {/* Chat messages */}
                     <div className=' flex flex-col justify-between md:w-3/4 w-full'>
-                      
+
+                        {reportData && (
+                            <ReportSidebar
+                                isOpen={isReportOpen}
+                                onClose={() => setIsReportOpen(false)}
+                                data={reportData}
+                            />
+                        )}
+
 
                         {(!isMobile || activeMobileTab === 'zkterminal') && (
                             <>
@@ -6060,7 +6068,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         {isMobile && activeMobileTab === 'prediction' && (
                             <div className="flex-grow overflow-y-auto p-4 space-y-4">
                                 {/* Current Prediction Report Card (Your existing card) */}
-                                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto" >
+                                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto" onClick={openReport}>
                                     <div className="flex flex-col items-start">
                                         <div className="">
                                             <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -6076,7 +6084,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             <div className="flex flex-row items-center justify-center" >
                                                 <p className="text-xs">CLICK TO VIEW</p>
                                                 <div className="ml-1 flex items-center">
-                                                    <button onClick={openReport}>
+                                                    <button >
                                                         <Image
                                                             src="images/RightArrow.svg"
                                                             alt="logo"
@@ -6085,13 +6093,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                             className='p-2'
                                                         />
                                                     </button>
-                                                    {reportData && (
+                                                    {/* {reportData && (
                                                         <ReportSidebar
                                                             isOpen={isReportOpen}
                                                             onClose={() => setIsReportOpen(false)}
                                                             data={reportData}
                                                         />
-                                                    )}
+                                                    )} */}
                                                     {showSubscriptionModal && (
                                                         <ReportPaymentModal
                                                             isOpen={showSubscriptionModal}
@@ -6180,7 +6188,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     {!isMobile && (
                         <div className="hidden lg:block w-72 max-h-[730px] overflow-y-auto p-2 rounded-md space-y-4">
                             {/* Current Prediction Report Card (Your existing card) */}
-                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl" >
+                            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white max-w-2xl border border-gray-700 shadow-2xl" onClick={openReport}>
                                 <div className="flex flex-col items-start" >
                                     <div className="">
                                         <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -6196,7 +6204,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                         <div className="flex flex-row items-center justify-center">
                                             <p className="text-xs">CLICK TO VIEW</p>
                                             <div className="ml-1 flex items-center">
-                                                <button onClick={openReport} >
+                                                <button  >
                                                     <Image
                                                         src="images/RightArrow.svg"
                                                         alt="logo"
@@ -6205,13 +6213,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         className='p-2'
                                                     />
                                                 </button>
-                                                {reportData && (
+                                                {/* {reportData && (
                                                     <ReportSidebar
                                                         isOpen={isReportOpen}
                                                         onClose={() => setIsReportOpen(false)}
                                                         data={reportData}
                                                     />
-                                                )}
+                                                )} */}
                                             </div>
                                         </div>
                                     </div>
