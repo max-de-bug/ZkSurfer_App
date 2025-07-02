@@ -248,6 +248,7 @@ interface PaymentPlan {
   popular?: boolean;
   badge?: string;
   color: 'orange' | 'blue' | 'green';
+
 }
 
 // Updated to include Monthly ($50) and Yearly ($500) subscription plans
@@ -255,7 +256,7 @@ const PAYMENT_PLANS: PaymentPlan[] = [
   {
     id: 'monthly',
     name: 'Monthly Subscription',
-    usdPrice: 50,
+    usdPrice: 5,
     duration: '1 month',
     features: [
       '📊 All premium prediction reports',

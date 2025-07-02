@@ -355,6 +355,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const lang = params.lang;
     const wallet = useWallet();
     const { connected } = useWallet();
+    const rawPubkey = useWallet().publicKey;
     const { data: session, status } = useSession();
     const [files, setFiles] = useState<FileObject[]>([]);
     const [fileInput, setFileInput] = useState<File | null>(null);
@@ -5695,6 +5696,26 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                         onClose={() => setShowSubscriptionModal(false)}
                                         receivingWallet="0x01e919a01a7beff155bcEa5F42eF140881EF5E3a"
                                         connectedWallet={publicKey?.toString()}
+                                        onPaymentSuccess={async (planId, orderData, usdAmount) => {
+                                            // 1) hide the payment modal
+                                            setShowSubscriptionModal(false)
+
+                                            if (!rawPubkey) {
+                                                console.error("No wallet connected!");
+                                                return;
+                                            }
+                                            const walletAddress = rawPubkey.toString();
+                                            // 2) re-check subscription in your store so the app "knows" they’re paid
+                                            await checkSubscription(walletAddress)
+
+                                            // 3) directly show the report panel
+                                            openReport()
+
+                                            // 4) (fallback) if your UI still doesn’t render, do a full reload:
+                                            // window.location.reload()
+                                            // or
+                                            // router.reload()
+                                        }}
                                     />
 
                                 )}
@@ -6105,6 +6126,26 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                             onClose={() => setShowSubscriptionModal(false)}
                                                             receivingWallet="0x01e919a01a7beff155bcEa5F42eF140881EF5E3a"
                                                             connectedWallet={publicKey?.toString()}
+                                                            onPaymentSuccess={async (planId, orderData, usdAmount) => {
+                                                                // 1) hide the payment modal
+                                                                setShowSubscriptionModal(false)
+
+                                                                if (!rawPubkey) {
+                                                                    console.error("No wallet connected!");
+                                                                    return;
+                                                                }
+
+                                                                const walletAddress = rawPubkey.toString();
+                                                                // 2) re-check subscription in your store so the app "knows" they’re paid
+                                                                await checkSubscription(walletAddress)
+                                                                // 3) directly show the report panel
+                                                                openReport()
+
+                                                                // 4) (fallback) if your UI still doesn’t render, do a full reload:
+                                                                // window.location.reload()
+                                                                // or
+                                                                // router.reload()
+                                                            }}
                                                         // isMobile={isMobile} // Pass mobile flag
                                                         />
                                                     )}
