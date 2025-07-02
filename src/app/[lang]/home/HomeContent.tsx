@@ -1088,36 +1088,36 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     };
 
 
-    const processTwitterData = async (twitterUrl: string) => {
-        const client = new ApifyClient({
-            token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
-        });
+    // const processTwitterData = async (twitterUrl: string) => {
+    //     const client = new ApifyClient({
+    //         token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+    //     });
 
-        try {
-            const input = {
-                handles: [twitterUrl],
-                tweetsDesired: 10,
-                proxyConfig: { useApifyProxy: true },
-            };
+    //     try {
+    //         const input = {
+    //             handles: [twitterUrl],
+    //             tweetsDesired: 10,
+    //             proxyConfig: { useApifyProxy: true },
+    //         };
 
-            // Start the actor run
-            const run = await client.actor("quacker/twitter-scraper").call(input);
+    //         // Start the actor run
+    //         const run = await client.actor("quacker/twitter-scraper").call(input);
 
-            // Wait for the run to finish
-            await client.run(run.id).waitForFinish();
+    //         // Wait for the run to finish
+    //         await client.run(run.id).waitForFinish();
 
-            // Get the output from the dataset
-            const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    //         // Get the output from the dataset
+    //         const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
-            // Extract only the full_text from each tweet item
-            const tweetTexts = items.map(item => item.full_text);
+    //         // Extract only the full_text from each tweet item
+    //         const tweetTexts = items.map(item => item.full_text);
 
-            return tweetTexts;
-        } catch (error) {
-            console.error('Error fetching tweets:', error);
-            return null;
-        }
-    };
+    //         return tweetTexts;
+    //     } catch (error) {
+    //         console.error('Error fetching tweets:', error);
+    //         return null;
+    //     }
+    // };
 
     const availableUGCOptions = [
         { name: 'LandWolf', apiUrl: process.env.NEXT_PUBLIC_LANDWOLF! },
