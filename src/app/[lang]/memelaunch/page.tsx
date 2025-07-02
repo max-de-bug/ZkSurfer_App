@@ -1476,7 +1476,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
     const processTwitterData = async (twitterUrls: string[]) => {
         const client = new ApifyClient({
-            token: 'apify_api_mdt6tlhZErHAe9WPbgUGhYGfeFugLd17oXzO',
+            token: process.env.NEXT_PUBLIC_APIFY_TOKEN!,
         });
 
         const results = [];

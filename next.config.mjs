@@ -210,6 +210,7 @@ const nextConfig = {
     NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION:
       process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION,
     NEXT_PUBLIC_RECEIVING_WALLET: process.env.NEXT_PUBLIC_RECEIVING_WALLET,
+    NEXT_PUBLIC_APIFY_TOKEN: process.env.NEXT_PUBLIC_APIFY_TOKEN,
   },
   experimental: {
     esmExternals: "loose",
@@ -247,51 +248,56 @@ const nextConfig = {
     // Fix the Terser issue with worker files
     if (!dev && !isServer) {
       // Configure Terser to handle worker files properly
-      config.optimization.minimizer = config.optimization.minimizer.map((plugin) => {
-        if (plugin.constructor.name === 'TerserPlugin') {
-          plugin.options = {
-            ...plugin.options,
-            exclude: [
-              /HeartbeatWorker/,
-              /\.worker\.js$/,
-            ],
-            terserOptions: {
-              ...plugin.options.terserOptions,
-              parse: {
-                ...plugin.options.terserOptions?.parse,
-                // Allow top level await and import/export
-                ecma: 2020,
+      config.optimization.minimizer = config.optimization.minimizer.map(
+        (plugin) => {
+          if (plugin.constructor.name === "TerserPlugin") {
+            plugin.options = {
+              ...plugin.options,
+              exclude: [/HeartbeatWorker/, /\.worker\.js$/],
+              terserOptions: {
+                ...plugin.options.terserOptions,
+                parse: {
+                  ...plugin.options.terserOptions?.parse,
+                  // Allow top level await and import/export
+                  ecma: 2020,
+                },
+                compress: {
+                  ...plugin.options.terserOptions?.compress,
+                  // Don't compress modules with import/export
+                  module: true,
+                },
+                mangle: {
+                  ...plugin.options.terserOptions?.mangle,
+                  // Don't mangle module exports
+                  module: true,
+                },
               },
-              compress: {
-                ...plugin.options.terserOptions?.compress,
-                // Don't compress modules with import/export
-                module: true,
-              },
-              mangle: {
-                ...plugin.options.terserOptions?.mangle,
-                // Don't mangle module exports
-                module: true,
-              },
-            },
-          };
+            };
+          }
+          return plugin;
         }
-        return plugin;
-      });
+      );
 
       // Alternative: exclude problematic files entirely from minification
       config.optimization.minimizer.push({
         apply: (compiler) => {
-          compiler.hooks.compilation.tap('ExcludeWorkerFiles', (compilation) => {
-            compilation.hooks.shouldRecord.tap('ExcludeWorkerFiles', () => {
-              // Skip files that cause issues
-              Object.keys(compilation.assets).forEach(filename => {
-                if (filename.includes('HeartbeatWorker') || filename.includes('Worker.js')) {
-                  delete compilation.assets[filename];
-                }
+          compiler.hooks.compilation.tap(
+            "ExcludeWorkerFiles",
+            (compilation) => {
+              compilation.hooks.shouldRecord.tap("ExcludeWorkerFiles", () => {
+                // Skip files that cause issues
+                Object.keys(compilation.assets).forEach((filename) => {
+                  if (
+                    filename.includes("HeartbeatWorker") ||
+                    filename.includes("Worker.js")
+                  ) {
+                    delete compilation.assets[filename];
+                  }
+                });
               });
-            });
-          });
-        }
+            }
+          );
+        },
       });
     }
 
@@ -300,10 +306,10 @@ const nextConfig = {
       test: /\.worker\.js$/,
       use: [
         {
-          loader: 'file-loader',
+          loader: "file-loader",
           options: {
-            name: 'static/workers/[name].[hash].js',
-            publicPath: '/_next/',
+            name: "static/workers/[name].[hash].js",
+            publicPath: "/_next/",
           },
         },
       ],
