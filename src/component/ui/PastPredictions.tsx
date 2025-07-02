@@ -45,11 +45,14 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
   const allNews = [...data.crypto_news, ...data.macro_news];
   const sentimentScores = allNews
     .map(item => item.sentimentScore)
-    .filter((score): score is number => score !== undefined && score !== null);
+    .filter((score): score is number =>
+     typeof score === 'number' &&
+     !Number.isNaN(score)
+      );
 
   const avgSentiment = sentimentScores.length > 0
     ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length
-    : 0;
+    : null;
 
   const getSentimentInfo = (score: number) => {
     if (score <= 1.6) return { label: 'BEARISH', color: 'text-red-500', icon: TrendingDown, bgColor: 'bg-red-500/10' };
@@ -116,7 +119,11 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
         <div className="flex justify-between items-center">
           <span className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-gray-400`}>Sentiment:</span>
           <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium ${sentimentInfo.color}`}>
-            {avgSentiment.toFixed(1)}/5
+            {/* {avgSentiment.toFixed(1)}/5 */}
+             {avgSentiment !== null
+            ? `${avgSentiment.toFixed(1)}/5`
+            : '—/5'
+          }
           </span>
         </div>
       </div>
