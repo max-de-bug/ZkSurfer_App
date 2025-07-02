@@ -46,15 +46,23 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
   const sentimentScores = allNews
     .map(item => item.sentimentScore)
     .filter((score): score is number =>
-     typeof score === 'number' &&
-     !Number.isNaN(score)
-      );
+      typeof score === 'number' &&
+      !Number.isNaN(score)
+    );
 
   const avgSentiment = sentimentScores.length > 0
     ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length
     : null;
 
-  const getSentimentInfo = (score: number) => {
+  const getSentimentInfo = (score: number | null) => {
+    if (score === null) {
+      return {
+        label: 'NEUTRAL',
+        color: 'text-yellow-500',
+        icon: Minus,
+        bgColor: 'bg-yellow-500/10'
+      };
+    }
     if (score <= 1.6) return { label: 'BEARISH', color: 'text-red-500', icon: TrendingDown, bgColor: 'bg-red-500/10' };
     if (score <= 3.2) return { label: 'NEUTRAL', color: 'text-yellow-500', icon: Minus, bgColor: 'bg-yellow-500/10' };
     return { label: 'BULLISH', color: 'text-green-500', icon: TrendingUp, bgColor: 'bg-green-500/10' };
@@ -120,10 +128,10 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ data, onViewReport, isM
           <span className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-gray-400`}>Sentiment:</span>
           <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium ${sentimentInfo.color}`}>
             {/* {avgSentiment.toFixed(1)}/5 */}
-             {avgSentiment !== null
-            ? `${avgSentiment.toFixed(1)}/5`
-            : '—/5'
-          }
+            {avgSentiment !== null
+              ? `${avgSentiment.toFixed(1)}/5`
+              : '—/5'
+            }
           </span>
         </div>
       </div>
