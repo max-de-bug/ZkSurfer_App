@@ -532,7 +532,10 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     return r.json();
                 });
 
-            const today = raw.todays_news[0];
+            // const today = raw.todays_news[0];
+            const today = (Array.isArray(raw.todays_news) && raw.todays_news.length > 0)
+  ? raw.todays_news[0]
+  : { crypto_news: [], macro_news: [] };
 
             // Create separate mapping functions for crypto and macro news
             const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
