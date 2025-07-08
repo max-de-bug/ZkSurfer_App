@@ -275,9 +275,10 @@
 //   );
 // };
 
+
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback, useContext, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { BaseWalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -329,6 +330,19 @@ export const CustomWalletButton = () => {
 
   // Get Magic adapter from context
   const magicAdapter = useContext(MagicAdapterContext);
+  const [revealing, setRevealing] = useState(false);
+
+  const handleReveal = async () => {
+    if (!magicAdapter) return;
+    setRevealing(true);
+    try {
+      await magicAdapter.revealPrivateKey();
+    } catch {
+      /* error already logged */
+    } finally {
+      setRevealing(false);
+    }
+  };
 
   //Set credits and keys
   const { setCredits, setApiKey } = useModelStore();
@@ -452,75 +466,254 @@ export const CustomWalletButton = () => {
 
   // Create a custom wallet button component for Magic Link wallets
   const CustomConnectedButton = ({ address }: { address: string }) => {
-    // Format address for display
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const menuRef = useRef<HTMLUListElement>(null);
+
     const displayAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+    useEffect(() => {
+      const listener = (event: MouseEvent | TouchEvent) => {
+        const node = menuRef.current;
+        if (!node || node.contains(event.target as Node)) return;
+        setMenuOpen(false);
+      };
+
+      document.addEventListener('mousedown', listener);
+      document.addEventListener('touchstart', listener);
+
+      return () => {
+        document.removeEventListener('mousedown', listener);
+        document.removeEventListener('touchstart', listener);
+      };
+    }, []);
+
+    const handleCopyAddress = async () => {
+      try {
+        await navigator.clipboard.writeText(address);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 400);
+        toast.success('Address copied to clipboard');
+      } catch (error) {
+        console.error('Failed to copy address:', error);
+        toast.error('Failed to copy address');
+      }
+    };
+
+    const handleRevealKey = async () => {
+      console.log('🔑 Reveal Private Key clicked', { magicAdapter: !!magicAdapter });
+
+      if (!magicAdapter) {
+        console.error('No magic adapter available');
+        toast.error('Magic adapter not available');
+        return;
+      }
+
+      setRevealing(true);
+      try {
+        console.log('Attempting to reveal private key...');
+
+        if (typeof magicAdapter.revealPrivateKey === 'function') {
+          await magicAdapter.revealPrivateKey();
+          toast.success('Private key revealed successfully');
+        }
+        //  else if (typeof magicAdapter.reveal === 'function') {
+        //   await magicAdapter.reveal();
+        //   toast.success('Private key revealed successfully');
+        // }
+        else {
+          console.error('revealPrivateKey method not found on magic adapter');
+          console.log('Available methods:', Object.getOwnPropertyNames(magicAdapter));
+          toast.error('Reveal private key method not available');
+        }
+      } catch (error) {
+        console.error('Error revealing private key:', error);
+        toast.error('Failed to reveal private key: ' + error);
+      } finally {
+        setRevealing(false);
+      }
+      setMenuOpen(false);
+    };
 
     const handleDisconnect = async () => {
       console.log("Disconnecting wallet...");
       setIsDisconnecting(true);
 
       try {
-        // Try to find the Magic adapter
         if (magicAdapter) {
           console.log("Disconnecting using Magic adapter from context");
           await magicAdapter.disconnect();
-          return; // This will trigger a page reload in the adapter
+          return;
         }
 
-        // Find the Magic adapter in wallet list
         const adapterFromList = wallets.find(
           (w) => (w as any)?.name === MagicWalletName
         );
 
         if (adapterFromList) {
-          // Disconnect using the adapter - use type assertion for disconnect method
           console.log("Disconnecting using Magic adapter from wallet list");
           await (adapterFromList as any).disconnect();
         } else {
-          // Fallback to localStorage removal
           console.log("Magic adapter not found, using localStorage fallback");
           localStorage.removeItem("walletName");
           localStorage.removeItem("connectedWalletAddress");
           setStoredWalletAddress(null);
-
-          // Force reload to clear the wallet state completely
           window.location.reload();
         }
       } catch (error) {
         console.error("Error during disconnect:", error);
         toast.error("Failed to disconnect wallet. Please try again.");
-
-        // Force reload as last resort
         window.location.reload();
       } finally {
         setIsDisconnecting(false);
       }
+      setMenuOpen(false);
+    };
+
+    const handleChangeWallet = () => {
+      setModalVisible(true);
+      setMenuOpen(false);
     };
 
     return (
-      <div
-        className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
-        style={{
-          clipPath:
-            "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
-          backgroundImage: "linear-gradient(to right, #A4C8FF, #643ADE)",
-          backgroundSize: "200% 200%",
-          animation: "spinGradient 3s linear infinite",
-        }}
-      >
-        <div className="flex items-center justify-between px-4 py-2 text-white">
-          <span className="font-mono">{displayAddress}</span>
-          <button
-            onClick={handleDisconnect}
-            disabled={isDisconnecting}
-            className="ml-4 text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded"
-          >
-            {isDisconnecting ? "Disconnecting..." : "Disconnect"}
-          </button>
+      <div className="wallet-adapter-dropdown relative">
+        <div
+          className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
+          style={{
+            clipPath:
+              "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
+            backgroundImage: "linear-gradient(to right, #A4C8FF, #643ADE)",
+            backgroundSize: "200% 200%",
+            animation: "spinGradient 3s linear infinite",
+          }}
+          onClick={() => setMenuOpen(true)}
+        >
+          <div className="flex items-center justify-center px-4 py-2 text-white">
+            <span className="font-mono">{displayAddress}</span>
+          </div>
         </div>
+
+        <ul
+          ref={menuRef}
+          className={`absolute top-full left-0 mt-1 w-full bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 ${menuOpen ? 'block' : 'hidden'
+            }`}
+          role="menu"
+        >
+          <li
+            className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer border-b border-gray-600"
+            onClick={handleCopyAddress}
+            role="menuitem"
+          >
+            {copied ? '✓ Copied' : '📋 Copy address'}
+          </li>
+
+          <li
+            className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer border-b border-gray-600"
+            onClick={handleChangeWallet}
+            role="menuitem"
+          >
+            🔄 Change wallet
+          </li>
+
+          <li
+            className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer border-b border-gray-600"
+            onClick={handleRevealKey}
+            role="menuitem"
+          >
+            {revealing ? '🔄 Revealing...' : '🔑 Reveal Private Key'}
+          </li>
+
+          <li
+            className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer"
+            onClick={handleDisconnect}
+            role="menuitem"
+          >
+            {isDisconnecting ? '⏳ Disconnecting...' : '🚪 Disconnect'}
+          </li>
+        </ul>
       </div>
     );
   };
+
+
+  // const CustomConnectedButton = ({ address }: { address: string }) => {
+  //   // Format address for display
+  //   const displayAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+  //   const handleDisconnect = async () => {
+  //     console.log("Disconnecting wallet...");
+  //     setIsDisconnecting(true);
+
+  //     try {
+  //       // Try to find the Magic adapter
+  //       if (magicAdapter) {
+  //         console.log("Disconnecting using Magic adapter from context");
+  //         await magicAdapter.disconnect();
+  //         return; // This will trigger a page reload in the adapter
+  //       }
+
+  //       // Find the Magic adapter in wallet list
+  //       const adapterFromList = wallets.find(
+  //         (w) => (w as any)?.name === MagicWalletName
+  //       );
+
+  //       if (adapterFromList) {
+  //         // Disconnect using the adapter - use type assertion for disconnect method
+  //         console.log("Disconnecting using Magic adapter from wallet list");
+  //         await (adapterFromList as any).disconnect();
+  //       } else {
+  //         // Fallback to localStorage removal
+  //         console.log("Magic adapter not found, using localStorage fallback");
+  //         localStorage.removeItem("walletName");
+  //         localStorage.removeItem("connectedWalletAddress");
+  //         setStoredWalletAddress(null);
+
+  //         // Force reload to clear the wallet state completely
+  //         window.location.reload();
+  //       }
+  //     } catch (error) {
+  //       console.error("Error during disconnect:", error);
+  //       toast.error("Failed to disconnect wallet. Please try again.");
+
+  //       // Force reload as last resort
+  //       window.location.reload();
+  //     } finally {
+  //       setIsDisconnecting(false);
+  //     }
+  //   };
+
+  //   return (
+  //     <div
+  //       className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
+  //       style={{
+  //         clipPath:
+  //           "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
+  //         backgroundImage: "linear-gradient(to right, #A4C8FF, #643ADE)",
+  //         backgroundSize: "200% 200%",
+  //         animation: "spinGradient 3s linear infinite",
+  //       }}
+  //     >
+  //       {/* <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+  //         <span className="font-mono">{address.slice(0, 6)}…{address.slice(-4)}</span>
+  //         <button onClick={handleReveal}
+  //           disabled={revealing}
+  //           className="ml-4 text-sm underline">
+  //           {revealing ? 'Revealing…' : 'Reveal Private Key'}
+  //         </button>
+  //       </div> */}
+  //       <div className="flex items-center justify-between px-4 py-2 text-white">
+  //         <span className="font-mono">{displayAddress}</span>
+  //         <button
+  //           onClick={handleDisconnect}
+  //           disabled={isDisconnecting}
+  //           className="ml-4 text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded"
+  //         >
+  //           {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // };
 
   const handleClick = () => {
     // Only show our custom modal
@@ -548,9 +741,16 @@ export const CustomWalletButton = () => {
     }
   };
 
+  // const adapterName = (wallet as any)?.adapter?.name;
+  const adapterName = (wallet as any)?.adapter?.name;
+  const isMagicWallet = adapterName === MagicWalletName ||
+    localStorage.getItem("walletName") === MagicWalletName;
+
   return (
     <div className="flex items-center justify-center relative">
-      {publicKey ? (
+      {isMagicWallet && (publicKey || walletAddress) && walletAddress ? (
+        <CustomConnectedButton address={walletAddress} />
+      ) : publicKey ? (
         // Show standard Solana wallet button if publicKey exists
         <BaseWalletMultiButton
           labels={LABELS}
@@ -563,34 +763,37 @@ export const CustomWalletButton = () => {
             animation: "spinGradient 3s linear infinite",
           }}
         />
-      ) : walletAddress && !publicKey ? (
-        // Show custom button for Magic Link wallet if we have a walletAddress but no publicKey
-        <CustomConnectedButton address={walletAddress} />
-      ) : (
-        <div
-          className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
-          style={{
-            clipPath:
-              "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
-            backgroundImage: "linear-gradient(to right, #A4C8FF, #643ADE)",
-            backgroundSize: "200% 200%",
-            animation: "spinGradient 3s linear infinite",
-          }}
-          onClick={handleClick}
-        >
+      )
+        // : walletAddress ? (
+        //   //&& !publicKey
+        //   // Show custom button for Magic Link wallet if we have a walletAddress but no publicKey
+        //   <CustomConnectedButton address={walletAddress} />
+        // )
+        : (
           <div
-            className="transition-all ease-out relative duration-500 active:bg-opacity-80 block w-full overflow-hidden custom-gradient hover:bg-gradient-to-r hover:from-zkPurple hover:to-zkIndigo60 active:from-zkPurple60 hover:p-[1px]"
+            className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
             style={{
               clipPath:
                 "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
+              backgroundImage: "linear-gradient(to right, #A4C8FF, #643ADE)",
+              backgroundSize: "200% 200%",
+              animation: "spinGradient 3s linear infinite",
             }}
+            onClick={handleClick}
           >
-            <div className="transition-all ease-out duration-500 px-10 lg:px-12 py-4 text-center bg-clip-text text-transparent hover:text-white bg-gradient-to-l from-zkIndigo to-zkPurple font-bold tracking-wider">
-              Connect Wallet
+            <div
+              className="transition-all ease-out relative duration-500 active:bg-opacity-80 block w-full overflow-hidden custom-gradient hover:bg-gradient-to-r hover:from-zkPurple hover:to-zkIndigo60 active:from-zkPurple60 hover:p-[1px]"
+              style={{
+                clipPath:
+                  "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
+              }}
+            >
+              <div className="transition-all ease-out duration-500 px-10 lg:px-12 py-4 text-center bg-clip-text text-transparent hover:text-white bg-gradient-to-l from-zkIndigo to-zkPurple font-bold tracking-wider">
+                Connect Wallet
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       <WalletModal
         isVisible={isModalVisible}
         onClose={() => setModalVisible(false)}
@@ -598,3 +801,4 @@ export const CustomWalletButton = () => {
     </div>
   );
 };
+
