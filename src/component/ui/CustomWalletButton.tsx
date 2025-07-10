@@ -133,17 +133,26 @@ export const CustomWalletButton = () => {
   }, [publicKey]);
 
   // Handle wallet disconnection without triggering a refresh
+  // useEffect(() => {
+  //   if (disconnecting || (!publicKey && !connecting && !isFirstLoad)) {
+  //     const hasWalletName = localStorage.getItem("walletName");
+  //     if (hasWalletName) {
+  //       console.log("Wallet disconnected, removing walletName");
+  //       localStorage.removeItem("walletName");
+  //       localStorage.removeItem("connectedWalletAddress");
+  //       setStoredWalletAddress(null);
+  //     }
+  //   }
+  // }, [publicKey, disconnecting, connecting, isFirstLoad]);
+
   useEffect(() => {
-    if (disconnecting || (!publicKey && !connecting && !isFirstLoad)) {
-      const hasWalletName = localStorage.getItem("walletName");
-      if (hasWalletName) {
-        console.log("Wallet disconnected, removing walletName");
-        localStorage.removeItem("walletName");
-        localStorage.removeItem("connectedWalletAddress");
-        setStoredWalletAddress(null);
-      }
-    }
-  }, [publicKey, disconnecting, connecting, isFirstLoad]);
+  if (disconnecting) {
+    console.log("User clicked disconnect → clearing storage");
+    localStorage.removeItem("walletName");
+    localStorage.removeItem("connectedWalletAddress");
+    setStoredWalletAddress(null);
+  }
+}, [disconnecting]);
 
   // Check both publicKey and storedWalletAddress for display
   const walletAddress = publicKey?.toString() || storedWalletAddress;

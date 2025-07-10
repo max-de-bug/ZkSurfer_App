@@ -183,7 +183,7 @@ export class MagicWalletAdapter extends BaseMessageSignerWalletAdapter {
 
             // Store in localStorage for persistence
             localStorage.setItem('connectedWalletAddress', publicKeyString);
-            localStorage.setItem('walletName', MagicWalletName);
+            localStorage.setItem('walletName', JSON.stringify(MagicWalletName));
 
             // Emit connect event to update wallet adapter state
             this.emit('connect', this._publicKey);
