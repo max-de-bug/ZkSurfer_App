@@ -5,6 +5,7 @@ const API_KEY = 'zk-123321';
 
 export interface RecordSubscriptionPayload {
     walletAddress: string;
+    email: string | null;
     subscription_type: string;
     createdAt: string;
     relayerTransactionId: string;

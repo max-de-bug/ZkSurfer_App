@@ -55,7 +55,7 @@ export const CustomWalletButton = () => {
   const [revealing, setRevealing] = useState(false);
 
   //Set credits and keys
-  const { setCredits, setApiKey } = useModelStore();
+  const { setCredits, setApiKey, setUserEmail } = useModelStore();
 
 
   // Debug available wallets on mount
@@ -104,29 +104,17 @@ export const CustomWalletButton = () => {
 
   const getEmailSimple = async () => {
     try {
-      // First, let's see what the adapter actually contains
-      console.log('🔍 Full Magic adapter object:', magicAdapter);
-      console.log('🔍 Magic adapter keys:', Object.keys(magicAdapter || {}));
+      if (magicAdapter && (magicAdapter as any)._magic?.user) {
+        const userInfo = await (magicAdapter as any)._magic.user.getInfo();
+        console.log('📧 Magic user info:', userInfo);
 
-      // Try the most common patterns with any cast
-      const adapter = magicAdapter as any;
-
-      console.log('oi', adapter?.user)
-
-      if (adapter?.user?.getMetadata) {
-        const userInfo = await adapter.user.getMetadata();
-        console.log('📧 Magic Link Email:', userInfo.email);
-        return userInfo.email;
+        if (userInfo?.email) {
+          console.log('✅ Email found:', userInfo.email);
+          setUserEmail(userInfo.email); // 🔥 STORE IN ZUSTAND
+          return userInfo.email;
+        }
       }
-
-      if (adapter?.magic?.user?.getMetadata) {
-        const userInfo = await adapter.magic.user.getMetadata();
-        console.log('📧 Magic Link Email:', userInfo.email);
-        return userInfo.email;
-      }
-
       return null;
-
     } catch (error) {
       console.error('Error getting email:', error);
       return null;
@@ -140,7 +128,6 @@ export const CustomWalletButton = () => {
       setStoredWalletAddress(publicKeyString);
       localStorage.setItem("connectedWalletAddress", publicKeyString);
       console.log("Public key updated:", publicKeyString);
-
       if (isMagicWallet) getEmailSimple();
     }
   }, [publicKey]);
@@ -281,6 +268,7 @@ export const CustomWalletButton = () => {
     const handleDisconnect = async () => {
       console.log("Disconnecting wallet...");
       setIsDisconnecting(true);
+      setUserEmail(null);
 
       try {
         if (magicAdapter) {
