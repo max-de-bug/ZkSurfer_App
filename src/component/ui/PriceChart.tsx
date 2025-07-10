@@ -766,6 +766,27 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const [latest, setLatest] = useState<{
+    deviation_percent?: number | string;
+    overall_accuracy_percent?: number | string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/past-prediction", {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
+      .then(r => r.json())
+      .then(past => {
+        const entry = past.latest_forecast?.[0];
+        setLatest({
+          deviation_percent: entry?.deviation_percent,
+          overall_accuracy_percent: entry?.overall_accuracy_percent
+        });
+      })
+      .catch(console.error);
+  }, []);
+
   // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
@@ -1108,10 +1129,23 @@ const PriceChart: React.FC<PriceChartProps> = ({
     );
   };
 
-  const firstForecast = displayForecast[0];
+  if (!latest) {
+    return (
+      <div className="p-4 text-gray-400">
+        Loading deviation & accuracy…
+      </div>
+    );
+  }
+  const firstForecast = latest;
+   const firstForecasts = displayForecast[0];
+  console.log('firstForecast', firstForecast)
   const formattedAccuracy = firstForecast?.overall_accuracy_percent
     ? `${firstForecast.overall_accuracy_percent}%`
     : '98.50%';
+
+  console.log('formattedAccuracy', formattedAccuracy)
+
+  const rawDev = Number(firstForecast?.deviation_percent)
   const formattedDeviation = firstForecast?.deviation_percent
     ? `+${firstForecast.deviation_percent}%`
     : '+1.50%';
@@ -1170,15 +1204,15 @@ const PriceChart: React.FC<PriceChartProps> = ({
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Buy At:</span>
-                <span className="text-white font-medium">${firstForecast.entry.toLocaleString()}</span>
+                <span className="text-white font-medium">${firstForecasts.entry.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Target:</span>
-                <span className="text-green-400">${firstForecast.take_profit.toLocaleString()}</span>
+                <span className="text-green-400">${firstForecasts.take_profit.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Stop:</span>
-                <span className="text-red-400">${firstForecast.stop_loss.toLocaleString()}</span>
+                <span className="text-red-400">${firstForecasts.stop_loss.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -1190,7 +1224,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">R:R Ratio:</span>
                 <span className="text-blue-400 font-bold">
-                  1:{getRiskReward(firstForecast.entry, firstForecast.stop_loss, firstForecast.take_profit)}
+                  1:{getRiskReward(firstForecasts.entry, firstForecasts.stop_loss, firstForecasts.take_profit)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -1199,7 +1233,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Date:</span>
-                <span className="text-white">{getSimpleDate(firstForecast.date)}</span>
+                <span className="text-white">{getSimpleDate(firstForecasts.date)}</span>
               </div>
             </div>
           </div>
