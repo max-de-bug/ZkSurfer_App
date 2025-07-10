@@ -57,6 +57,7 @@ export const CustomWalletButton = () => {
   //Set credits and keys
   const { setCredits, setApiKey } = useModelStore();
 
+
   // Debug available wallets on mount
   useEffect(() => {
     if (wallets && wallets.length > 0) {
@@ -101,6 +102,37 @@ export const CustomWalletButton = () => {
     }
   }, [isFirstLoad, publicKey, wallets, select]);
 
+  const getEmailSimple = async () => {
+    try {
+      // First, let's see what the adapter actually contains
+      console.log('🔍 Full Magic adapter object:', magicAdapter);
+      console.log('🔍 Magic adapter keys:', Object.keys(magicAdapter || {}));
+
+      // Try the most common patterns with any cast
+      const adapter = magicAdapter as any;
+
+      console.log('oi', adapter?.user)
+
+      if (adapter?.user?.getMetadata) {
+        const userInfo = await adapter.user.getMetadata();
+        console.log('📧 Magic Link Email:', userInfo.email);
+        return userInfo.email;
+      }
+
+      if (adapter?.magic?.user?.getMetadata) {
+        const userInfo = await adapter.magic.user.getMetadata();
+        console.log('📧 Magic Link Email:', userInfo.email);
+        return userInfo.email;
+      }
+
+      return null;
+
+    } catch (error) {
+      console.error('Error getting email:', error);
+      return null;
+    }
+  };
+
   // Update stored address when public key changes
   useEffect(() => {
     if (publicKey) {
@@ -108,6 +140,8 @@ export const CustomWalletButton = () => {
       setStoredWalletAddress(publicKeyString);
       localStorage.setItem("connectedWalletAddress", publicKeyString);
       console.log("Public key updated:", publicKeyString);
+
+      if (isMagicWallet) getEmailSimple();
     }
   }, [publicKey]);
 
@@ -210,39 +244,39 @@ export const CustomWalletButton = () => {
       }
     };
     const handleRevealKey = async () => {
-  console.log('🔑 Reveal Private Key clicked', { magicAdapter: !!magicAdapter });
+      console.log('🔑 Reveal Private Key clicked', { magicAdapter: !!magicAdapter });
 
-  if (!magicAdapter) {
-    console.error('No magic adapter available');
-    toast.error('Magic adapter not available');
-    return;
-  }
+      if (!magicAdapter) {
+        console.error('No magic adapter available');
+        toast.error('Magic adapter not available');
+        return;
+      }
 
-  setRevealing(true);
-  try {
-    await magicAdapter.revealPrivateKey();
-    toast.success('Private key revealed successfully');
-  } catch (error: any) {
-    const msg = error?.message || '';
-    const code = error?.code;
+      setRevealing(true);
+      try {
+        await magicAdapter.revealPrivateKey();
+        toast.success('Private key revealed successfully');
+      } catch (error: any) {
+        const msg = error?.message || '';
+        const code = error?.code;
 
-    // These conditions might vary by adapter; adjust to match your SDK.
-    const isUserCancelled =
-      msg.toLowerCase().includes('user canceled') ||
-      msg.toLowerCase().includes('user closed') ||
-      code === 4001; // common “user rejected” code in Solana adapters
+        // These conditions might vary by adapter; adjust to match your SDK.
+        const isUserCancelled =
+          msg.toLowerCase().includes('user canceled') ||
+          msg.toLowerCase().includes('user closed') ||
+          code === 4001; // common “user rejected” code in Solana adapters
 
-    if (isUserCancelled) {
-      console.log('Reveal-private-key modal closed by user – no error toast shown.');
-    } else {
-      console.error('Error revealing private key:', error);
-      toast.error(`Failed to reveal private key${msg ? `: ${msg}` : ''}`);
-    }
-  } finally {
-    setRevealing(false);
-    setMenuOpen(false);
-  }
-};
+        if (isUserCancelled) {
+          console.log('Reveal-private-key modal closed by user – no error toast shown.');
+        } else {
+          console.error('Error revealing private key:', error);
+          toast.error(`Failed to reveal private key${msg ? `: ${msg}` : ''}`);
+        }
+      } finally {
+        setRevealing(false);
+        setMenuOpen(false);
+      }
+    };
 
     const handleDisconnect = async () => {
       console.log("Disconnecting wallet...");
@@ -278,6 +312,7 @@ export const CustomWalletButton = () => {
       }
       setMenuOpen(false);
     };
+
 
     const handleChangeWallet = () => {
       setModalVisible(true);

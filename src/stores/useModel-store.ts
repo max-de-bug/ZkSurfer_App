@@ -6,9 +6,11 @@ interface ModelState {
   selectedModel: ModelName;
   credits: number;
   apiKey: string;
+  userEmail: string | null;
   setSelectedModel: (model: ModelName) => void;
   setCredits: (credits: number) => void;
   setApiKey: (apiKey: string) => void;
+  setUserEmail: (email: string | null) => void;
 }
 
 export const useModelStore = create<ModelState>((set) => ({
@@ -18,6 +20,7 @@ export const useModelStore = create<ModelState>((set) => ({
   // new defaults
   credits: 0,
   apiKey: "",
+  userEmail: null,
 
   // existing setter
   setSelectedModel: (model) => set({ selectedModel: model }),
@@ -25,4 +28,5 @@ export const useModelStore = create<ModelState>((set) => ({
   // new setters
   setCredits: (credits) => set({ credits }),
   setApiKey: (apiKey) => set({ apiKey }),
+  setUserEmail: (userEmail) => set({ userEmail }),
 }));

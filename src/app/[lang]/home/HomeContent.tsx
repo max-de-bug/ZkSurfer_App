@@ -534,8 +534,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             // const today = raw.todays_news[0];
             const today = (Array.isArray(raw.todays_news) && raw.todays_news.length > 0)
-  ? raw.todays_news[0]
-  : { crypto_news: [], macro_news: [] };
+                ? raw.todays_news[0]
+                : { crypto_news: [], macro_news: [] };
 
             // Create separate mapping functions for crypto and macro news
             const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
@@ -3495,7 +3495,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 console.log('addUserData.detail', addUserData.detail)
 
                 if (addUserResponse.status === 200) {
-                    console.log('hi')
 
                     if (addUserData.api_keys && addUserData.api_keys.length > 0) {
                         const apiKey = addUserData.api_keys[0];
