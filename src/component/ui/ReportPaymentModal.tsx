@@ -275,6 +275,15 @@ export default function ReportPaymentModal({
           // 1) poll the verify endpoint until it succeeds (or times out)
           const verification = await pollVerify(subscriptionData.walletAddress)
           console.log('✅ Backend verification succeeded:', verification)
+
+          if (verification.success) {
+            const { setSubscriptionStatus } = useSubscriptionStore.getState();
+            setSubscriptionStatus({
+              success: true,
+              walletAddress: connectedWallet 
+            });
+            console.log('✅ Store set to subscribed = true');
+          }
         } catch (err) {
           console.warn('⚠️ Verification still pending after retries:', err)
           // you can decide to bail out here, or still proceed to set local state
@@ -370,6 +379,17 @@ export default function ReportPaymentModal({
                 // 1) poll the verify endpoint until it succeeds (or times out)
                 const verification = await pollVerify(subscriptionData.walletAddress)
                 console.log('✅ Backend verification succeeded:', verification)
+
+                if (verification.success) {
+                  const { setSubscriptionStatus } = useSubscriptionStore.getState();
+                  setSubscriptionStatus({
+                    success: true,
+                    walletAddress: connectedWallet 
+                  });
+                  console.log('✅ Store set to subscribed = true');
+                }
+
+
               } catch (err) {
                 console.warn('⚠️ Verification still pending after retries:', err)
                 // you can decide to bail out here, or still proceed to set local state
@@ -627,7 +647,7 @@ These Terms are governed by the laws of Singapore, without regard to its conflic
           <div className="p-6 max-w-lg mx-auto">
             <div className="text-center mb-6">
               <h3 className="text-xl font-bold text-white mb-2">Choose Payment Method</h3>
-              <p className="text-gray-400">Select how you'd like to pay</p>
+              <p className="text-gray-400">Select how you&apos;d like to pay</p>
             </div>
 
             <div className="space-y-4">
