@@ -74,6 +74,8 @@ export const useSubscriptionStore = create<SubscriptionState>()(
                 try {
                     const result = await verifySubscription(walletAddress);
 
+                    console.log('subscription result', result)
+
                     get().setSubscriptionStatus({
                         ...result,
                         walletAddress,
