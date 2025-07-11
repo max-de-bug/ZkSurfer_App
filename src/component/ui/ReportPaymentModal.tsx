@@ -26,7 +26,7 @@ const PAYMENT_PLANS: PaymentPlan[] = [
   {
     id: 'monthly',
     name: 'Monthly Subscription',
-    usdPrice: 0.05,
+    usdPrice: 50,
     duration: '1 month',
     features: [
       '📊 All premium prediction reports',
@@ -280,7 +280,7 @@ export default function ReportPaymentModal({
             const { setSubscriptionStatus } = useSubscriptionStore.getState();
             setSubscriptionStatus({
               success: true,
-              walletAddress: connectedWallet 
+              walletAddress: connectedWallet
             });
             console.log('✅ Store set to subscribed = true');
           }
@@ -384,7 +384,7 @@ export default function ReportPaymentModal({
                   const { setSubscriptionStatus } = useSubscriptionStore.getState();
                   setSubscriptionStatus({
                     success: true,
-                    walletAddress: connectedWallet 
+                    walletAddress: connectedWallet
                   });
                   console.log('✅ Store set to subscribed = true');
                 }
