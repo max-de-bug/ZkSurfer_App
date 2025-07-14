@@ -86,7 +86,7 @@
     "recharts": "^2.15.4",
     "rpc-websockets": "^5.0.0",
     "sharp": "^0.33.5",
-    "solana-agent-kit": "^1.4.8",
+    "solana-agent-kit": "^2.0.1",
     "sonner": "^1.7.0",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.4",
