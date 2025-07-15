@@ -39,8 +39,8 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
   // Function to extract time from UTC timestamp
   const formatTime = (utcTime: string) => {
     const date = new Date(utcTime);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
       hour12: false,
       timeZone: 'UTC'
@@ -50,9 +50,9 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
   // Function to calculate PnL
   const calculatePnL = (currentIndex: number): PnLData => {
     if (currentIndex >= hourlyForecast.length - 1) {
-      return { 
-        pnl: 0, 
-        pnlPercentage: 0, 
+      return {
+        pnl: 0,
+        pnlPercentage: 0,
         status: 'pending' as const,
         predictedPrice: undefined,
         actualPrice: undefined
@@ -61,11 +61,11 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
 
     const currentForecast = hourlyForecast[currentIndex];
     const nextActual = hourlyForecast[currentIndex + 1];
-    
+
     if (!currentForecast || !nextActual) {
-      return { 
-        pnl: 0, 
-        pnlPercentage: 0, 
+      return {
+        pnl: 0,
+        pnlPercentage: 0,
         status: 'pending' as const,
         predictedPrice: undefined,
         actualPrice: undefined
@@ -128,14 +128,14 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
 
   // Compact table for the sidebar
   const CompactTable = () => (
-    <div className="h-56 overflow-y-auto">
+    <div className="h-80 overflow-y-auto">
       <div className="space-y-2">
         {[...hourlyForecast].reverse().map((forecast, reverseIndex) => {
           // Calculate original index for PnL calculation
           const originalIndex = hourlyForecast.length - 1 - reverseIndex;
           const signalDisplay = getSignalDisplay(forecast.signal);
           const pnlData = calculatePnL(originalIndex);
-          
+
           return (
             <div key={forecast.time} className="flex items-center justify-between p-2 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
               <div className="flex items-center space-x-3">
@@ -147,12 +147,12 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
                   <span>{signalDisplay.text}</span>
                 </div>
               </div>
-              
+
               <div className="text-right">
                 <div className="font-mono text-sm text-white">
-                  ${forecast.forecast_price.toLocaleString(undefined, { 
-                    minimumFractionDigits: 0, 
-                    maximumFractionDigits: 0 
+                  ${forecast.forecast_price.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
                   })}
                 </div>
                 {pnlData.status === 'calculated' && pnlData.actualPrice ? (
@@ -192,7 +192,7 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
             const originalIndex = hourlyForecast.length - 1 - reverseIndex;
             const signalDisplay = getSignalDisplay(forecast.signal);
             const pnlData = calculatePnL(originalIndex);
-            
+
             return (
               <tr key={forecast.time} className="border-b border-gray-700/50 hover:bg-gray-800/30">
                 <td className="py-3 px-4">
@@ -200,50 +200,50 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
                     {formatTime(forecast.time)}
                   </div>
                 </td>
-                
+
                 <td className="py-3 px-4">
                   <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${signalDisplay.bgColor} ${signalDisplay.color}`}>
                     <span>{signalDisplay.icon}</span>
                     <span>{signalDisplay.text}</span>
                   </div>
                 </td>
-                
+
                 <td className="py-3 px-4 text-right">
                   <div className="font-mono text-white">
-                    ${forecast.forecast_price.toLocaleString(undefined, { 
-                      minimumFractionDigits: 2, 
-                      maximumFractionDigits: 2 
+                    ${forecast.forecast_price.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
                     })}
                   </div>
                 </td>
-                
+
                 <td className="py-3 px-4 text-right">
                   {pnlData.status === 'calculated' && pnlData.actualPrice ? (
                     <div className="font-mono text-white">
-                      ${pnlData.actualPrice.toLocaleString(undefined, { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 2 
+                      ${pnlData.actualPrice.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
                       })}
                     </div>
                   ) : (
                     <div className="text-gray-400 text-xs">Pending</div>
                   )}
                 </td>
-                
+
                 <td className="py-3 px-4 text-right">
                   {pnlData.status === 'calculated' && pnlData.actualPrice ? (
                     <div className={`font-mono font-medium ${getPnLColor(pnlData.pnlPercentage)}`}>
                       {pnlData.pnl >= 0 ? '+' : ''}
-                      ${pnlData.pnl.toLocaleString(undefined, { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 2 
+                      ${pnlData.pnl.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
                       })}
                     </div>
                   ) : (
                     <div className="text-gray-400 text-xs">-</div>
                   )}
                 </td>
-                
+
                 <td className="py-3 px-4 text-right">
                   {pnlData.status === 'calculated' && pnlData.actualPrice ? (
                     <div className={`font-mono font-medium ${getPnLColor(pnlData.pnlPercentage)}`}>
@@ -254,11 +254,11 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
                     <div className="text-gray-400 text-xs">-</div>
                   )}
                 </td>
-                
+
                 <td className="py-3 px-4 text-right">
                   <div className="text-white">
-                    {forecast.accuracy_percent && forecast.accuracy_percent !== 'N/A' 
-                      ? `${forecast.accuracy_percent}%` 
+                    {forecast.accuracy_percent && forecast.accuracy_percent !== 'N/A'
+                      ? `${forecast.accuracy_percent}%`
                       : 'N/A'}
                   </div>
                 </td>
@@ -293,7 +293,7 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
             <span className="text-lg">⏰</span>
             <span>HOURLY PREDICTIONS</span>
           </h3>
-          
+
           {/* Expand Button */}
           <button
             onClick={() => setIsExpanded(true)}
@@ -301,13 +301,13 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
             title="Expand table"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M1 1h6v2H3v4H1V1zm8 0h6v6h-2V3h-4V1zM3 9v4h4v2H1V9h2zm12 0v6H9v-2h4V9h2z"/>
+              <path d="M1 1h6v2H3v4H1V1zm8 0h6v6h-2V3h-4V1zM3 9v4h4v2H1V9h2zm12 0v6H9v-2h4V9h2z" />
             </svg>
           </button>
         </div>
-        
+
         <CompactTable />
-        
+
         {/* Summary Stats */}
         <div className="mt-4 pt-3 border-t border-gray-600">
           <div className="flex justify-between items-center text-xs">
@@ -336,15 +336,15 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
-            
+
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               <FullTable />
-              
+
               {/* Enhanced Summary Stats */}
               <div className="mt-6 pt-4 border-t border-gray-600">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
