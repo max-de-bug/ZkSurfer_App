@@ -59,7 +59,7 @@ import NewsSidebar from '@/component/NewsSidebar';
 import ReportSidebar from '@/component/ui/ReportSidebar';
 import Leaderboard from '@/component/ui/Leaderboard';
 // import { ReportData } from '@/types/types';
-import { FullReportData, CryptoNewsItem, MacroNewsItem } from '@/types/types';
+import { FullReportData, CryptoNewsItem, MacroNewsItem, HourlyForecast } from '@/types/types';
 import { dummyReportData } from '@/data/dummyReportData';
 import PastPredictions from '@/component/ui/PastPredictions';
 import TransakWidget from '@/component/ui/TransakWidgit';
@@ -509,140 +509,268 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //     setShowSubscriptionModal(true);
     // };
 
-    const openReport = async () => {
-        // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
-        //     .then(r => r.json());
-        console.log('openReport called on mobile:', isMobile);
+const openReport = async () => {
+  console.log('openReport called on mobile:', isMobile);
+  console.log('isSubscribed', isSubscribed);
 
-        console.log('isSubscribed', isSubscribed)
-        if (isSubscribed) {
-            const raw = await fetch("/api/today-prediction", {
-                method: "GET",
+  if (!isSubscribed) {
+    setShowSubscriptionModal(true);
+    return;
+  }
 
-                cache: "no-store",
+  const raw = await fetch("/api/today-prediction", {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  }).then(r => r.json());
 
-                headers: {
-                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            })
-                .then(r => {
-                    // if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    return r.json();
-                });
+  const today = Array.isArray(raw.todays_news) && raw.todays_news.length > 0
+    ? raw.todays_news[0]
+    : { crypto_news: [], macro_news: [] };
 
-            // const today = raw.todays_news[0];
-            const today = (Array.isArray(raw.todays_news) && raw.todays_news.length > 0)
-                ? raw.todays_news[0]
-                : { crypto_news: [], macro_news: [] };
-
-            // Create separate mapping functions for crypto and macro news
-            const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
-                arr.map(n => {
-                    // 1️⃣ Pull out the JSON between the ```json … ``` fences
-                    const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
-                    let parsed: any;
-
-                    if (match) {
-                        try {
-                            parsed = JSON.parse(match[1]);
-                        } catch (e) {
-                            console.warn('Invalid JSON for', n.news_id, e);
-                        }
-                    }
-                    // 2️⃣ Fallback defaults if JSON didn't parse
-                    parsed = parsed || {
-                        sentiment_score: 0,
-                        investment: { advice: 'Hold', reason: 'No details available' },
-                        rationale: ''
-                    };
-
-                    // 3️⃣ Naïve symbol extraction from title
-                    const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
-
-                    return {
-                        news_id: n.news_id,
-                        title: n.title,
-                        link: n.link,
-                        analysis: n.analysis, // Include the original analysis string
-                        symbol: symbolMatch?.[1] ?? '—',
-                        sentimentScore: parsed.sentiment_score,
-                        sentimentTag: normalizeSentiment(parsed.sentiment_score),
-                        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
-                        reason: parsed.investment.reason,
-                        rationale: parsed.rationale,
-                    };
-                });
-
-            const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
-                arr.map(n => {
-                    // 1️⃣ Pull out the JSON between the ```json … ``` fences
-                    const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
-                    let parsed: any;
-
-                    if (match) {
-                        try {
-                            parsed = JSON.parse(match[1]);
-                        } catch (e) {
-                            console.warn('Invalid JSON for', n.news_id, e);
-                        }
-                    }
-                    // 2️⃣ Fallback defaults if JSON didn't parse
-                    parsed = parsed || {
-                        sentiment_score: 0,
-                        investment: { advice: 'Hold', reason: 'No details available' },
-                        rationale: ''
-                    };
-
-                    return {
-                        news_id: n.news_id,
-                        title: n.title,
-                        link: n.link,
-                        description: n.description || '', // Include description for macro news
-                        analysis: n.analysis, // Include the original analysis string
-                        sentimentScore: parsed.sentiment_score,
-                        sentimentTag: normalizeSentiment(parsed.sentiment_score),
-                        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
-                        reason: parsed.investment.reason,
-                        rationale: parsed.rationale,
-                    };
-                });
-
-            const firstFc = raw.forecast_next_3_days[0] || { overall_accuracy_percent: 0 };
-            const accRaw = firstFc.overall_accuracy_percent;
-            const accNum = typeof accRaw === 'string' ? parseFloat(accRaw) : accRaw;
-
-            const report: FullReportData = {
-                // --- YOUR EXISTING ReportData FIELDS ---
-                predictionAccuracy: Number.isNaN(accNum) ? 0 : accNum,
-                predictionSeries: dummyReportData.predictionSeries,
-                priceStats: dummyReportData.priceStats,
-                marketSentiment: dummyReportData.marketSentiment,
-                avoidTokens: dummyReportData.avoidTokens,
-                newsImpact: dummyReportData.newsImpact,
-                volatility: dummyReportData.volatility,
-                liquidity: dummyReportData.liquidity,
-                trendingNews: dummyReportData.trendingNews,
-                whatsNew: dummyReportData.whatsNew,
-                recommendations: dummyReportData.recommendations,
-                // --- NEW SECTIONS FROM API ---
-                todaysNews: {
-                    crypto: mapCryptoNews(today.crypto_news),
-                    macro: mapMacroNews(today.macro_news),
-                },
-                forecastNext3Days: raw.forecast_next_3_days,
-                priceHistoryLast7Days: raw.price_history_last_7_days,
-            };
-
-            setReportData(report);
-            setIsReportOpen(true);
+  const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
+    arr.map(n => {
+      const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+      let parsed: any;
+      if (match) {
+        try {
+          parsed = JSON.parse(match[1]);
+        } catch (e) {
+          console.warn('Invalid JSON for', n.news_id, e);
         }
-        else {
-            // 🚫 not subscribed — kick off the payment flow
-            setShowSubscriptionModal(true);
+      }
+      parsed = parsed || {
+        sentiment_score: 0,
+        investment: { advice: 'Hold', reason: 'No details available' },
+        rationale: ''
+      };
+      const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
+      return {
+        news_id: n.news_id,
+        title: n.title,
+        link: n.link,
+        analysis: n.analysis,
+        symbol: symbolMatch?.[1] ?? '—',
+        sentimentScore: parsed.sentiment_score,
+        sentimentTag: normalizeSentiment(parsed.sentiment_score),
+        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+        reason: parsed.investment.reason,
+        rationale: parsed.rationale,
+      };
+    });
+
+  const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
+    arr.map(n => {
+      const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+      let parsed: any;
+      if (match) {
+        try {
+          parsed = JSON.parse(match[1]);
+        } catch (e) {
+          console.warn('Invalid JSON for', n.news_id, e);
         }
-    };
+      }
+      parsed = parsed || {
+        sentiment_score: 0,
+        investment: { advice: 'Hold', reason: 'No details available' },
+        rationale: ''
+      };
+      return {
+        news_id: n.news_id,
+        title: n.title,
+        link: n.link,
+        description: n.description || '',
+        analysis: n.analysis,
+        sentimentScore: parsed.sentiment_score,
+        sentimentTag: normalizeSentiment(parsed.sentiment_score),
+        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+        reason: parsed.investment.reason,
+        rationale: parsed.rationale,
+      };
+    });
+
+  const mapHourly = (arr: any[] = []): HourlyForecast[] =>
+    arr.map(h => ({
+      time: h.time,
+      signal: h.signal,
+      entry_price: h.entry_price,
+      stop_loss: h.stop_loss,
+      take_profit: h.take_profit,
+      forecast_price: h.forecast_price,
+      current_price: h.current_price,
+      deviation_percent: h.deviation_percent,
+      accuracy_percent: h.accuracy_percent,
+      risk_reward_ratio: h.risk_reward_ratio,
+      sentiment_score: h.sentiment_score,
+      confidence_50: h.confidence_50,
+      confidence_80: h.confidence_80,
+      confidence_90: h.confidence_90,
+    }));
+
+  const report: FullReportData = {
+    predictionAccuracy: dummyReportData.predictionAccuracy,
+    predictionSeries: dummyReportData.predictionSeries,
+    priceStats: dummyReportData.priceStats,
+    marketSentiment: dummyReportData.marketSentiment,
+    avoidTokens: dummyReportData.avoidTokens,
+    newsImpact: dummyReportData.newsImpact,
+    volatility: dummyReportData.volatility,
+    liquidity: dummyReportData.liquidity,
+    trendingNews: dummyReportData.trendingNews,
+    whatsNew: dummyReportData.whatsNew,
+    recommendations: dummyReportData.recommendations,
+
+    todaysNews: {
+      crypto: mapCryptoNews(today.crypto_news),
+      macro: mapMacroNews(today.macro_news),
+    },
+
+    forecastTodayHourly: mapHourly(raw.forecast_today_hourly),
+  };
+
+  setReportData(report);
+  setIsReportOpen(true);
+};
+
+
+    // const openReport = async () => {
+    //     // const raw = await fetch(process.env.NEXT_PUBLIC_PREDICTION_API!)
+    //     //     .then(r => r.json());
+    //     console.log('openReport called on mobile:', isMobile);
+
+    //     console.log('isSubscribed', isSubscribed)
+    //     if (isSubscribed) {
+    //         const raw = await fetch("/api/today-prediction", {
+    //             method: "GET",
+
+    //             cache: "no-store",
+
+    //             headers: {
+    //                 "Cache-Control": "no-cache, no-store, must-revalidate",
+    //                 Pragma: "no-cache",
+    //                 Expires: "0",
+    //             },
+    //         })
+    //             .then(r => {
+    //                 // if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    //                 return r.json();
+    //             });
+
+    //         // const today = raw.todays_news[0];
+    //         const today = (Array.isArray(raw.todays_news) && raw.todays_news.length > 0)
+    //             ? raw.todays_news[0]
+    //             : { crypto_news: [], macro_news: [] };
+
+    //         // Create separate mapping functions for crypto and macro news
+    //         const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
+    //             arr.map(n => {
+    //                 // 1️⃣ Pull out the JSON between the ```json … ``` fences
+    //                 const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+    //                 let parsed: any;
+
+    //                 if (match) {
+    //                     try {
+    //                         parsed = JSON.parse(match[1]);
+    //                     } catch (e) {
+    //                         console.warn('Invalid JSON for', n.news_id, e);
+    //                     }
+    //                 }
+    //                 // 2️⃣ Fallback defaults if JSON didn't parse
+    //                 parsed = parsed || {
+    //                     sentiment_score: 0,
+    //                     investment: { advice: 'Hold', reason: 'No details available' },
+    //                     rationale: ''
+    //                 };
+
+    //                 // 3️⃣ Naïve symbol extraction from title
+    //                 const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
+
+    //                 return {
+    //                     news_id: n.news_id,
+    //                     title: n.title,
+    //                     link: n.link,
+    //                     analysis: n.analysis, // Include the original analysis string
+    //                     symbol: symbolMatch?.[1] ?? '—',
+    //                     sentimentScore: parsed.sentiment_score,
+    //                     sentimentTag: normalizeSentiment(parsed.sentiment_score),
+    //                     advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+    //                     reason: parsed.investment.reason,
+    //                     rationale: parsed.rationale,
+    //                 };
+    //             });
+
+    //         const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
+    //             arr.map(n => {
+    //                 // 1️⃣ Pull out the JSON between the ```json … ``` fences
+    //                 const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+    //                 let parsed: any;
+
+    //                 if (match) {
+    //                     try {
+    //                         parsed = JSON.parse(match[1]);
+    //                     } catch (e) {
+    //                         console.warn('Invalid JSON for', n.news_id, e);
+    //                     }
+    //                 }
+    //                 // 2️⃣ Fallback defaults if JSON didn't parse
+    //                 parsed = parsed || {
+    //                     sentiment_score: 0,
+    //                     investment: { advice: 'Hold', reason: 'No details available' },
+    //                     rationale: ''
+    //                 };
+
+    //                 return {
+    //                     news_id: n.news_id,
+    //                     title: n.title,
+    //                     link: n.link,
+    //                     description: n.description || '', // Include description for macro news
+    //                     analysis: n.analysis, // Include the original analysis string
+    //                     sentimentScore: parsed.sentiment_score,
+    //                     sentimentTag: normalizeSentiment(parsed.sentiment_score),
+    //                     advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+    //                     reason: parsed.investment.reason,
+    //                     rationale: parsed.rationale,
+    //                 };
+    //             });
+
+    //         const firstFc = raw.forecast_next_3_days[0] || { overall_accuracy_percent: 0 };
+    //         const accRaw = firstFc.overall_accuracy_percent;
+    //         const accNum = typeof accRaw === 'string' ? parseFloat(accRaw) : accRaw;
+
+    //         const report: FullReportData = {
+    //             // --- YOUR EXISTING ReportData FIELDS ---
+    //             predictionAccuracy: Number.isNaN(accNum) ? 0 : accNum,
+    //             predictionSeries: dummyReportData.predictionSeries,
+    //             priceStats: dummyReportData.priceStats,
+    //             marketSentiment: dummyReportData.marketSentiment,
+    //             avoidTokens: dummyReportData.avoidTokens,
+    //             newsImpact: dummyReportData.newsImpact,
+    //             volatility: dummyReportData.volatility,
+    //             liquidity: dummyReportData.liquidity,
+    //             trendingNews: dummyReportData.trendingNews,
+    //             whatsNew: dummyReportData.whatsNew,
+    //             recommendations: dummyReportData.recommendations,
+    //             // --- NEW SECTIONS FROM API ---
+    //             todaysNews: {
+    //                 crypto: mapCryptoNews(today.crypto_news),
+    //                 macro: mapMacroNews(today.macro_news),
+    //             },
+    //             forecastNext3Days: raw.forecast_next_3_days,
+    //             priceHistoryLast7Days: raw.price_history_last_7_days,
+    //         };
+
+    //         setReportData(report);
+    //         setIsReportOpen(true);
+    //     }
+    //     else {
+    //         // 🚫 not subscribed — kick off the payment flow
+    //         setShowSubscriptionModal(true);
+    //     }
+    // };
 
 
     // Load ffmpeg dynamically on the client side

@@ -180,7 +180,7 @@ const YourPredictions: React.FC<YourPredictionsProps> = ({
             {completedPredictions.length > 0 && (
                 <div>
                     <h3 className="text-md font-medium text-gray-300 mb-3">History</h3>
-                    <div className="space-y-3 max-h-20 overflow-y-auto custom-scrollbar">
+                    <div className="space-y-3 max-h-72 overflow-y-auto custom-scrollbar">
                         {completedPredictions
                             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                             .map((prediction) => (

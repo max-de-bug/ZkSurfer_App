@@ -5,6 +5,7 @@ import { FullReportData } from '@/types/types';
 import NewsCard from '@/component/ui/NewsCard';
 import Gauge from '@/component/ui/Gauge';
 import PriceChart from '@/component/ui/PriceChart';
+import HourlyPredictionsTable from './HourelyForecast';
 
 // New interface for past prediction data
 interface PastPredictionData {
@@ -368,6 +369,7 @@ const formattedAccuracyDisplay =
                                 <PriceChart
                                     priceHistory={reportData.priceHistoryLast7Days || []}
                                     forecast={reportData.forecastNext3Days || []}
+                                    hourlyForecast={reportData.forecastTodayHourly || []}
                                 />
                             ) : (
                                 <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
@@ -424,6 +426,12 @@ const formattedAccuracyDisplay =
             size={280}
         />
     </div>
+     {!isPastData(data) && reportData.forecastTodayHourly && (
+        <HourlyPredictionsTable 
+            hourlyForecast={reportData.forecastTodayHourly}
+            className="mt-4"
+        />
+    )}
 </div>
                         {/* 4 Cards - Right Side */}
                         {/* <div className={`flex-1 ${isMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 grid-rows-2 gap-4 h-full'}`}>
