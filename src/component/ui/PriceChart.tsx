@@ -3113,7 +3113,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
         )}
 
         {/* Enhanced Legend for confidence zones */}
-        <g>
+        {/* <g>
           <text x={padding + 10} y={padding + 20} fill="#9ca3af" fontSize="10" className="font-bold">
             Price Probability Ranges:
           </text>
@@ -3125,7 +3125,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
           <rect x={padding + 230} y={padding + 25} width={12} height={8} fill="#22c55e" fillOpacity={0.1} stroke="#22c55e" strokeOpacity={0.3} strokeWidth={1} />
           <text x={padding + 245} y={padding + 32} fill="#22c55e" fontSize="8">90% CONFIDENCE</text>
-        </g>
+        </g> */}
       </svg>
     );
   };
@@ -3318,6 +3318,36 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const displayStopLoss = lastHourly?.stop_loss || firstForecasts?.stop_loss;
   const performanceMetrics = calculatePerformanceMetrics(hourlyForecast);
 
+  const nextHourTarget = lastHourly?.forecast_price ||
+    (hourlyForecast && hourlyForecast.length > 0 ? hourlyForecast[0].forecast_price : null);
+
+  const confidenceProbability = lastHourly?.confidence_50 ?
+    Math.round(((lastHourly.confidence_50[1] - lastHourly.confidence_50[0]) / lastHourly.forecast_price) * 100 * 10) :
+    75; // Default fallback
+
+  const expectedTimeframe = displaySignal === 'LONG' || displaySignal === 'SHORT' ?
+    '30-60' : '45-90';
+
+  // Calculate minutes to next forecast (assuming hourly updates)
+  const minutesToNextForecast = (() => {
+    const now = new Date();
+    const nextHour = new Date(now);
+    nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+    return Math.ceil((nextHour.getTime() - now.getTime()) / (1000 * 60));
+  })();
+
+  // Calculate price change direction and percentage
+  const priceChangeDirection = nextHourTarget && currentPrice ?
+    nextHourTarget > currentPrice ? 'UP' : 'DOWN' : 'SIDEWAYS';
+
+  const priceChangePercent = nextHourTarget && currentPrice ?
+    Math.abs(((nextHourTarget - currentPrice) / currentPrice) * 100).toFixed(2) : '0.00';
+
+  // Enhanced confidence calculation based on actual data
+  const enhancedConfidenceProbability = lastHourly ?
+    Math.round(85 - (Math.abs(Number(lastHourly.deviation_percent) || 0) * 5)) :
+    confidenceProbability;
+
   const formattedAccuracy = lastHourly?.accuracy_percent && lastHourly.accuracy_percent !== 'N/A'
     ? `${lastHourly.accuracy_percent}%`
     : firstForecast?.overall_accuracy_percent
@@ -3364,6 +3394,24 @@ const PriceChart: React.FC<PriceChartProps> = ({
           selected={selectedTimeframe}
           onChange={(value) => setSelectedTimeframe(value as 'TODAY')}
         />
+      </div>
+
+      <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-4 mb-4 border border-blue-500/30">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-blue-400 text-sm font-medium mb-1">🎯 NEXT HOUR OUTLOOK</div>
+            <div className="text-white text-lg font-bold">
+              ZkAGI anticipates price to hit ${nextHourTarget?.toLocaleString()} over next hour
+            </div>
+            {/* <div className="text-gray-400 text-sm">
+        Probability: {confidenceProbability}% • Expected in {expectedTimeframe} minutes
+      </div> */}
+          </div>
+          <div className="text-right">
+            <div className="text-gray-400 text-sm">Next forecast in:</div>
+            <div className="text-yellow-400 text-xl font-bold">{minutesToNextForecast}m</div>
+          </div>
+        </div>
       </div>
 
       {/* Enhanced Key Metrics */}
