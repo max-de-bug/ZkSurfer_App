@@ -438,6 +438,7 @@ export function TradingChart() {
       layout: { 
         // background: { type: 'solid', color: '#0f1419' }, 
        // backgroundColor: '#0f1419',
+         background: { color: '#0f1419' },
         textColor: '#d1d5db' 
       },
       grid: {

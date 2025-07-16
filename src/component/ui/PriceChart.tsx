@@ -3336,18 +3336,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
     return Math.ceil((nextHour.getTime() - now.getTime()) / (1000 * 60));
   })();
 
-  // Calculate price change direction and percentage
-  const priceChangeDirection = nextHourTarget && currentPrice ?
-    nextHourTarget > currentPrice ? 'UP' : 'DOWN' : 'SIDEWAYS';
-
-  const priceChangePercent = nextHourTarget && currentPrice ?
-    Math.abs(((nextHourTarget - currentPrice) / currentPrice) * 100).toFixed(2) : '0.00';
-
-  // Enhanced confidence calculation based on actual data
-  const enhancedConfidenceProbability = lastHourly ?
-    Math.round(85 - (Math.abs(Number(lastHourly.deviation_percent) || 0) * 5)) :
-    confidenceProbability;
-
   const formattedAccuracy = lastHourly?.accuracy_percent && lastHourly.accuracy_percent !== 'N/A'
     ? `${lastHourly.accuracy_percent}%`
     : firstForecast?.overall_accuracy_percent

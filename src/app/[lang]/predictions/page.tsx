@@ -5,6 +5,7 @@ import { TradingChart } from '@/component/ui/TradingChart'
 import OrderBook from '@/component/ui/OrderBook'
 import Leaderboard from '@/component/ui/Leaderboard'
 import YourPredictions from '@/component/ui/YourPredictions'
+import LeverageTradingAssistant from '@/component/ui/LeverageTradingAssistant'
 
 const TradingPage: React.FC = () => {
     return (
@@ -26,12 +27,15 @@ const TradingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 mt-5">
-                        <div className="w-1/2">
-                        <Leaderboard />
+                    <div className="grid grid-cols-4 gap-2 mt-5">
+                        <div className="">
+                            <Leaderboard />
+                        </div>
+                        <div className="col-span-2">
+                            <LeverageTradingAssistant />
                         </div>
                         <div>
-                        <YourPredictions />
+                            <YourPredictions />
                         </div>
                     </div>
                 </div>
