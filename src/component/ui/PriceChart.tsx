@@ -2080,6 +2080,1641 @@
 // export default PriceChart;
 
 
+// import React, { useState, useRef, useEffect } from 'react';
+
+// interface HourlyForecast {
+//   time: string;
+//   signal: 'LONG' | 'SHORT' | 'HOLD';
+//   entry_price: number | null;
+//   stop_loss: number | null;
+//   take_profit: number | null;
+//   forecast_price: number;
+//   current_price: number;
+//   deviation_percent: number | string;
+//   accuracy_percent: number | string;
+//   risk_reward_ratio: number;
+//   sentiment_score: number;
+//   confidence_50: [number, number];
+//   confidence_80: [number, number];
+//   confidence_90: [number, number];
+// }
+
+// interface PriceData {
+//   date: string;
+//   price: number;
+// }
+
+// interface CandlestickData {
+//   timestamp: number;
+//   open: number;
+//   high: number;
+//   low: number;
+//   close: number;
+//   volume: number;
+// }
+
+// interface ForecastData {
+//   date: string;
+//   signal: 'LONG' | 'SHORT';
+//   entry: number;
+//   stop_loss: number;
+//   take_profit: number;
+//   confidence_intervals: {
+//     50: [number, number];
+//     80: [number, number];
+//     90: [number, number];
+//   };
+//   deviation_percent?: number | string;
+//   overall_accuracy_percent?: number | string;
+// }
+
+// interface PriceChartProps {
+//   priceHistory?: PriceData[];
+//   forecast?: ForecastData[];
+//   hourlyForecast?: HourlyForecast[];
+//   className?: string;
+// }
+
+// interface TooltipData {
+//   x: number;
+//   y: number;
+//   data: any;
+//   visible: boolean;
+//   type?: 'chart' | 'info';
+// }
+
+// // Segmented Control Component
+// const SegmentedControl = ({
+//   options,
+//   selected,
+//   onChange,
+//   className = ""
+// }: {
+//   options: { value: string; label: string }[];
+//   selected: string;
+//   onChange: (value: string) => void;
+//   className?: string;
+// }) => {
+//   return (
+//     <div className={`inline-flex bg-[#1a2332] rounded-lg p-1 ${className}`}>
+//       {options.map((option) => (
+//         <button
+//           key={option.value}
+//           onClick={() => onChange(option.value)}
+//           className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md transition-all duration-200 ${selected === option.value
+//             ? 'bg-blue-600 text-white shadow-md'
+//             : 'text-gray-400 hover:text-white hover:bg-[#2a3441]'
+//             }`}
+//         >
+//           {option.label}
+//         </button>
+//       ))}
+//     </div>
+//   );
+// };
+
+// const fetchRealBitcoinData = async (
+//   setDataSource?: (src: 'real' | 'fallback') => void
+// ): Promise<CandlestickData[]> => {
+//   try {
+//     const res = await fetch(
+//       'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=60'
+//     );
+//     if (!res.ok) throw new Error(`Binance returned ${res.status}`);
+//     const raw = await res.json() as any[][];
+//     setDataSource?.('real');
+//     return raw.map(([ts, open, high, low, close, volume]) => ({
+//       timestamp: ts,
+//       open: +open,
+//       high: +high,
+//       low: +low,
+//       close: +close,
+//       volume: +volume,
+//     }));
+//   } catch (err) {
+//     console.error('Failed to fetch real candles, falling back:', err);
+//     setDataSource?.('fallback');
+//     return generateFallbackData();
+//   }
+// };
+
+// const fetchCurrentBitcoinPrice = async (): Promise<number> => {
+//   const res = await fetch(
+//     'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
+//   );
+//   if (!res.ok) throw new Error(`Binance ticker returned ${res.status}`);
+//   const json = await res.json() as { price: string };
+//   return parseFloat(json.price);
+// };
+
+// // Fallback data generator
+// const generateFallbackData = (): CandlestickData[] => {
+//   const data: CandlestickData[] = [];
+//   let currentPrice = 121008;
+//   const now = Date.now();
+
+//   for (let i = 59; i >= 0; i--) {
+//     const timestamp = now - (i * 60000);
+//     const volatility = 0.002;
+
+//     const open = currentPrice;
+//     const change = (Math.random() - 0.5) * volatility * currentPrice;
+//     const close = open + change;
+
+//     const high = Math.max(open, close) + Math.random() * volatility * currentPrice * 0.5;
+//     const low = Math.min(open, close) - Math.random() * volatility * currentPrice * 0.5;
+
+//     const volume = Math.random() * 1000000 + 500000;
+
+//     data.push({
+//       timestamp,
+//       open,
+//       high,
+//       low,
+//       close,
+//       volume
+//     });
+
+//     currentPrice = close + (122306 - 121008) / 60;
+//   }
+
+//   return data;
+// };
+
+// const PriceChart: React.FC<PriceChartProps> = ({
+//   priceHistory = [
+//     { date: "2025-07-02", price: 104639.48 },
+//     { date: "2025-07-03", price: 104611.16 },
+//     { date: "2025-07-04", price: 103296.19 },
+//     { date: "2025-07-05", price: 101348.19 },
+//     { date: "2025-07-06", price: 101987.11 },
+//     { date: "2025-07-07", price: 105436.11 },
+//     { date: "2025-07-08", price: 106371.09 }
+//   ],
+//   forecast = [
+//     {
+//       date: "2025-07-14",
+//       signal: "LONG" as const,
+//       entry: 117498.65,
+//       stop_loss: 115287.826,
+//       take_profit: 119709.474,
+//       confidence_intervals: {
+//         50: [117088.88, 117908.414],
+//         80: [116154.45, 118842.84],
+//         90: [115877.55, 119119.75]
+//       },
+//       deviation_percent: 1.5,
+//       overall_accuracy_percent: 98.5
+//     }
+//   ],
+//   className = "",
+//   hourlyForecast = [
+//     {
+//       time: "2025-07-15T07:00:00+00:00",
+//       signal: "HOLD" as const,
+//       entry_price: null,
+//       stop_loss: null,
+//       take_profit: null,
+//       forecast_price: 116632.66,
+//       current_price: 116919.4,
+//       deviation_percent: "N/A",
+//       accuracy_percent: "N/A",
+//       risk_reward_ratio: 0.68,
+//       sentiment_score: 27.39,
+//       confidence_50: [116402.414, 116862.9],
+//       confidence_80: [116252.7, 117012.61],
+//       confidence_90: [116228.18, 117037.13]
+//     },
+//     {
+//       time: "2025-07-15T08:00:00+00:00",
+//       signal: "HOLD" as const,
+//       entry_price: null,
+//       stop_loss: null,
+//       take_profit: null,
+//       forecast_price: 116548.55,
+//       current_price: 116797,
+//       deviation_percent: -0.21,
+//       accuracy_percent: 99.79,
+//       risk_reward_ratio: 0.61,
+//       sentiment_score: 32.27,
+//       confidence_50: [116390.73, 116706.37],
+//       confidence_80: [116281.36, 116815.734],
+//       confidence_90: [116030.195, 117066.9]
+//     },
+//     {
+//       time: "2025-07-15T09:00:00+00:00",
+//       signal: "HOLD" as const,
+//       entry_price: null,
+//       stop_loss: null,
+//       take_profit: null,
+//       forecast_price: 116705.53,
+//       current_price: 116788.51,
+//       deviation_percent: -0.07,
+//       accuracy_percent: 99.93,
+//       risk_reward_ratio: 0.21,
+//       sentiment_score: 43.16,
+//       confidence_50: [116539, 116872.06],
+//       confidence_80: [116475.63, 116935.43],
+//       confidence_90: [116293.57, 117117.49]
+//     },
+//     {
+//       time: "2025-07-15T10:00:00+00:00",
+//       signal: "HOLD" as const,
+//       entry_price: null,
+//       stop_loss: null,
+//       take_profit: null,
+//       forecast_price: 116782.47,
+//       current_price: 116813.69,
+//       deviation_percent: -0.03,
+//       accuracy_percent: 99.97,
+//       risk_reward_ratio: 0.08,
+//       sentiment_score: 41.33,
+//       confidence_50: [116686.77, 116878.164],
+//       confidence_80: [116490.4, 117074.54],
+//       confidence_90: [116344.86, 117220.08]
+//     }
+//   ],
+// }) => {
+//   const [selectedTimeframe, setSelectedTimeframe] = useState<'TODAY' | 'PAST_7D' | 'NEXT_3D'>('TODAY');
+//   const [selectedSubTimeframe, setSelectedSubTimeframe] = useState<'3D' | '7D'>('3D');
+//   const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>('BTC');
+//   const [tooltip, setTooltip] = useState<TooltipData>({ x: 0, y: 0, data: null, visible: false, type: 'chart' });
+//   const [isMobile, setIsMobile] = useState(false);
+//   const [candlestickData, setCandlestickData] = useState<CandlestickData[]>([]);
+//   const [currentPrice, setCurrentPrice] = useState<number>(0);
+//   const [isLoadingData, setIsLoadingData] = useState(true);
+//   const [dataSource, setDataSource] = useState<'real' | 'fallback'>('real');
+//   const svgRef = useRef<SVGSVGElement>(null);
+
+//   const [latest, setLatest] = useState<{
+//     deviation_percent?: number | string;
+//     overall_accuracy_percent?: number | string;
+//   } | null>(null);
+
+//   useEffect(() => {
+//     const mockLatest = {
+//       deviation_percent: 1.5,
+//       overall_accuracy_percent: 98.5
+//     };
+//     setLatest(mockLatest);
+//   }, []);
+
+//   useEffect(() => {
+//     const initializeRealData = async () => {
+//       setIsLoadingData(true);
+//       const realData = await fetchRealBitcoinData(setDataSource);
+//       setCandlestickData(realData);
+
+//       if (realData.length > 0) {
+//         setCurrentPrice(realData[realData.length - 1].close);
+//       }
+
+//       setIsLoadingData(false);
+//     };
+
+//     initializeRealData();
+//   }, []);
+
+//   useEffect(() => {
+//     const id = setInterval(async () => {
+//       try {
+//         const live = await fetchCurrentBitcoinPrice();
+//         setCurrentPrice(live);
+//       } catch {
+//         // swallow or log
+//       }
+//     }, 10_000);
+//     return () => clearInterval(id);
+//   }, []);
+
+//   // Mobile detection
+//   useEffect(() => {
+//     const checkMobile = () => {
+//       setIsMobile(window.innerWidth < 768);
+//     };
+
+//     checkMobile();
+//     window.addEventListener('resize', checkMobile);
+//     return () => window.removeEventListener('resize', checkMobile);
+//   }, []);
+
+//   // Get simplified date format (MM/DD)
+//   const getSimpleDate = (dateStr: string) => {
+//     const date = new Date(dateStr);
+//     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+//   };
+
+//   // Calculate risk/reward ratio
+//   const getRiskReward = (entry: number, stop: number, target: number, signal: 'LONG' | 'SHORT' = 'LONG') => {
+//     let risk: number;
+//     let reward: number;
+
+//     if (signal === 'LONG') {
+//       risk = entry - stop;
+//       reward = target - entry;
+//     } else {
+//       risk = stop - entry;
+//       reward = entry - target;
+//     }
+
+//     if (risk <= 0 || reward <= 0) {
+//       return '0.0';
+//     }
+
+//     return (reward / risk).toFixed(1);
+//   };
+
+//   // Calculate key levels based on current price and recent data
+//   const getKeyLevels = (price: number, recentData?: CandlestickData[]) => {
+//     if (!recentData || recentData.length === 0) {
+//       return {
+//         support: price * 0.996,
+//         resistance: price * 1.004,
+//         breakoutLevel: price * 1.002,
+//         invalidationLevel: price * 0.993
+//       };
+//     }
+
+//     // Calculate support/resistance from recent highs/lows
+//     const recentHighs = recentData.slice(-20).map(d => d.high);
+//     const recentLows = recentData.slice(-20).map(d => d.low);
+
+//     const resistance = Math.max(...recentHighs);
+//     const support = Math.min(...recentLows);
+//     const breakoutLevel = resistance * 1.001;
+//     const invalidationLevel = support * 0.999;
+
+//     return { support, resistance, breakoutLevel, invalidationLevel };
+//   };
+
+//   // Calculate market structure from actual price data
+//   const getMarketStructure = (currentPrice: number, recentData?: CandlestickData[], signal?: string) => {
+//     if (!recentData || recentData.length < 10) {
+//       return {
+//         trend: signal === 'LONG' ? 'Bullish' : signal === 'SHORT' ? 'Bearish' : 'Sideways',
+//         shortTermTrend: 'Insufficient Data',
+//         longTermTrend: 'Insufficient Data'
+//       };
+//     }
+
+//     // Short term trend (last 10 candles)
+//     const shortTermData = recentData.slice(-10);
+//     const shortTermStart = shortTermData[0].close;
+//     const shortTermEnd = shortTermData[shortTermData.length - 1].close;
+//     const shortTermChange = (shortTermEnd - shortTermStart) / shortTermStart;
+
+//     // Long term trend (last 30 candles)
+//     const longTermData = recentData.slice(-30);
+//     const longTermStart = longTermData[0].close;
+//     const longTermEnd = longTermData[longTermData.length - 1].close;
+//     const longTermChange = (longTermEnd - longTermStart) / longTermStart;
+
+//     const getTrendLabel = (change: number) => {
+//       if (change > 0.01) return 'Bullish';
+//       if (change < -0.01) return 'Bearish';
+//       return 'Sideways';
+//     };
+
+//     return {
+//       trend: signal === 'LONG' ? 'Bullish' : signal === 'SHORT' ? 'Bearish' : 'Sideways',
+//       shortTermTrend: getTrendLabel(shortTermChange),
+//       longTermTrend: getTrendLabel(longTermChange)
+//     };
+//   };
+
+//   // Calculate performance metrics from hourly forecast data
+//   const calculatePerformanceMetrics = (hourlyData?: HourlyForecast[]) => {
+//     if (!hourlyData || hourlyData.length === 0) {
+//       return {
+//         winRate: 0,
+//         avgGain: 0,
+//         avgLoss: 0,
+//         profitFactor: 0,
+//         winProbability: 0,
+//         maxDrawdown: 0
+//       };
+//     }
+
+//     const validData = hourlyData.filter(h =>
+//       h.accuracy_percent !== 'N/A' &&
+//       h.deviation_percent !== 'N/A' &&
+//       typeof h.accuracy_percent === 'number' &&
+//       typeof h.deviation_percent === 'number'
+//     );
+
+//     if (validData.length === 0) {
+//       return {
+//         winRate: 98.5, // fallback from latest data
+//         avgGain: 1.8,
+//         avgLoss: 0.9,
+//         profitFactor: 2.0,
+//         winProbability: 75,
+//         maxDrawdown: 2.1
+//       };
+//     }
+
+//     const accuracies = validData.map(h => Number(h.accuracy_percent));
+//     const deviations = validData.map(h => Number(h.deviation_percent));
+
+//     const winRate = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+
+//     const gains = deviations.filter(d => d > 0);
+//     const losses = deviations.filter(d => d < 0).map(d => Math.abs(d));
+
+//     const avgGain = gains.length > 0 ? gains.reduce((sum, g) => sum + g, 0) / gains.length : 0;
+//     const avgLoss = losses.length > 0 ? losses.reduce((sum, l) => sum + l, 0) / losses.length : 0;
+
+//     const profitFactor = avgLoss > 0 ? avgGain / avgLoss : 0;
+//     const winProbability = (gains.length / validData.length) * 100;
+//     const maxDrawdown = Math.max(...losses, 0);
+
+//     return {
+//       winRate: Math.round(winRate * 100) / 100,
+//       avgGain: Math.round(avgGain * 100) / 100,
+//       avgLoss: Math.round(avgLoss * 100) / 100,
+//       profitFactor: Math.round(profitFactor * 100) / 100,
+//       winProbability: Math.round(winProbability),
+//       maxDrawdown: Math.round(maxDrawdown * 100) / 100
+//     };
+//   };
+
+//   // Calculate position size based on volatility and risk
+//   const calculatePositionSize = (signal: string, riskReward: number, volatility: number) => {
+//     if (signal === 'HOLD') return 'Conservative (1-2%)';
+
+//     // Base position size on risk/reward and volatility
+//     if (riskReward > 2 && volatility < 0.02) return 'Aggressive (3-5%)';
+//     if (riskReward > 1.5 && volatility < 0.025) return 'Moderate (2-3%)';
+//     return 'Conservative (1-2%)';
+//   };
+
+//   // Calculate market volatility from recent data
+//   const calculateVolatility = (recentData?: CandlestickData[]) => {
+//     if (!recentData || recentData.length < 10) return 0.02; // default
+
+//     const returns = recentData.slice(-10).map((candle, i, arr) => {
+//       if (i === 0) return 0;
+//       return (candle.close - arr[i - 1].close) / arr[i - 1].close;
+//     }).slice(1);
+
+//     const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+//     const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
+
+//     return Math.sqrt(variance);
+//   };
+
+//   // Calculate market context from data
+//   const getMarketContext = (recentData?: CandlestickData[], sentimentScore?: number) => {
+//     if (!recentData || recentData.length === 0) {
+//       return {
+//         newsImpact: 'Unknown',
+//         technicalSetup: 'Unknown',
+//         volumeStatus: 'Unknown',
+//         correlation: 'Unknown'
+//       };
+//     }
+
+//     // Volume analysis
+//     const recentVolumes = recentData.slice(-10).map(d => d.volume);
+//     const avgVolume = recentVolumes.reduce((sum, v) => sum + v, 0) / recentVolumes.length;
+//     const currentVolume = recentData[recentData.length - 1]?.volume || 0;
+
+//     const volumeRatio = currentVolume / avgVolume;
+//     let volumeStatus = 'Average';
+//     if (volumeRatio > 1.2) volumeStatus = 'Above Average';
+//     if (volumeRatio < 0.8) volumeStatus = 'Below Average';
+
+//     // Technical setup based on price action
+//     const recent5 = recentData.slice(-5);
+//     const priceRange = Math.max(...recent5.map(d => d.high)) - Math.min(...recent5.map(d => d.low));
+//     const avgPrice = recent5.reduce((sum, d) => sum + d.close, 0) / recent5.length;
+//     const volatilityRatio = priceRange / avgPrice;
+
+//     let technicalSetup = 'Consolidation';
+//     if (volatilityRatio > 0.03) technicalSetup = 'Breakout Pending';
+//     if (volatilityRatio > 0.05) technicalSetup = 'High Volatility';
+
+//     // News impact based on sentiment score
+//     let newsImpact = 'Low';
+//     if (sentimentScore) {
+//       if (sentimentScore > 60 || sentimentScore < 20) newsImpact = 'High';
+//       else if (sentimentScore > 45 || sentimentScore < 35) newsImpact = 'Medium';
+//     }
+
+//     return {
+//       newsImpact,
+//       technicalSetup,
+//       volumeStatus,
+//       correlation: 'Following Crypto Market' // This would need external data to compute properly
+//     };
+//   };
+
+//   // Filter data based on selected timeframe
+//   const getFilteredData = () => {
+//     if (selectedTimeframe === 'TODAY') {
+//       return {
+//         historical: [],
+//         forecast: selectedSubTimeframe === '3D' ? forecast : [],
+//         showCandlesticks: true
+//       };
+//     } else if (selectedTimeframe === 'PAST_7D') {
+//       return {
+//         historical: priceHistory,
+//         forecast: [],
+//         showCandlesticks: false
+//       };
+//     } else {
+//       return {
+//         historical: [],
+//         forecast: forecast,
+//         showCandlesticks: false
+//       };
+//     }
+//   };
+
+//   const lastHourly = hourlyForecast && hourlyForecast.length > 0
+//     ? hourlyForecast[hourlyForecast.length - 1]
+//     : null;
+
+//   const { historical: displayPriceHistory, forecast: displayForecast, showCandlesticks } = getFilteredData();
+
+//   // Show/hide tooltip
+//   const showTooltip = (
+//     event: React.MouseEvent,
+//     data: any,
+//     type: 'chart' | 'info' = 'chart'
+//   ) => {
+//     if (!svgRef.current) return;
+
+//     // 1. grab the SVG’s position on screen
+//     const { left, top } = svgRef.current.getBoundingClientRect();
+
+//     // 2. compute cursor position inside the SVG
+//     const x = event.clientX - left;
+//     const y = event.clientY - top;
+
+//     setTooltip({ x, y, data, visible: true, type });
+//   };
+
+//   const hideTooltip = () => {
+//     setTooltip(prev => ({ ...prev, visible: false }));
+//   };
+
+//   // Tooltip content definitions
+//   const tooltipContent = {
+//     riskManagement: {
+//       title: "Risk Management",
+//       content: [
+//         "Risk vs Reward: Calculated as (Take Profit - Entry) ÷ (Entry - Stop Loss). Higher ratios indicate better risk-adjusted returns.",
+//         "Position Size: Recommended portfolio allocation based on volatility and R:R ratio. Conservative (1-2%), Moderate (2-3%), Aggressive (3-5%).",
+//         "Win Probability: Percentage of positive price deviations from historical hourly forecasts.",
+//         "Max Drawdown: Largest single loss percentage observed in recent trading signals."
+//       ]
+//     },
+//     performanceMetrics: {
+//       title: "Performance Metrics",
+//       content: [
+//         "Win Rate: Average accuracy percentage from the last 100 hourly predictions.",
+//         "Avg Gain: Mean percentage gain from all profitable prediction periods.",
+//         "Avg Loss: Mean percentage loss from all unprofitable prediction periods.",
+//         "Profit Factor: Ratio of average gains to average losses. Values above 2.0 indicate strong performance."
+//       ]
+//     },
+//     marketStructure: {
+//       title: "Market Structure & Key Levels",
+//       content: [
+//         "Trend Direction: Short-term (10 candles) vs Long-term (30 candles) price movement analysis.",
+//         "Key Pivot: Current price level acting as decision point for market direction.",
+//         "Next Resistance: Calculated from recent 20-period highs, where selling pressure may increase.",
+//         "Next Support: Calculated from recent 20-period lows, where buying interest typically emerges."
+//       ]
+//     }
+//   };
+
+//   // Create candlestick chart with future projections
+//   const createCandlestickChart = () => {
+//     if (!showCandlesticks || candlestickData.length === 0) {
+//       return null;
+//     }
+
+//     const width = isMobile ? 200 : 430;
+//     const chartHeight = isMobile ? 200 : 260;
+//     const volumeHeight = isMobile ? 50 : 70;
+//     const padding = isMobile ? 25 : 35;
+//     const topPadding = isMobile ? 25 : 35;
+//     const bottomPadding = isMobile ? 35 : 45;
+//     const height = chartHeight + volumeHeight + topPadding + bottomPadding + 20;
+
+//     const futureMinutes = 30;
+//     const lastTimestamp = candlestickData[candlestickData.length - 1]?.timestamp || Date.now();
+//     const futureTimeSlots = Array.from({ length: futureMinutes }, (_, i) =>
+//       lastTimestamp + ((i + 1) * 60000)
+//     );
+
+//     const totalDataPoints = candlestickData.length + futureTimeSlots.length;
+//     const candleWidth = Math.max(2, (width - 2 * padding) / totalDataPoints - 1);
+//     const xStep = (width - 2 * padding) / Math.max(totalDataPoints - 1, 1);
+
+//     const prices = candlestickData.flatMap(d => [d.open, d.high, d.low, d.close]);
+
+//     // Include hourly forecast confidence intervals in price range
+//     if (lastHourly) {
+//       prices.push(
+//         lastHourly.forecast_price,
+//         lastHourly.confidence_50[0], lastHourly.confidence_50[1],
+//         lastHourly.confidence_80[0], lastHourly.confidence_80[1],
+//         lastHourly.confidence_90[0], lastHourly.confidence_90[1]
+//       );
+
+//       if (displayEntry) prices.push(displayEntry);
+//       if (displayStopLoss) prices.push(displayStopLoss);
+//       if (displayTakeProfit) prices.push(displayTakeProfit);
+//     }
+
+//     // Add key levels to price range
+//     const keyLevels = getKeyLevels(currentPrice);
+//     prices.push(keyLevels.support, keyLevels.resistance, keyLevels.breakoutLevel, keyLevels.invalidationLevel);
+
+//     const minPrice = Math.min(...prices) * 0.998;
+//     const maxPrice = Math.max(...prices) * 1.002;
+//     const priceRange = maxPrice - minPrice;
+//     const maxVolume = Math.max(...candlestickData.map(d => d.volume));
+
+//     const getY = (price: number) => padding + (1 - (price - minPrice) / priceRange) * chartHeight;
+//     const getX = (index: number) => padding + index * xStep;
+//     const getVolumeY = (volume: number) => chartHeight + padding + 20 + (1 - volume / maxVolume) * volumeHeight;
+
+//     return (
+//       <svg
+//         ref={svgRef}
+//         width={width}
+//         height={height}
+//         className="w-full h-full"
+//         viewBox={`0 0 ${width} ${height}`}
+//       // onMouseLeave={hideTooltip}
+//       >
+//         {/* Price chart grid */}
+//         {[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((ratio, i) => (
+//           <line
+//             key={i}
+//             x1={padding}
+//             y1={padding + ratio * chartHeight}
+//             x2={width - padding}
+//             y2={padding + ratio * chartHeight}
+//             stroke="#1f2937"
+//             strokeWidth={1}
+//             opacity={i % 2 === 0 ? 0.3 : 0.15}
+//           />
+//         ))}
+
+//         {/* Key Support/Resistance Levels */}
+//         {(() => {
+//           const levels = getKeyLevels(currentPrice);
+//           return (
+//             <>
+//               {/* Support Line */}
+//               <line
+//                 x1={padding}
+//                 y1={getY(levels.support)}
+//                 x2={width - padding}
+//                 y2={getY(levels.support)}
+//                 stroke="#ef4444"
+//                 strokeWidth={2}
+//                 strokeDasharray="3,3"
+//                 opacity={0.7}
+//               />
+//               <text x={padding + 5} y={getY(levels.support) - 5} fill="#ef4444" fontSize="10" className="font-bold">
+//                 SUPPORT ${Math.round(levels.support).toLocaleString()}
+//               </text>
+
+//               {/* Resistance Line */}
+//               <line
+//                 x1={padding}
+//                 y1={getY(levels.resistance)}
+//                 x2={width - padding}
+//                 y2={getY(levels.resistance)}
+//                 stroke="#10b981"
+//                 strokeWidth={2}
+//                 strokeDasharray="3,3"
+//                 opacity={0.7}
+//               />
+//               <text x={padding + 5} y={getY(levels.resistance) + 15} fill="#10b981" fontSize="10" className="font-bold">
+//                 RESISTANCE ${Math.round(levels.resistance).toLocaleString()}
+//               </text>
+
+//               {/* Breakout Level */}
+//               <line
+//                 x1={padding}
+//                 y1={getY(levels.breakoutLevel)}
+//                 x2={width - padding}
+//                 y2={getY(levels.breakoutLevel)}
+//                 stroke="#8b5cf6"
+//                 strokeWidth={1}
+//                 strokeDasharray="6,2"
+//                 opacity={0.6}
+//               />
+//               <text x={width - padding - 5} y={getY(levels.breakoutLevel) - 5} fill="#8b5cf6" fontSize="9" textAnchor="end">
+//                 BREAKOUT ${Math.round(levels.breakoutLevel).toLocaleString()}
+//               </text>
+
+//               {/* Invalidation Level */}
+//               <line
+//                 x1={padding}
+//                 y1={getY(levels.invalidationLevel)}
+//                 x2={width - padding}
+//                 y2={getY(levels.invalidationLevel)}
+//                 stroke="#f59e0b"
+//                 strokeWidth={1}
+//                 strokeDasharray="6,2"
+//                 opacity={0.6}
+//               />
+//               <text x={width - padding - 5} y={getY(levels.invalidationLevel) + 15} fill="#f59e0b" fontSize="9" textAnchor="end">
+//                 INVALIDATION ${Math.round(levels.invalidationLevel).toLocaleString()}
+//               </text>
+//             </>
+//           );
+//         })()}
+
+//         {/* Vertical line to separate historical and forecast */}
+//         <line
+//           x1={getX(candlestickData.length - 1)}
+//           y1={padding}
+//           x2={getX(candlestickData.length - 1)}
+//           y2={chartHeight + padding}
+//           stroke="#374151"
+//           strokeWidth={2}
+//           strokeDasharray="5,5"
+//           opacity={0.6}
+//         />
+
+//         {/* Volume chart grid */}
+//         <line
+//           x1={padding}
+//           y1={chartHeight + padding + 20}
+//           x2={width - padding}
+//           y2={chartHeight + padding + 20}
+//           stroke="#1f2937"
+//           strokeWidth={1}
+//           opacity={0.5}
+//         />
+
+//         {/* Enhanced Confidence intervals using hourly forecast data */}
+//         {lastHourly && (
+//           <>
+//             {(() => {
+//               const startX = getX(candlestickData.length - 1);
+//               const endX = width - padding;
+//               const currentPrice = candlestickData[candlestickData.length - 1]?.close || lastHourly.forecast_price;
+
+//               const createFutureConfidencePath = (upperBound: number, lowerBound: number) => {
+//                 const startY = getY(currentPrice);
+//                 const midX = startX + (endX - startX) * 0.3;
+//                 const endUpperY = getY(upperBound);
+//                 const endLowerY = getY(lowerBound);
+
+//                 return `
+//                   M ${startX},${startY}
+//                   Q ${midX},${startY} ${midX + 20},${(endUpperY + endLowerY) / 2}
+//                   L ${endX},${endUpperY}
+//                   L ${endX},${endLowerY}
+//                   Q ${midX},${(endUpperY + endLowerY) / 2} ${startX},${startY}
+//                   Z
+//                 `;
+//               };
+
+//               return (
+//                 <>
+//                   {/* 90% High Confidence Range */}
+//                   <path
+//                     d={createFutureConfidencePath(
+//                       lastHourly.confidence_90[1],
+//                       lastHourly.confidence_90[0]
+//                     )}
+//                     fill="#22c55e"
+//                     fillOpacity={0.1}
+//                     stroke="#22c55e"
+//                     strokeOpacity={0.3}
+//                     strokeWidth={1}
+//                   />
+
+//                   {/* 80% Medium Confidence Range */}
+//                   <path
+//                     d={createFutureConfidencePath(
+//                       lastHourly.confidence_80[1],
+//                       lastHourly.confidence_80[0]
+//                     )}
+//                     fill="#f59e0b"
+//                     fillOpacity={0.15}
+//                     stroke="#f59e0b"
+//                     strokeOpacity={0.4}
+//                     strokeWidth={1}
+//                   />
+
+//                   {/* 50% Low Confidence Range */}
+//                   <path
+//                     d={createFutureConfidencePath(
+//                       lastHourly.confidence_50[1],
+//                       lastHourly.confidence_50[0]
+//                     )}
+//                     fill="#3b82f6"
+//                     fillOpacity={0.2}
+//                     stroke="#3b82f6"
+//                     strokeOpacity={0.5}
+//                     strokeWidth={2}
+//                   />
+//                 </>
+//               );
+//             })()}
+
+//             {/* Trading lines for hourly forecast */}
+//             {displayEntry && (
+//               <line
+//                 x1={getX(candlestickData.length - 1)}
+//                 y1={getY(displayEntry)}
+//                 x2={width - padding}
+//                 y2={getY(displayEntry)}
+//                 stroke="#10b981"
+//                 strokeWidth={2}
+//                 strokeDasharray="8,4"
+//                 opacity={0.8}
+//               />
+//             )}
+
+//             {displayStopLoss && (
+//               <line
+//                 x1={getX(candlestickData.length - 1)}
+//                 y1={getY(displayStopLoss)}
+//                 x2={width - padding}
+//                 y2={getY(displayStopLoss)}
+//                 stroke="#ef4444"
+//                 strokeWidth={2}
+//                 strokeDasharray="8,4"
+//                 opacity={0.8}
+//               />
+//             )}
+
+//             {displayTakeProfit && (
+//               <line
+//                 x1={getX(candlestickData.length - 1)}
+//                 y1={getY(displayTakeProfit)}
+//                 x2={width - padding}
+//                 y2={getY(displayTakeProfit)}
+//                 stroke="#8b5cf6"
+//                 strokeWidth={2}
+//                 strokeDasharray="8,4"
+//                 opacity={0.8}
+//               />
+//             )}
+
+//             {/* Price Target Probability Line */}
+//             <line
+//               x1={getX(candlestickData.length - 1)}
+//               y1={getY(lastHourly.forecast_price)}
+//               x2={width - padding}
+//               y2={getY(lastHourly.forecast_price)}
+//               stroke="#fbbf24"
+//               strokeWidth={3}
+//               strokeDasharray="12,6"
+//               opacity={0.9}
+//             />
+
+//             {/* Enhanced Labels */}
+//             {displayEntry && (
+//               <text x={width - padding - 5} y={getY(displayEntry) - 5} fill="#10b981" fontSize="10" textAnchor="end" className="font-bold">
+//                 ENTRY ZONE ${displayEntry.toLocaleString()}
+//               </text>
+//             )}
+//             {displayTakeProfit && (
+//               <text x={width - padding - 5} y={getY(displayTakeProfit) - 5} fill="#8b5cf6" fontSize="10" textAnchor="end" className="font-bold">
+//                 TAKE PROFIT ${displayTakeProfit.toLocaleString()}
+//               </text>
+//             )}
+//             {displayStopLoss && (
+//               <text x={width - padding - 5} y={getY(displayStopLoss) + 15} fill="#ef4444" fontSize="10" textAnchor="end" className="font-bold">
+//                 STOP LOSS ${displayStopLoss.toLocaleString()}
+//               </text>
+//             )}
+//             <text x={width - padding - 5} y={getY(lastHourly.forecast_price) - 5} fill="#fbbf24" fontSize="10" textAnchor="end" className="font-bold">
+//               PRICE TARGET ${lastHourly.forecast_price.toLocaleString()}
+//             </text>
+//           </>
+//         )}
+
+//         {/* Candlesticks */}
+//         {candlestickData.map((candle, i) => {
+//           const x = getX(i);
+//           const openY = getY(candle.open);
+//           const closeY = getY(candle.close);
+//           const highY = getY(candle.high);
+//           const lowY = getY(candle.low);
+
+//           const isGreen = candle.close > candle.open;
+//           const bodyHeight = Math.abs(closeY - openY);
+//           const bodyY = Math.min(openY, closeY);
+
+//           return (
+//             <g key={i}>
+//               <line
+//                 x1={x}
+//                 y1={highY}
+//                 x2={x}
+//                 y2={lowY}
+//                 stroke={isGreen ? "#10b981" : "#ef4444"}
+//                 strokeWidth={1}
+//               />
+
+//               <rect
+//                 x={x - candleWidth / 2}
+//                 y={bodyY}
+//                 width={candleWidth}
+//                 height={Math.max(bodyHeight, 1)}
+//                 fill={isGreen ? "#10b981" : "#ef4444"}
+//                 stroke={isGreen ? "#10b981" : "#ef4444"}
+//                 style={{ cursor: 'pointer' }}
+//                 onMouseEnter={(e) => showTooltip(e, { ...candle, type: 'candlestick' }, 'chart')}
+//               />
+
+//               <rect
+//                 x={x - candleWidth / 2}
+//                 y={getVolumeY(candle.volume)}
+//                 width={candleWidth}
+//                 height={(candle.volume / maxVolume) * volumeHeight}
+//                 fill={isGreen ? "#10b981" : "#ef4444"}
+//                 opacity={0.6}
+//                 style={{ cursor: 'pointer' }}
+//                 onMouseEnter={(e) => showTooltip(e, { ...candle, type: 'volume' }, 'chart')}
+//               />
+//             </g>
+//           );
+//         })}
+
+//         {/* Current price indicator */}
+//         <line
+//           x1={padding}
+//           y1={getY(currentPrice)}
+//           x2={getX(candlestickData.length - 1)}
+//           y2={getY(currentPrice)}
+//           stroke="#fbbf24"
+//           strokeWidth={2}
+//           opacity={0.9}
+//         />
+
+//         {currentPrice != null ? (
+//           <text
+//             x={getX(candlestickData.length - 1) - 5}
+//             y={getY(currentPrice) - 5}
+//             fill="#fbbf24"
+//             fontSize="12"
+//             textAnchor="end"
+//             className="font-bold"
+//           >
+//             LIVE ${currentPrice.toLocaleString()}
+//           </text>
+//         ) : (
+//           <text
+//             x={getX(candlestickData.length - 1) - 5}
+//             y={padding - 5}
+//             fill="#fbbf24"
+//             fontSize="10"
+//             textAnchor="end"
+//           >
+//             Loading…
+//           </text>
+//         )}
+
+//         {/* Price labels */}
+//         {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+//           const price = minPrice + (maxPrice - minPrice) * (1 - ratio);
+//           return (
+//             <text key={i} x={padding - 5} y={padding + ratio * chartHeight + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
+//               ${Math.round(price).toLocaleString()}
+//             </text>
+//           );
+//         })}
+
+//         {/* Volume label */}
+//         <text x={padding - 5} y={chartHeight + padding + 35} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="end">
+//           Volume
+//         </text>
+
+//         {/* Time labels */}
+//         {candlestickData.length > 1 && (
+//           <>
+//             <text x={padding} y={height - 10} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+//               {new Date(candlestickData[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+//             </text>
+//             <text x={getX(candlestickData.length - 1)} y={height - 10} fill="#fbbf24" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+//               NOW
+//             </text>
+//             <text x={width - padding} y={height - 10} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+//               +30min
+//             </text>
+//           </>
+//         )}
+
+//         {/* Enhanced Legend for confidence zones */}
+//         <g>
+//           <text x={padding + 10} y={padding + 20} fill="#9ca3af" fontSize="10" className="font-bold">
+//             Price Probability Ranges:
+//           </text>
+//           <rect x={padding + 10} y={padding + 25} width={12} height={8} fill="#3b82f6" fillOpacity={0.2} stroke="#3b82f6" strokeOpacity={0.5} strokeWidth={1} />
+//           <text x={padding + 25} y={padding + 32} fill="#3b82f6" fontSize="8">50% CONFIDENCE</text>
+
+//           <rect x={padding + 120} y={padding + 25} width={12} height={8} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeOpacity={0.4} strokeWidth={1} />
+//           <text x={padding + 135} y={padding + 32} fill="#f59e0b" fontSize="8">80% CONFIDENCE</text>
+
+//           <rect x={padding + 230} y={padding + 25} width={12} height={8} fill="#22c55e" fillOpacity={0.1} stroke="#22c55e" strokeOpacity={0.3} strokeWidth={1} />
+//           <text x={padding + 245} y={padding + 32} fill="#22c55e" fontSize="8">90% CONFIDENCE</text>
+//         </g>
+//       </svg>
+//     );
+//   };
+
+//   // Create regular SVG chart for non-today views
+//   const createSVGChart = () => {
+//     const isToday = selectedTimeframe === 'TODAY';
+
+//     if (showCandlesticks) {
+//       return createCandlestickChart();
+//     }
+
+//     const allData = [
+//       ...displayPriceHistory.map(item => ({ ...item, type: 'historical' })),
+//       ...displayForecast.map(item => ({ ...item, price: item.entry, type: 'forecast' }))
+//     ];
+
+//     if (allData.length === 0) {
+//       return (
+//         <div className="flex items-center justify-center h-full text-gray-400">
+//           No data available for selected timeframe
+//         </div>
+//       );
+//     }
+
+//     const allPrices = [
+//       ...allData.map(item => item.price),
+//       ...displayForecast.flatMap(item => [
+//         item.confidence_intervals[90][0],
+//         item.confidence_intervals[90][1],
+//         item.stop_loss,
+//         item.take_profit
+//       ])
+//     ];
+
+//     const minPrice = Math.min(...allPrices) * 0.995;
+//     const maxPrice = Math.max(...allPrices) * 1.005;
+//     const priceRange = maxPrice - minPrice;
+
+//     const width = isMobile ? 350 : 500;
+//     const height = isMobile ? 200 : 300;
+//     const padding = isMobile ? 30 : 50;
+
+//     const xStep = (width - 2 * padding) / Math.max(allData.length - 1, 1);
+
+//     const getY = (price: number) => padding + (1 - (price - minPrice) / priceRange) * (height - 2 * padding);
+//     const getX = (index: number) => padding + index * xStep;
+
+//     return (
+//       <svg
+//         ref={svgRef}
+//         width={width}
+//         height={height}
+//         className="w-full h-full"
+//         viewBox={`0 0 ${width} ${height}`}
+//       // onMouseLeave={hideTooltip}
+//       >
+//         {/* Grid lines */}
+//         {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+//           <line
+//             key={i}
+//             x1={padding}
+//             y1={padding + ratio * (height - 2 * padding)}
+//             x2={width - padding}
+//             y2={padding + ratio * (height - 2 * padding)}
+//             stroke="#1f2937"
+//             strokeWidth={1}
+//             opacity={0.3}
+//           />
+//         ))}
+
+//         {/* Price lines */}
+//         {displayPriceHistory.length > 0 && (
+//           <polyline
+//             points={displayPriceHistory.map((item, i) => {
+//               const x = getX(i);
+//               const y = getY(item.price);
+//               return `${x},${y}`;
+//             }).join(' ')}
+//             fill="none"
+//             stroke="#3b82f6"
+//             strokeWidth={isMobile ? 2 : 3}
+//           />
+//         )}
+
+//         {displayForecast.length > 0 && (
+//           <polyline
+//             points={displayForecast.map((item, i) => {
+//               const x = getX(displayPriceHistory.length + i);
+//               const y = getY(item.entry);
+//               return `${x},${y}`;
+//             }).join(' ')}
+//             fill="none"
+//             stroke="#10b981"
+//             strokeWidth={isMobile ? 2 : 3}
+//             strokeDasharray="8,4"
+//           />
+//         )}
+
+//         {/* Data points */}
+//         {displayPriceHistory.map((item, i) => {
+//           const x = getX(i);
+//           const y = getY(item.price);
+//           return (
+//             <circle
+//               key={i}
+//               cx={x}
+//               cy={y}
+//               r={isMobile ? 3 : 4}
+//               fill="#3b82f6"
+//               stroke="#0a1628"
+//               strokeWidth={isMobile ? 1 : 2}
+//               style={{ cursor: 'pointer' }}
+//               onMouseEnter={(e) => showTooltip(e, { ...item, type: 'historical' }, 'chart')}
+//             />
+//           );
+//         })}
+
+//         {displayForecast.map((item, i) => {
+//           const x = getX(displayPriceHistory.length + i);
+//           const y = getY(item.entry);
+//           const radius = isMobile ? 4 : 5;
+//           const arrowSize = isMobile ? 8 : 12;
+//           return (
+//             <g key={i}>
+//               <circle
+//                 cx={x}
+//                 cy={y}
+//                 r={radius}
+//                 fill={item.signal === 'LONG' ? '#10b981' : '#ef4444'}
+//                 stroke="#0a1628"
+//                 strokeWidth={isMobile ? 1 : 2}
+//                 style={{ cursor: 'pointer' }}
+//                 onMouseEnter={(e) => showTooltip(e, { ...item, type: 'forecast' }, 'chart')}
+//               />
+//               <polygon
+//                 points={item.signal === 'LONG'
+//                   ? `${x},${y - arrowSize} ${x - arrowSize / 2},${y - arrowSize / 2} ${x + arrowSize / 2},${y - arrowSize / 2}`
+//                   : `${x},${y + arrowSize} ${x - arrowSize / 2},${y + arrowSize / 2} ${x + arrowSize / 2},${y + arrowSize / 2}`
+//                 }
+//                 fill={item.signal === 'LONG' ? '#10b981' : '#ef4444'}
+//                 style={{ cursor: 'pointer' }}
+//                 onMouseEnter={(e) => showTooltip(e, { ...item, type: 'forecast' }, 'chart')}
+//               />
+//             </g>
+//           );
+//         })}
+
+//         {/* Price labels */}
+//         <text x={padding - 5} y={padding + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
+//           ${Math.round(maxPrice).toLocaleString()}
+//         </text>
+//         <text x={padding - 5} y={height - padding + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
+//           ${Math.round(minPrice).toLocaleString()}
+//         </text>
+//         <text x={padding - 5} y={padding + (height - 2 * padding) / 2} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
+//           ${Math.round((maxPrice + minPrice) / 2).toLocaleString()}
+//         </text>
+
+//         {/* Date labels */}
+//         {allData.length > 1 && (
+//           <>
+//             <text x={padding} y={height - padding + 15} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+//               {getSimpleDate(allData[0]?.date)}
+//             </text>
+//             <text x={width - padding} y={height - padding + 15} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+//               {getSimpleDate(allData[allData.length - 1]?.date)}
+//             </text>
+//           </>
+//         )}
+//       </svg>
+//     );
+//   };
+
+//   if (!latest) {
+//     return (
+//       <div className="p-4 text-gray-400">
+//         Loading data...
+//       </div>
+//     );
+//   }
+
+//   const firstForecast = latest;
+//   const firstForecasts = displayForecast[0] || forecast[0];
+
+//   // Use hourly forecast data or fallback to forecast data
+//   const displaySignal = lastHourly?.signal || firstForecasts?.signal || 'HOLD';
+//   const displayEntry = lastHourly?.entry_price || firstForecasts?.entry;
+//   const displayTakeProfit = lastHourly?.take_profit || firstForecasts?.take_profit;
+//   const displayStopLoss = lastHourly?.stop_loss || firstForecasts?.stop_loss;
+//   const performanceMetrics = calculatePerformanceMetrics(hourlyForecast);
+
+//   const formattedAccuracy = lastHourly?.accuracy_percent && lastHourly.accuracy_percent !== 'N/A'
+//     ? `${lastHourly.accuracy_percent}%`
+//     : firstForecast?.overall_accuracy_percent
+//       ? `${firstForecast.overall_accuracy_percent}%`
+//       : `${performanceMetrics.winRate}%`;
+
+//   const formattedDeviation = lastHourly?.deviation_percent && lastHourly.deviation_percent !== 'N/A'
+//     ? `${lastHourly.deviation_percent}%`
+//     : firstForecast?.deviation_percent
+//       ? `+${firstForecast.deviation_percent}%`
+//       : '+1.50%';
+
+//   // Calculate market structure
+//   const marketStructure = getMarketStructure(currentPrice, candlestickData, displaySignal);
+//   const keyLevels = getKeyLevels(currentPrice, candlestickData);
+//   const volatility = calculateVolatility(candlestickData);
+//   const marketContext = getMarketContext(candlestickData, lastHourly?.sentiment_score || 30);
+
+//   // Calculate position size recommendation
+//   const riskRewardValue = lastHourly?.risk_reward_ratio ||
+//     (displayEntry && displayStopLoss && displayTakeProfit ?
+//       parseFloat(getRiskReward(displayEntry, displayStopLoss, displayTakeProfit)) : 1.5);
+
+//   const positionSize = calculatePositionSize(displaySignal, riskRewardValue, volatility);
+
+//   return (
+//     <div className={`bg-[#0a1628] rounded-lg p-4 ${className}`}>
+//       {/* Controls Section */}
+//       <div className="flex justify-between items-center mb-4">
+//         <select
+//           value={selectedAsset}
+//           onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'SOL' | 'ETH')}
+//           className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+//         >
+//           <option value="BTC">BTC</option>
+//           <option value="SOL" disabled>SOL (Soon)</option>
+//           <option value="ETH" disabled>ETH (Soon)</option>
+//         </select>
+
+//         <SegmentedControl
+//           options={[
+//             { value: 'TODAY', label: 'Today' },
+//           ]}
+//           selected={selectedTimeframe}
+//           onChange={(value) => setSelectedTimeframe(value as 'TODAY')}
+//         />
+//       </div>
+
+//       {/* Enhanced Key Metrics */}
+//       <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4 mb-4`}>
+//         {/* Trading Signal Panel */}
+//         <div className={`bg-[#1a2332] rounded-lg p-4 border-l-4 ${displaySignal === 'LONG' ? 'border-green-500' :
+//           displaySignal === 'SHORT' ? 'border-red-500' :
+//             'border-yellow-500'
+//           }`}>
+//           <div className="flex justify-between items-start mb-2">
+//             <span className="text-gray-400 text-sm">TRADING SIGNAL</span>
+//             <span className={`font-bold text-lg ${displaySignal === 'LONG' ? 'text-green-400' :
+//               displaySignal === 'SHORT' ? 'text-red-400' :
+//                 'text-yellow-400'
+//               }`}>
+//               {displaySignal}
+//             </span>
+//           </div>
+
+//           <div className="space-y-1">
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Entry Zone:</span>
+//               <span className="text-white font-medium">
+//                 {displayEntry ? `${(displayEntry * 0.999).toLocaleString()} - ${(displayEntry * 1.001).toLocaleString()}` : 'N/A'}
+//               </span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Take Profit:</span>
+//               <span className="text-green-400">
+//                 {displayTakeProfit ? `${displayTakeProfit.toLocaleString()} (+${((displayTakeProfit / (displayEntry || 1) - 1) * 100).toFixed(1)}%)` : 'N/A'}
+//               </span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Stop Loss:</span>
+//               <span className="text-red-400">
+//                 {displayStopLoss ? `${displayStopLoss.toLocaleString()} (-${((1 - displayStopLoss / (displayEntry || 1)) * 100).toFixed(1)}%)` : 'N/A'}
+//               </span>
+//             </div>
+//           </div>
+
+//           <div className="mb-1 mt-5 p-2 bg-gray-800/50 rounded text-[9px] text-gray-500">
+//             <strong>Note:</strong> Position parameters display as N/A during HOLD signals.
+//             Specific entry zones, profit targets, and stop levels are provided for actionable LONG/SHORT signals.
+//           </div>
+//         </div>
+
+//         {/* Enhanced Risk Analysis */}
+//         <div className="bg-[#1a2332] rounded-lg p-4">
+//           <div
+//             className="text-gray-400 text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
+//             onMouseEnter={(e) => showTooltip(e, tooltipContent.riskManagement, 'info')}
+//             onMouseLeave={hideTooltip}
+//           >
+//             <span>Risk Management</span>
+//             <span className="text-xs">ⓘ</span>
+//           </div>
+//           <div className="space-y-2">
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Risk vs Reward:</span>
+//               <span className="text-blue-400 font-bold">
+//                 {lastHourly?.risk_reward_ratio ?
+//                   `1:${lastHourly.risk_reward_ratio.toFixed(1)}` :
+//                   displayEntry && displayStopLoss && displayTakeProfit ?
+//                     `1:${getRiskReward(displayEntry, displayStopLoss, displayTakeProfit)}` :
+//                     '1:1.5'
+//                 }
+//               </span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Position Size:</span>
+//               <span className="text-green-400">{positionSize}</span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Win Probability:</span>
+//               <span className="text-blue-400">{performanceMetrics.winProbability}%</span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Max Drawdown:</span>
+//               <span className="text-yellow-400">-{performanceMetrics.maxDrawdown}%</span>
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Enhanced Performance Panel */}
+//         <div className="bg-[#1a2332] rounded-lg p-4">
+//           <div
+//             className="text-gray-400 text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
+//             onMouseEnter={(e) => showTooltip(e, tooltipContent.performanceMetrics, 'info')}
+//             onMouseLeave={hideTooltip}
+//           >
+//             <span>Performance Metrics</span>
+//             <span className="text-xs">ⓘ</span>
+//           </div>
+//           <div className="space-y-2">
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Win Rate (Last 100):</span>
+//               <span className="text-green-400">
+//                 {formattedAccuracy}
+//               </span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Avg Gain:</span>
+//               <span className="text-green-400">+{performanceMetrics.avgGain}%</span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Avg Loss:</span>
+//               <span className="text-red-400">-{performanceMetrics.avgLoss}%</span>
+//             </div>
+//             <div className="flex justify-between text-sm">
+//               <span className="text-gray-400">Profit Factor:</span>
+//               <span className="text-blue-400">{performanceMetrics.profitFactor}x</span>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Market Structure Panel */}
+//       <div className="bg-[#1a2332] rounded-lg p-4 mb-4">
+//         <div
+//           className="text-gray-400 text-sm mb-3 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
+//           onMouseEnter={(e) => showTooltip(e, tooltipContent.marketStructure, 'info')}
+//           onMouseLeave={hideTooltip}
+//         >
+//           <span>Market Structure & Key Levels</span>
+//           <span className="text-xs">ⓘ</span>
+//         </div>
+//         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-4`}>
+//           <div>
+//             <div className="text-xs text-gray-400">Trend Direction</div>
+//             <div className={`text-sm font-medium ${marketStructure.trend === 'Bullish' ? 'text-green-400' :
+//               marketStructure.trend === 'Bearish' ? 'text-red-400' :
+//                 'text-yellow-400'
+//               }`}>
+//               {marketStructure.shortTermTrend} / {marketStructure.longTermTrend}
+//             </div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Key Pivot</div>
+//             <div className="text-sm font-medium text-white">${Math.round(currentPrice).toLocaleString()}</div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Next Resistance</div>
+//             <div className="text-sm font-medium text-green-400">${Math.round(keyLevels.resistance).toLocaleString()}</div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Next Support</div>
+//             <div className="text-sm font-medium text-red-400">${Math.round(keyLevels.support).toLocaleString()}</div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Chart Container */}
+//       <div className="w-full bg-[#1a2332] rounded-lg p-2 mb-4 relative"
+//         style={{ height: selectedTimeframe === 'TODAY' ? (isMobile ? '320px' : '420px') : (isMobile ? '180px' : '220px') }}
+//         onMouseLeave={hideTooltip}
+//       >
+//         {createSVGChart()}
+
+//         {/* Enhanced Tooltip */}
+//         {tooltip.visible && tooltip.data && (
+//           <div
+//             className={`absolute ${tooltip.type === 'info' ? 'bg-gray-800' : 'bg-gray-900'} border border-gray-600 rounded-lg p-3 text-white shadow-xl z-50 ${isMobile ? 'text-xs' : 'text-sm'
+//               } ${tooltip.type === 'info' ? 'max-w-md' : 'min-w-48'}`}
+//             style={{
+//               left: tooltip.x + 10,
+//               top: tooltip.y - 10,
+//               transform: tooltip.x > (isMobile ? 200 : 300) ? 'translateX(-100%)' : 'none'
+//             }}
+//           >
+//             {tooltip.type === 'info' ? (
+//               // Info tooltip content
+//               <div className="space-y-2">
+//                 <div className="font-bold text-blue-400 border-b border-gray-600 pb-1">
+//                   {tooltip.data.title}
+//                 </div>
+//                 <div className="space-y-2">
+//                   {tooltip.data.content.map((item: string, index: number) => (
+//                     <div key={index} className="text-sm leading-relaxed">
+//                       <span className="font-medium text-gray-300">
+//                         {item.split(':')[0]}:
+//                       </span>
+//                       <span className="text-gray-400 ml-1">
+//                         {item.split(':').slice(1).join(':')}
+//                       </span>
+//                     </div>
+//                   ))}
+//                 </div>
+//               </div>
+//             ) : (
+//               // Chart tooltip content
+//               <div className="space-y-2">
+//                 {tooltip.data.type === 'candlestick' && (
+//                   <>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Time:</span>
+//                       <span>{new Date(tooltip.data.timestamp).toLocaleTimeString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">OHLC:</span>
+//                       <span>
+//                         ${Math.round(tooltip.data.open).toLocaleString()} /
+//                         ${Math.round(tooltip.data.high).toLocaleString()} /
+//                         ${Math.round(tooltip.data.low).toLocaleString()} /
+//                         ${Math.round(tooltip.data.close).toLocaleString()}
+//                       </span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Change:</span>
+//                       <span className={tooltip.data.close > tooltip.data.open ? 'text-green-400' : 'text-red-400'}>
+//                         {((tooltip.data.close / tooltip.data.open - 1) * 100).toFixed(2)}%
+//                       </span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Volume:</span>
+//                       <span>{(tooltip.data.volume / 1000).toFixed(0)}K</span>
+//                     </div>
+//                   </>
+//                 )}
+
+//                 {tooltip.data.type === 'volume' && (
+//                   <>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Time:</span>
+//                       <span>{new Date(tooltip.data.timestamp).toLocaleTimeString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Volume:</span>
+//                       <span>{Math.round(tooltip.data.volume).toLocaleString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Price:</span>
+//                       <span>${Math.round(tooltip.data.close).toLocaleString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Volume Type:</span>
+//                       <span className={tooltip.data.close > tooltip.data.open ? 'text-green-400' : 'text-red-400'}>
+//                         {tooltip.data.close > tooltip.data.open ? 'Buying Pressure' : 'Selling Pressure'}
+//                       </span>
+//                     </div>
+//                   </>
+//                 )}
+
+//                 {tooltip.data.type === 'historical' && (
+//                   <>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Date:</span>
+//                       <span>{getSimpleDate(tooltip.data.date)}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Price:</span>
+//                       <span>${Math.round(tooltip.data.price).toLocaleString()}</span>
+//                     </div>
+//                   </>
+//                 )}
+
+//                 {tooltip.data.type === 'forecast' && (
+//                   <>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Date:</span>
+//                       <span>{getSimpleDate(tooltip.data.date)}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Signal:</span>
+//                       <span className={tooltip.data.signal === 'LONG' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
+//                         {tooltip.data.signal}
+//                       </span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Entry:</span>
+//                       <span>${Math.round(tooltip.data.entry).toLocaleString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Stop:</span>
+//                       <span className="text-red-400">${Math.round(tooltip.data.stop_loss).toLocaleString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">Target:</span>
+//                       <span className="text-green-400">${Math.round(tooltip.data.take_profit).toLocaleString()}</span>
+//                     </div>
+//                     <div className="flex justify-between">
+//                       <span className="text-gray-400">R:R Ratio:</span>
+//                       <span className="text-blue-400">1:{getRiskReward(tooltip.data.entry, tooltip.data.stop_loss, tooltip.data.take_profit)}</span>
+//                     </div>
+//                   </>
+//                 )}
+//               </div>
+//             )}
+//           </div>
+//         )}
+//       </div>
+
+//       {/* Enhanced Legend */}
+//       <div className="mb-4">
+//         <div className={`flex flex-wrap gap-x-6 gap-y-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-0.5 bg-yellow-500"></div>
+//             <span className="text-gray-400 whitespace-nowrap">Live Price</span>
+//           </div>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-2 bg-blue-500" style={{ opacity: 0.3 }}></div>
+//             <span className="text-gray-400 whitespace-nowrap">50% Confidence</span>
+//           </div>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-2 bg-yellow-600" style={{ opacity: 0.3 }}></div>
+//             <span className="text-gray-400 whitespace-nowrap">80% Confidence</span>
+//           </div>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-2 bg-green-500" style={{ opacity: 0.3 }}></div>
+//             <span className="text-gray-400 whitespace-nowrap">90% Confidence</span>
+//           </div>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-0.5 bg-red-500" style={{ backgroundImage: 'repeating-linear-gradient(to right, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)' }}></div>
+//             <span className="text-gray-400 whitespace-nowrap">Support/Resistance</span>
+//           </div>
+//           <div className="flex items-center space-x-2">
+//             <div className="w-4 h-0.5 bg-purple-600" style={{ backgroundImage: 'repeating-linear-gradient(to right, #7c3aed 0, #7c3aed 4px, transparent 4px, transparent 6px)' }}></div>
+//             <span className="text-gray-400 whitespace-nowrap">Key Levels</span>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Market Context Panel */}
+//       <div className="bg-[#1a2332] rounded-lg p-4">
+//         <div className="text-gray-400 text-sm mb-3">Market Context & Catalysts</div>
+//         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-4 text-sm`}>
+//           <div>
+//             <div className="text-xs text-gray-400">News Impact</div>
+//             <div className="text-white">{marketContext.newsImpact}</div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Technical Setup</div>
+//             <div className="text-white">{marketContext.technicalSetup}</div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Volume</div>
+//             <div className={`${marketContext.volumeStatus === 'Above Average' ? 'text-green-400' :
+//               marketContext.volumeStatus === 'Below Average' ? 'text-red-400' : 'text-yellow-400'
+//               }`}>{marketContext.volumeStatus}</div>
+//           </div>
+//           <div>
+//             <div className="text-xs text-gray-400">Correlation</div>
+//             <div className="text-white">{marketContext.correlation}</div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default PriceChart;
+
 import React, { useState, useRef, useEffect } from 'react';
 
 interface HourlyForecast {
@@ -2161,7 +3796,7 @@ const SegmentedControl = ({
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
-          className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md transition-all duration-200 ${selected === option.value
+          className={`px-3 py-2 text-sm rounded-md transition-all duration-200 whitespace-nowrap ${selected === option.value
             ? 'bg-blue-600 text-white shadow-md'
             : 'text-gray-400 hover:text-white hover:bg-[#2a3441]'
             }`}
@@ -2210,7 +3845,7 @@ const fetchCurrentBitcoinPrice = async (): Promise<number> => {
 // Fallback data generator
 const generateFallbackData = (): CandlestickData[] => {
   const data: CandlestickData[] = [];
-  let currentPrice = 121008;
+  let currentPrice = 117065;
   const now = Date.now();
 
   for (let i = 59; i >= 0; i--) {
@@ -2235,7 +3870,7 @@ const generateFallbackData = (): CandlestickData[] => {
       volume
     });
 
-    currentPrice = close + (122306 - 121008) / 60;
+    currentPrice = close + (117065 - 117065) / 60;
   }
 
   return data;
@@ -2300,56 +3935,29 @@ const PriceChart: React.FC<PriceChartProps> = ({
       confidence_50: [116390.73, 116706.37],
       confidence_80: [116281.36, 116815.734],
       confidence_90: [116030.195, 117066.9]
-    },
-    {
-      time: "2025-07-15T09:00:00+00:00",
-      signal: "HOLD" as const,
-      entry_price: null,
-      stop_loss: null,
-      take_profit: null,
-      forecast_price: 116705.53,
-      current_price: 116788.51,
-      deviation_percent: -0.07,
-      accuracy_percent: 99.93,
-      risk_reward_ratio: 0.21,
-      sentiment_score: 43.16,
-      confidence_50: [116539, 116872.06],
-      confidence_80: [116475.63, 116935.43],
-      confidence_90: [116293.57, 117117.49]
-    },
-    {
-      time: "2025-07-15T10:00:00+00:00",
-      signal: "HOLD" as const,
-      entry_price: null,
-      stop_loss: null,
-      take_profit: null,
-      forecast_price: 116782.47,
-      current_price: 116813.69,
-      deviation_percent: -0.03,
-      accuracy_percent: 99.97,
-      risk_reward_ratio: 0.08,
-      sentiment_score: 41.33,
-      confidence_50: [116686.77, 116878.164],
-      confidence_80: [116490.4, 117074.54],
-      confidence_90: [116344.86, 117220.08]
     }
   ],
 }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'TODAY' | 'PAST_7D' | 'NEXT_3D'>('TODAY');
-  const [selectedSubTimeframe, setSelectedSubTimeframe] = useState<'3D' | '7D'>('3D');
   const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>('BTC');
   const [tooltip, setTooltip] = useState<TooltipData>({ x: 0, y: 0, data: null, visible: false, type: 'chart' });
-  const [isMobile, setIsMobile] = useState(false);
+  const [screenSize, setScreenSize] = useState({ width: 0, height: 0 });
   const [candlestickData, setCandlestickData] = useState<CandlestickData[]>([]);
-  const [currentPrice, setCurrentPrice] = useState<number>(0);
+  const [currentPrice, setCurrentPrice] = useState<number>(117065);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataSource, setDataSource] = useState<'real' | 'fallback'>('real');
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [latest, setLatest] = useState<{
     deviation_percent?: number | string;
     overall_accuracy_percent?: number | string;
   } | null>(null);
+
+  // Enhanced responsive breakpoints
+  const isMobile = screenSize.width < 768;
+  const isTablet = screenSize.width >= 768 && screenSize.width < 1024;
+  const isSmallMobile = screenSize.width < 480;
 
   useEffect(() => {
     const mockLatest = {
@@ -2387,15 +3995,18 @@ const PriceChart: React.FC<PriceChartProps> = ({
     return () => clearInterval(id);
   }, []);
 
-  // Mobile detection
+  // Enhanced responsive detection
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const updateScreenSize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
     };
 
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    updateScreenSize();
+    window.addEventListener('resize', updateScreenSize);
+    return () => window.removeEventListener('resize', updateScreenSize);
   }, []);
 
   // Get simplified date format (MM/DD)
@@ -2445,41 +4056,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
     const invalidationLevel = support * 0.999;
 
     return { support, resistance, breakoutLevel, invalidationLevel };
-  };
-
-  // Calculate market structure from actual price data
-  const getMarketStructure = (currentPrice: number, recentData?: CandlestickData[], signal?: string) => {
-    if (!recentData || recentData.length < 10) {
-      return {
-        trend: signal === 'LONG' ? 'Bullish' : signal === 'SHORT' ? 'Bearish' : 'Sideways',
-        shortTermTrend: 'Insufficient Data',
-        longTermTrend: 'Insufficient Data'
-      };
-    }
-
-    // Short term trend (last 10 candles)
-    const shortTermData = recentData.slice(-10);
-    const shortTermStart = shortTermData[0].close;
-    const shortTermEnd = shortTermData[shortTermData.length - 1].close;
-    const shortTermChange = (shortTermEnd - shortTermStart) / shortTermStart;
-
-    // Long term trend (last 30 candles)
-    const longTermData = recentData.slice(-30);
-    const longTermStart = longTermData[0].close;
-    const longTermEnd = longTermData[longTermData.length - 1].close;
-    const longTermChange = (longTermEnd - longTermStart) / longTermStart;
-
-    const getTrendLabel = (change: number) => {
-      if (change > 0.01) return 'Bullish';
-      if (change < -0.01) return 'Bearish';
-      return 'Sideways';
-    };
-
-    return {
-      trend: signal === 'LONG' ? 'Bullish' : signal === 'SHORT' ? 'Bearish' : 'Sideways',
-      shortTermTrend: getTrendLabel(shortTermChange),
-      longTermTrend: getTrendLabel(longTermChange)
-    };
   };
 
   // Calculate performance metrics from hourly forecast data
@@ -2563,58 +4139,12 @@ const PriceChart: React.FC<PriceChartProps> = ({
     return Math.sqrt(variance);
   };
 
-  // Calculate market context from data
-  const getMarketContext = (recentData?: CandlestickData[], sentimentScore?: number) => {
-    if (!recentData || recentData.length === 0) {
-      return {
-        newsImpact: 'Unknown',
-        technicalSetup: 'Unknown',
-        volumeStatus: 'Unknown',
-        correlation: 'Unknown'
-      };
-    }
-
-    // Volume analysis
-    const recentVolumes = recentData.slice(-10).map(d => d.volume);
-    const avgVolume = recentVolumes.reduce((sum, v) => sum + v, 0) / recentVolumes.length;
-    const currentVolume = recentData[recentData.length - 1]?.volume || 0;
-
-    const volumeRatio = currentVolume / avgVolume;
-    let volumeStatus = 'Average';
-    if (volumeRatio > 1.2) volumeStatus = 'Above Average';
-    if (volumeRatio < 0.8) volumeStatus = 'Below Average';
-
-    // Technical setup based on price action
-    const recent5 = recentData.slice(-5);
-    const priceRange = Math.max(...recent5.map(d => d.high)) - Math.min(...recent5.map(d => d.low));
-    const avgPrice = recent5.reduce((sum, d) => sum + d.close, 0) / recent5.length;
-    const volatilityRatio = priceRange / avgPrice;
-
-    let technicalSetup = 'Consolidation';
-    if (volatilityRatio > 0.03) technicalSetup = 'Breakout Pending';
-    if (volatilityRatio > 0.05) technicalSetup = 'High Volatility';
-
-    // News impact based on sentiment score
-    let newsImpact = 'Low';
-    if (sentimentScore) {
-      if (sentimentScore > 60 || sentimentScore < 20) newsImpact = 'High';
-      else if (sentimentScore > 45 || sentimentScore < 35) newsImpact = 'Medium';
-    }
-
-    return {
-      newsImpact,
-      technicalSetup,
-      volumeStatus,
-      correlation: 'Following Crypto Market' // This would need external data to compute properly
-    };
-  };
-
   // Filter data based on selected timeframe
   const getFilteredData = () => {
     if (selectedTimeframe === 'TODAY') {
       return {
         historical: [],
-        forecast: selectedSubTimeframe === '3D' ? forecast : [],
+        forecast: forecast,
         showCandlesticks: true
       };
     } else if (selectedTimeframe === 'PAST_7D') {
@@ -2638,7 +4168,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
   const { historical: displayPriceHistory, forecast: displayForecast, showCandlesticks } = getFilteredData();
 
-  // Show/hide tooltip
+  // Show/hide tooltip with enhanced mobile positioning
   const showTooltip = (
     event: React.MouseEvent,
     data: any,
@@ -2646,12 +4176,23 @@ const PriceChart: React.FC<PriceChartProps> = ({
   ) => {
     if (!svgRef.current) return;
 
-    // 1. grab the SVG’s position on screen
     const { left, top } = svgRef.current.getBoundingClientRect();
+    let x = event.clientX - left;
+    let y = event.clientY - top;
 
-    // 2. compute cursor position inside the SVG
-    const x = event.clientX - left;
-    const y = event.clientY - top;
+    // Enhanced mobile tooltip positioning
+    if (isMobile) {
+      // Keep tooltip within screen bounds
+      const tooltipWidth = type === 'info' ? 280 : 200;
+      const tooltipHeight = 150;
+
+      if (x + tooltipWidth > screenSize.width - 20) {
+        x = screenSize.width - tooltipWidth - 20;
+      }
+      if (y + tooltipHeight > screenSize.height - 100) {
+        y = y - tooltipHeight - 20;
+      }
+    }
 
     setTooltip({ x, y, data, visible: true, type });
   };
@@ -2679,31 +4220,24 @@ const PriceChart: React.FC<PriceChartProps> = ({
         "Avg Loss: Mean percentage loss from all unprofitable prediction periods.",
         "Profit Factor: Ratio of average gains to average losses. Values above 2.0 indicate strong performance."
       ]
-    },
-    marketStructure: {
-      title: "Market Structure & Key Levels",
-      content: [
-        "Trend Direction: Short-term (10 candles) vs Long-term (30 candles) price movement analysis.",
-        "Key Pivot: Current price level acting as decision point for market direction.",
-        "Next Resistance: Calculated from recent 20-period highs, where selling pressure may increase.",
-        "Next Support: Calculated from recent 20-period lows, where buying interest typically emerges."
-      ]
     }
   };
 
-  // Create candlestick chart with future projections
+  // Enhanced responsive chart creation
   const createCandlestickChart = () => {
     if (!showCandlesticks || candlestickData.length === 0) {
       return null;
     }
 
-    const width = isMobile ? 200 : 430;
-    const chartHeight = isMobile ? 200 : 260;
-    const volumeHeight = isMobile ? 50 : 70;
-    const padding = isMobile ? 25 : 35;
-    const topPadding = isMobile ? 25 : 35;
-    const bottomPadding = isMobile ? 35 : 45;
-    const height = chartHeight + volumeHeight + topPadding + bottomPadding + 20;
+    // Responsive dimensions
+    const containerWidth = containerRef.current?.clientWidth || screenSize.width;
+    const width = Math.max(280, Math.min(containerWidth - 16, isSmallMobile ? 340 : isMobile ? 380 : 500));
+    const chartHeight = isSmallMobile ? 180 : isMobile ? 220 : 280;
+    const volumeHeight = isSmallMobile ? 40 : isMobile ? 50 : 70;
+    const padding = isSmallMobile ? 35 : isMobile ? 45 : 50;
+    const topPadding = 40;
+    const bottomPadding = isSmallMobile ? 50 : 60;
+    const height = chartHeight + volumeHeight + topPadding + bottomPadding + 30;
 
     const futureMinutes = 30;
     const lastTimestamp = candlestickData[candlestickData.length - 1]?.timestamp || Date.now();
@@ -2712,7 +4246,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
     );
 
     const totalDataPoints = candlestickData.length + futureTimeSlots.length;
-    const candleWidth = Math.max(2, (width - 2 * padding) / totalDataPoints - 1);
+    const candleWidth = Math.max(1.5, Math.min(6, (width - 2 * padding) / totalDataPoints - 1));
     const xStep = (width - 2 * padding) / Math.max(totalDataPoints - 1, 1);
 
     const prices = candlestickData.flatMap(d => [d.open, d.high, d.low, d.close]);
@@ -2725,10 +4259,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
         lastHourly.confidence_80[0], lastHourly.confidence_80[1],
         lastHourly.confidence_90[0], lastHourly.confidence_90[1]
       );
-
-      if (displayEntry) prices.push(displayEntry);
-      if (displayStopLoss) prices.push(displayStopLoss);
-      if (displayTakeProfit) prices.push(displayTakeProfit);
     }
 
     // Add key levels to price range
@@ -2740,9 +4270,14 @@ const PriceChart: React.FC<PriceChartProps> = ({
     const priceRange = maxPrice - minPrice;
     const maxVolume = Math.max(...candlestickData.map(d => d.volume));
 
-    const getY = (price: number) => padding + (1 - (price - minPrice) / priceRange) * chartHeight;
+    const getY = (price: number) => topPadding + (1 - (price - minPrice) / priceRange) * chartHeight;
     const getX = (index: number) => padding + index * xStep;
-    const getVolumeY = (volume: number) => chartHeight + padding + 20 + (1 - volume / maxVolume) * volumeHeight;
+    const getVolumeY = (volume: number) => chartHeight + topPadding + 20 + (1 - volume / maxVolume) * volumeHeight;
+
+    // Responsive font sizes
+    const labelFontSize = isSmallMobile ? "8" : isMobile ? "10" : "12";
+    const smallFontSize = isSmallMobile ? "7" : isMobile ? "8" : "9";
+    const titleFontSize = isSmallMobile ? "9" : isMobile ? "10" : "11";
 
     return (
       <svg
@@ -2751,23 +4286,23 @@ const PriceChart: React.FC<PriceChartProps> = ({
         height={height}
         className="w-full h-full"
         viewBox={`0 0 ${width} ${height}`}
-      // onMouseLeave={hideTooltip}
+        preserveAspectRatio="xMidYMid meet"
       >
-        {/* Price chart grid */}
-        {[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((ratio, i) => (
+        {/* Enhanced grid with responsive spacing */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
           <line
             key={i}
             x1={padding}
-            y1={padding + ratio * chartHeight}
+            y1={topPadding + ratio * chartHeight}
             x2={width - padding}
-            y2={padding + ratio * chartHeight}
+            y2={topPadding + ratio * chartHeight}
             stroke="#1f2937"
             strokeWidth={1}
             opacity={i % 2 === 0 ? 0.3 : 0.15}
           />
         ))}
 
-        {/* Key Support/Resistance Levels */}
+        {/* Key Support/Resistance Levels with responsive labels */}
         {(() => {
           const levels = getKeyLevels(currentPrice);
           return (
@@ -2783,9 +4318,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 strokeDasharray="3,3"
                 opacity={0.7}
               />
-              <text x={padding + 5} y={getY(levels.support) - 5} fill="#ef4444" fontSize="10" className="font-bold">
-                SUPPORT ${Math.round(levels.support).toLocaleString()}
-              </text>
+              {!isSmallMobile && (
+                <text x={padding + 5} y={getY(levels.support) - 5} fill="#ef4444" fontSize={smallFontSize} className="font-bold">
+                  SUPPORT ${Math.round(levels.support / 1000)}K
+                </text>
+              )}
 
               {/* Resistance Line */}
               <line
@@ -2798,39 +4335,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 strokeDasharray="3,3"
                 opacity={0.7}
               />
-              <text x={padding + 5} y={getY(levels.resistance) + 15} fill="#10b981" fontSize="10" className="font-bold">
-                RESISTANCE ${Math.round(levels.resistance).toLocaleString()}
-              </text>
-
-              {/* Breakout Level */}
-              <line
-                x1={padding}
-                y1={getY(levels.breakoutLevel)}
-                x2={width - padding}
-                y2={getY(levels.breakoutLevel)}
-                stroke="#8b5cf6"
-                strokeWidth={1}
-                strokeDasharray="6,2"
-                opacity={0.6}
-              />
-              <text x={width - padding - 5} y={getY(levels.breakoutLevel) - 5} fill="#8b5cf6" fontSize="9" textAnchor="end">
-                BREAKOUT ${Math.round(levels.breakoutLevel).toLocaleString()}
-              </text>
-
-              {/* Invalidation Level */}
-              <line
-                x1={padding}
-                y1={getY(levels.invalidationLevel)}
-                x2={width - padding}
-                y2={getY(levels.invalidationLevel)}
-                stroke="#f59e0b"
-                strokeWidth={1}
-                strokeDasharray="6,2"
-                opacity={0.6}
-              />
-              <text x={width - padding - 5} y={getY(levels.invalidationLevel) + 15} fill="#f59e0b" fontSize="9" textAnchor="end">
-                INVALIDATION ${Math.round(levels.invalidationLevel).toLocaleString()}
-              </text>
+              {!isSmallMobile && (
+                <text x={padding + 5} y={getY(levels.resistance) + 15} fill="#10b981" fontSize={smallFontSize} className="font-bold">
+                  RESISTANCE ${Math.round(levels.resistance / 1000)}K
+                </text>
+              )}
             </>
           );
         })()}
@@ -2838,36 +4347,25 @@ const PriceChart: React.FC<PriceChartProps> = ({
         {/* Vertical line to separate historical and forecast */}
         <line
           x1={getX(candlestickData.length - 1)}
-          y1={padding}
+          y1={topPadding}
           x2={getX(candlestickData.length - 1)}
-          y2={chartHeight + padding}
+          y2={chartHeight + topPadding}
           stroke="#374151"
           strokeWidth={2}
           strokeDasharray="5,5"
           opacity={0.6}
         />
 
-        {/* Volume chart grid */}
-        <line
-          x1={padding}
-          y1={chartHeight + padding + 20}
-          x2={width - padding}
-          y2={chartHeight + padding + 20}
-          stroke="#1f2937"
-          strokeWidth={1}
-          opacity={0.5}
-        />
-
-        {/* Enhanced Confidence intervals using hourly forecast data */}
+        {/* Enhanced Confidence intervals */}
         {lastHourly && (
           <>
             {(() => {
               const startX = getX(candlestickData.length - 1);
               const endX = width - padding;
-              const currentPrice = candlestickData[candlestickData.length - 1]?.close || lastHourly.forecast_price;
+              const currentPriceY = getY(candlestickData[candlestickData.length - 1]?.close || lastHourly.forecast_price);
 
               const createFutureConfidencePath = (upperBound: number, lowerBound: number) => {
-                const startY = getY(currentPrice);
+                const startY = currentPriceY;
                 const midX = startX + (endX - startX) * 0.3;
                 const endUpperY = getY(upperBound);
                 const endLowerY = getY(lowerBound);
@@ -2926,47 +4424,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
               );
             })()}
 
-            {/* Trading lines for hourly forecast */}
-            {displayEntry && (
-              <line
-                x1={getX(candlestickData.length - 1)}
-                y1={getY(displayEntry)}
-                x2={width - padding}
-                y2={getY(displayEntry)}
-                stroke="#10b981"
-                strokeWidth={2}
-                strokeDasharray="8,4"
-                opacity={0.8}
-              />
-            )}
-
-            {displayStopLoss && (
-              <line
-                x1={getX(candlestickData.length - 1)}
-                y1={getY(displayStopLoss)}
-                x2={width - padding}
-                y2={getY(displayStopLoss)}
-                stroke="#ef4444"
-                strokeWidth={2}
-                strokeDasharray="8,4"
-                opacity={0.8}
-              />
-            )}
-
-            {displayTakeProfit && (
-              <line
-                x1={getX(candlestickData.length - 1)}
-                y1={getY(displayTakeProfit)}
-                x2={width - padding}
-                y2={getY(displayTakeProfit)}
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                strokeDasharray="8,4"
-                opacity={0.8}
-              />
-            )}
-
-            {/* Price Target Probability Line */}
+            {/* Price Target Line */}
             <line
               x1={getX(candlestickData.length - 1)}
               y1={getY(lastHourly.forecast_price)}
@@ -2978,29 +4436,16 @@ const PriceChart: React.FC<PriceChartProps> = ({
               opacity={0.9}
             />
 
-            {/* Enhanced Labels */}
-            {displayEntry && (
-              <text x={width - padding - 5} y={getY(displayEntry) - 5} fill="#10b981" fontSize="10" textAnchor="end" className="font-bold">
-                ENTRY ZONE ${displayEntry.toLocaleString()}
+            {/* Enhanced responsive labels */}
+            {!isSmallMobile && (
+              <text x={width - padding - 5} y={getY(lastHourly.forecast_price) - 8} fill="#fbbf24" fontSize={titleFontSize} textAnchor="end" className="font-bold">
+                TARGET ${Math.round(lastHourly.forecast_price / 1000)}K
               </text>
             )}
-            {displayTakeProfit && (
-              <text x={width - padding - 5} y={getY(displayTakeProfit) - 5} fill="#8b5cf6" fontSize="10" textAnchor="end" className="font-bold">
-                TAKE PROFIT ${displayTakeProfit.toLocaleString()}
-              </text>
-            )}
-            {displayStopLoss && (
-              <text x={width - padding - 5} y={getY(displayStopLoss) + 15} fill="#ef4444" fontSize="10" textAnchor="end" className="font-bold">
-                STOP LOSS ${displayStopLoss.toLocaleString()}
-              </text>
-            )}
-            <text x={width - padding - 5} y={getY(lastHourly.forecast_price) - 5} fill="#fbbf24" fontSize="10" textAnchor="end" className="font-bold">
-              PRICE TARGET ${lastHourly.forecast_price.toLocaleString()}
-            </text>
           </>
         )}
 
-        {/* Candlesticks */}
+        {/* Candlesticks with touch-friendly sizing */}
         {candlestickData.map((candle, i) => {
           const x = getX(i);
           const openY = getY(candle.open);
@@ -3012,6 +4457,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
           const bodyHeight = Math.abs(closeY - openY);
           const bodyY = Math.min(openY, closeY);
 
+          // Enhanced touch target for mobile
+          const touchTargetSize = isMobile ? 8 : candleWidth;
+
           return (
             <g key={i}>
               <line
@@ -3020,7 +4468,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 x2={x}
                 y2={lowY}
                 stroke={isGreen ? "#10b981" : "#ef4444"}
-                strokeWidth={1}
+                strokeWidth={isMobile ? 1.5 : 1}
               />
 
               <rect
@@ -3030,10 +4478,21 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 height={Math.max(bodyHeight, 1)}
                 fill={isGreen ? "#10b981" : "#ef4444"}
                 stroke={isGreen ? "#10b981" : "#ef4444"}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => showTooltip(e, { ...candle, type: 'candlestick' }, 'chart')}
               />
 
+              {/* Invisible touch target for mobile */}
+              <rect
+                x={x - touchTargetSize / 2}
+                y={bodyY - 5}
+                width={touchTargetSize}
+                height={Math.max(bodyHeight + 10, 15)}
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={(e) => showTooltip(e, { ...candle, type: 'candlestick' }, 'chart')}
+                onTouchStart={(e) => showTooltip(e as any, { ...candle, type: 'candlestick' }, 'chart')}
+              />
+
+              {/* Volume bars */}
               <rect
                 x={x - candleWidth / 2}
                 y={getVolumeY(candle.volume)}
@@ -3041,8 +4500,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 height={(candle.volume / maxVolume) * volumeHeight}
                 fill={isGreen ? "#10b981" : "#ef4444"}
                 opacity={0.6}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => showTooltip(e, { ...candle, type: 'volume' }, 'chart')}
               />
             </g>
           );
@@ -3059,242 +4516,62 @@ const PriceChart: React.FC<PriceChartProps> = ({
           opacity={0.9}
         />
 
-        {currentPrice != null ? (
-          <text
-            x={getX(candlestickData.length - 1) - 5}
-            y={getY(currentPrice) - 5}
-            fill="#fbbf24"
-            fontSize="12"
-            textAnchor="end"
-            className="font-bold"
-          >
-            LIVE ${currentPrice.toLocaleString()}
-          </text>
-        ) : (
-          <text
-            x={getX(candlestickData.length - 1) - 5}
-            y={padding - 5}
-            fill="#fbbf24"
-            fontSize="10"
-            textAnchor="end"
-          >
-            Loading…
-          </text>
-        )}
+        <text
+          x={getX(candlestickData.length - 1) - 5}
+          y={getY(currentPrice) - 8}
+          fill="#fbbf24"
+          fontSize={labelFontSize}
+          textAnchor="end"
+          className="font-bold"
+        >
+          LIVE ${Math.round(currentPrice / 1000)}K
+        </text>
 
-        {/* Price labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+        {/* Responsive price labels */}
+        {[0, 0.5, 1].map((ratio, i) => {
           const price = minPrice + (maxPrice - minPrice) * (1 - ratio);
           return (
-            <text key={i} x={padding - 5} y={padding + ratio * chartHeight + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
-              ${Math.round(price).toLocaleString()}
+            <text key={i} x={padding - 5} y={topPadding + ratio * chartHeight + 5} fill="#9ca3af" fontSize={labelFontSize} textAnchor="end">
+              ${Math.round(price / 1000)}K
             </text>
           );
         })}
 
         {/* Volume label */}
-        <text x={padding - 5} y={chartHeight + padding + 35} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="end">
+        <text x={padding - 5} y={chartHeight + topPadding + 35} fill="#9ca3af" fontSize={smallFontSize} textAnchor="end">
           Volume
         </text>
 
-        {/* Time labels */}
+        {/* Responsive time labels */}
         {candlestickData.length > 1 && (
           <>
-            <text x={padding} y={height - 10} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
-              {new Date(candlestickData[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <text x={padding} y={height - 15} fill="#9ca3af" fontSize={smallFontSize} textAnchor="middle">
+              {isSmallMobile ? 'Start' : new Date(candlestickData[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </text>
-            <text x={getX(candlestickData.length - 1)} y={height - 10} fill="#fbbf24" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
+            <text x={getX(candlestickData.length - 1)} y={height - 15} fill="#fbbf24" fontSize={smallFontSize} textAnchor="middle">
               NOW
             </text>
-            <text x={width - padding} y={height - 10} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
-              +30min
+            <text x={width - padding} y={height - 15} fill="#9ca3af" fontSize={smallFontSize} textAnchor="middle">
+              {isSmallMobile ? 'Future' : '+30min'}
             </text>
           </>
         )}
 
-        {/* Enhanced Legend for confidence zones */}
-        <g>
-          <text x={padding + 10} y={padding + 20} fill="#9ca3af" fontSize="10" className="font-bold">
-            Price Probability Ranges:
-          </text>
-          <rect x={padding + 10} y={padding + 25} width={12} height={8} fill="#3b82f6" fillOpacity={0.2} stroke="#3b82f6" strokeOpacity={0.5} strokeWidth={1} />
-          <text x={padding + 25} y={padding + 32} fill="#3b82f6" fontSize="8">50% CONFIDENCE</text>
-
-          <rect x={padding + 120} y={padding + 25} width={12} height={8} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeOpacity={0.4} strokeWidth={1} />
-          <text x={padding + 135} y={padding + 32} fill="#f59e0b" fontSize="8">80% CONFIDENCE</text>
-
-          <rect x={padding + 230} y={padding + 25} width={12} height={8} fill="#22c55e" fillOpacity={0.1} stroke="#22c55e" strokeOpacity={0.3} strokeWidth={1} />
-          <text x={padding + 245} y={padding + 32} fill="#22c55e" fontSize="8">90% CONFIDENCE</text>
-        </g>
-      </svg>
-    );
-  };
-
-  // Create regular SVG chart for non-today views
-  const createSVGChart = () => {
-    const isToday = selectedTimeframe === 'TODAY';
-
-    if (showCandlesticks) {
-      return createCandlestickChart();
-    }
-
-    const allData = [
-      ...displayPriceHistory.map(item => ({ ...item, type: 'historical' })),
-      ...displayForecast.map(item => ({ ...item, price: item.entry, type: 'forecast' }))
-    ];
-
-    if (allData.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-full text-gray-400">
-          No data available for selected timeframe
-        </div>
-      );
-    }
-
-    const allPrices = [
-      ...allData.map(item => item.price),
-      ...displayForecast.flatMap(item => [
-        item.confidence_intervals[90][0],
-        item.confidence_intervals[90][1],
-        item.stop_loss,
-        item.take_profit
-      ])
-    ];
-
-    const minPrice = Math.min(...allPrices) * 0.995;
-    const maxPrice = Math.max(...allPrices) * 1.005;
-    const priceRange = maxPrice - minPrice;
-
-    const width = isMobile ? 350 : 500;
-    const height = isMobile ? 200 : 300;
-    const padding = isMobile ? 30 : 50;
-
-    const xStep = (width - 2 * padding) / Math.max(allData.length - 1, 1);
-
-    const getY = (price: number) => padding + (1 - (price - minPrice) / priceRange) * (height - 2 * padding);
-    const getX = (index: number) => padding + index * xStep;
-
-    return (
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        className="w-full h-full"
-        viewBox={`0 0 ${width} ${height}`}
-      // onMouseLeave={hideTooltip}
-      >
-        {/* Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
-          <line
-            key={i}
-            x1={padding}
-            y1={padding + ratio * (height - 2 * padding)}
-            x2={width - padding}
-            y2={padding + ratio * (height - 2 * padding)}
-            stroke="#1f2937"
-            strokeWidth={1}
-            opacity={0.3}
-          />
-        ))}
-
-        {/* Price lines */}
-        {displayPriceHistory.length > 0 && (
-          <polyline
-            points={displayPriceHistory.map((item, i) => {
-              const x = getX(i);
-              const y = getY(item.price);
-              return `${x},${y}`;
-            }).join(' ')}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={isMobile ? 2 : 3}
-          />
-        )}
-
-        {displayForecast.length > 0 && (
-          <polyline
-            points={displayForecast.map((item, i) => {
-              const x = getX(displayPriceHistory.length + i);
-              const y = getY(item.entry);
-              return `${x},${y}`;
-            }).join(' ')}
-            fill="none"
-            stroke="#10b981"
-            strokeWidth={isMobile ? 2 : 3}
-            strokeDasharray="8,4"
-          />
-        )}
-
-        {/* Data points */}
-        {displayPriceHistory.map((item, i) => {
-          const x = getX(i);
-          const y = getY(item.price);
-          return (
-            <circle
-              key={i}
-              cx={x}
-              cy={y}
-              r={isMobile ? 3 : 4}
-              fill="#3b82f6"
-              stroke="#0a1628"
-              strokeWidth={isMobile ? 1 : 2}
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={(e) => showTooltip(e, { ...item, type: 'historical' }, 'chart')}
-            />
-          );
-        })}
-
-        {displayForecast.map((item, i) => {
-          const x = getX(displayPriceHistory.length + i);
-          const y = getY(item.entry);
-          const radius = isMobile ? 4 : 5;
-          const arrowSize = isMobile ? 8 : 12;
-          return (
-            <g key={i}>
-              <circle
-                cx={x}
-                cy={y}
-                r={radius}
-                fill={item.signal === 'LONG' ? '#10b981' : '#ef4444'}
-                stroke="#0a1628"
-                strokeWidth={isMobile ? 1 : 2}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => showTooltip(e, { ...item, type: 'forecast' }, 'chart')}
-              />
-              <polygon
-                points={item.signal === 'LONG'
-                  ? `${x},${y - arrowSize} ${x - arrowSize / 2},${y - arrowSize / 2} ${x + arrowSize / 2},${y - arrowSize / 2}`
-                  : `${x},${y + arrowSize} ${x - arrowSize / 2},${y + arrowSize / 2} ${x + arrowSize / 2},${y + arrowSize / 2}`
-                }
-                fill={item.signal === 'LONG' ? '#10b981' : '#ef4444'}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => showTooltip(e, { ...item, type: 'forecast' }, 'chart')}
-              />
-            </g>
-          );
-        })}
-
-        {/* Price labels */}
-        <text x={padding - 5} y={padding + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
-          ${Math.round(maxPrice).toLocaleString()}
-        </text>
-        <text x={padding - 5} y={height - padding + 5} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
-          ${Math.round(minPrice).toLocaleString()}
-        </text>
-        <text x={padding - 5} y={padding + (height - 2 * padding) / 2} fill="#9ca3af" fontSize={isMobile ? "10" : "12"} textAnchor="end">
-          ${Math.round((maxPrice + minPrice) / 2).toLocaleString()}
-        </text>
-
-        {/* Date labels */}
-        {allData.length > 1 && (
-          <>
-            <text x={padding} y={height - padding + 15} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
-              {getSimpleDate(allData[0]?.date)}
+        {/* Responsive Legend */}
+        {!isSmallMobile && (
+          <g>
+            <text x={padding + 10} y={topPadding + 20} fill="#9ca3af" fontSize={titleFontSize} className="font-bold">
+              Price Probability Ranges:
             </text>
-            <text x={width - padding} y={height - padding + 15} fill="#9ca3af" fontSize={isMobile ? "8" : "10"} textAnchor="middle">
-              {getSimpleDate(allData[allData.length - 1]?.date)}
-            </text>
-          </>
+            <rect x={padding + 10} y={topPadding + 25} width={12} height={8} fill="#3b82f6" fillOpacity={0.2} stroke="#3b82f6" strokeOpacity={0.5} strokeWidth={1} />
+            <text x={padding + 25} y={topPadding + 32} fill="#3b82f6" fontSize={smallFontSize}>50%</text>
+
+            <rect x={padding + 60} y={topPadding + 25} width={12} height={8} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeOpacity={0.4} strokeWidth={1} />
+            <text x={padding + 75} y={topPadding + 32} fill="#f59e0b" fontSize={smallFontSize}>80%</text>
+
+            <rect x={padding + 110} y={topPadding + 25} width={12} height={8} fill="#22c55e" fillOpacity={0.1} stroke="#22c55e" strokeOpacity={0.3} strokeWidth={1} />
+            <text x={padding + 125} y={topPadding + 32} fill="#22c55e" fontSize={smallFontSize}>90%</text>
+          </g>
         )}
       </svg>
     );
@@ -3330,11 +4607,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
       ? `+${firstForecast.deviation_percent}%`
       : '+1.50%';
 
-  // Calculate market structure
-  const marketStructure = getMarketStructure(currentPrice, candlestickData, displaySignal);
+  // Calculate key levels
   const keyLevels = getKeyLevels(currentPrice, candlestickData);
   const volatility = calculateVolatility(candlestickData);
-  const marketContext = getMarketContext(candlestickData, lastHourly?.sentiment_score || 30);
 
   // Calculate position size recommendation
   const riskRewardValue = lastHourly?.risk_reward_ratio ||
@@ -3344,13 +4619,13 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const positionSize = calculatePositionSize(displaySignal, riskRewardValue, volatility);
 
   return (
-    <div className={`bg-[#0a1628] rounded-lg p-4 ${className}`}>
-      {/* Controls Section */}
-      <div className="flex justify-between items-center mb-4">
+    <div className={`bg-[#0a1628] rounded-lg p-3 sm:p-4 ${className}`} ref={containerRef}>
+      {/* Enhanced Controls Section for mobile */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <select
           value={selectedAsset}
           onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'SOL' | 'ETH')}
-          className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+          className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm w-full sm:w-auto"
         >
           <option value="BTC">BTC</option>
           <option value="SOL" disabled>SOL (Soon)</option>
@@ -3363,19 +4638,20 @@ const PriceChart: React.FC<PriceChartProps> = ({
           ]}
           selected={selectedTimeframe}
           onChange={(value) => setSelectedTimeframe(value as 'TODAY')}
+          className="w-full sm:w-auto"
         />
       </div>
 
-      {/* Enhanced Key Metrics */}
-      <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4 mb-4`}>
+      {/* Enhanced Key Metrics with better mobile layout */}
+      <div className={`grid ${isSmallMobile ? 'grid-cols-1' : isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3 mb-4`}>
         {/* Trading Signal Panel */}
-        <div className={`bg-[#1a2332] rounded-lg p-4 border-l-4 ${displaySignal === 'LONG' ? 'border-green-500' :
+        <div className={`bg-[#1a2332] rounded-lg p-3 sm:p-4 border-l-4 ${displaySignal === 'LONG' ? 'border-green-500' :
           displaySignal === 'SHORT' ? 'border-red-500' :
             'border-yellow-500'
-          }`}>
+          } ${isSmallMobile ? 'col-span-1' : isMobile ? 'col-span-2' : 'col-span-1'}`}>
           <div className="flex justify-between items-start mb-2">
-            <span className="text-gray-400 text-sm">TRADING SIGNAL</span>
-            <span className={`font-bold text-lg ${displaySignal === 'LONG' ? 'text-green-400' :
+            <span className="text-gray-400 text-xs sm:text-sm">TRADING SIGNAL</span>
+            <span className={`font-bold text-base sm:text-lg ${displaySignal === 'LONG' ? 'text-green-400' :
               displaySignal === 'SHORT' ? 'text-red-400' :
                 'text-yellow-400'
               }`}>
@@ -3384,95 +4660,94 @@ const PriceChart: React.FC<PriceChartProps> = ({
           </div>
 
           <div className="space-y-1">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Entry Zone:</span>
-              <span className="text-white font-medium">
-                {displayEntry ? `${(displayEntry * 0.999).toLocaleString()} - ${(displayEntry * 1.001).toLocaleString()}` : 'N/A'}
+              <span className="text-white font-medium text-right">
+                {displayEntry ? `${Math.round(displayEntry / 1000)}K` : 'N/A'}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Take Profit:</span>
-              <span className="text-green-400">
-                {displayTakeProfit ? `${displayTakeProfit.toLocaleString()} (+${((displayTakeProfit / (displayEntry || 1) - 1) * 100).toFixed(1)}%)` : 'N/A'}
+              <span className="text-green-400 text-right">
+                {displayTakeProfit ? `${Math.round(displayTakeProfit / 1000)}K` : 'N/A'}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Stop Loss:</span>
-              <span className="text-red-400">
-                {displayStopLoss ? `${displayStopLoss.toLocaleString()} (-${((1 - displayStopLoss / (displayEntry || 1)) * 100).toFixed(1)}%)` : 'N/A'}
+              <span className="text-red-400 text-right">
+                {displayStopLoss ? `${Math.round(displayStopLoss / 1000)}K` : 'N/A'}
               </span>
             </div>
           </div>
 
-          <div className="mb-1 mt-5 p-2 bg-gray-800/50 rounded text-[9px] text-gray-500">
-            <strong>Note:</strong> Position parameters display as N/A during HOLD signals.
-            Specific entry zones, profit targets, and stop levels are provided for actionable LONG/SHORT signals.
-          </div>
+          {isSmallMobile && (
+            <div className="mt-3 p-2 bg-gray-800/50 rounded text-[8px] text-gray-500">
+              <strong>Note:</strong> Entry zones shown for actionable signals only.
+            </div>
+          )}
         </div>
 
         {/* Enhanced Risk Analysis */}
-        <div className="bg-[#1a2332] rounded-lg p-4">
+        <div className="bg-[#1a2332] rounded-lg p-3 sm:p-4">
           <div
-            className="text-gray-400 text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
+            className="text-gray-400 text-xs sm:text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
             onMouseEnter={(e) => showTooltip(e, tooltipContent.riskManagement, 'info')}
             onMouseLeave={hideTooltip}
+            onTouchStart={(e) => showTooltip(e as any, tooltipContent.riskManagement, 'info')}
           >
             <span>Risk Management</span>
             <span className="text-xs">ⓘ</span>
           </div>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Risk vs Reward:</span>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-gray-400">Risk:Reward:</span>
               <span className="text-blue-400 font-bold">
                 {lastHourly?.risk_reward_ratio ?
                   `1:${lastHourly.risk_reward_ratio.toFixed(1)}` :
-                  displayEntry && displayStopLoss && displayTakeProfit ?
-                    `1:${getRiskReward(displayEntry, displayStopLoss, displayTakeProfit)}` :
-                    '1:1.5'
+                  '1:1.5'
                 }
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Position Size:</span>
-              <span className="text-green-400">{positionSize}</span>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-gray-400">Position:</span>
+              <span className="text-green-400 text-right text-xs">{positionSize.split(' ')[0]}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Win Probability:</span>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-gray-400">Win Rate:</span>
               <span className="text-blue-400">{performanceMetrics.winProbability}%</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Max Drawdown:</span>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-gray-400">Max DD:</span>
               <span className="text-yellow-400">-{performanceMetrics.maxDrawdown}%</span>
             </div>
           </div>
         </div>
 
         {/* Enhanced Performance Panel */}
-        <div className="bg-[#1a2332] rounded-lg p-4">
+        <div className={`bg-[#1a2332] rounded-lg p-3 sm:p-4 ${isSmallMobile ? 'col-span-1' : ''}`}>
           <div
-            className="text-gray-400 text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
+            className="text-gray-400 text-xs sm:text-sm mb-2 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
             onMouseEnter={(e) => showTooltip(e, tooltipContent.performanceMetrics, 'info')}
             onMouseLeave={hideTooltip}
+            onTouchStart={(e) => showTooltip(e as any, tooltipContent.performanceMetrics, 'info')}
           >
-            <span>Performance Metrics</span>
+            <span>Performance</span>
             <span className="text-xs">ⓘ</span>
           </div>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Win Rate (Last 100):</span>
-              <span className="text-green-400">
-                {formattedAccuracy}
-              </span>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-gray-400">Accuracy:</span>
+              <span className="text-green-400">{formattedAccuracy}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Avg Gain:</span>
               <span className="text-green-400">+{performanceMetrics.avgGain}%</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Avg Loss:</span>
               <span className="text-red-400">-{performanceMetrics.avgLoss}%</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Profit Factor:</span>
               <span className="text-blue-400">{performanceMetrics.profitFactor}x</span>
             </div>
@@ -3480,95 +4755,92 @@ const PriceChart: React.FC<PriceChartProps> = ({
         </div>
       </div>
 
-      {/* Market Structure Panel */}
-      <div className="bg-[#1a2332] rounded-lg p-4 mb-4">
-        <div
-          className="text-gray-400 text-sm mb-3 hover:text-blue-400 cursor-help transition-colors flex items-center space-x-1"
-          onMouseEnter={(e) => showTooltip(e, tooltipContent.marketStructure, 'info')}
-          onMouseLeave={hideTooltip}
-        >
-          <span>Market Structure & Key Levels</span>
-          <span className="text-xs">ⓘ</span>
-        </div>
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-4`}>
+      {/* Market Structure Panel - Responsive */}
+      <div className="bg-[#1a2332] rounded-lg p-3 sm:p-4 mb-4">
+        <div className="text-gray-400 text-xs sm:text-sm mb-3">Market Structure & Key Levels</div>
+        <div className={`grid ${isSmallMobile ? 'grid-cols-2' : isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3 sm:gap-4`}>
           <div>
-            <div className="text-xs text-gray-400">Trend Direction</div>
-            <div className={`text-sm font-medium ${marketStructure.trend === 'Bullish' ? 'text-green-400' :
-              marketStructure.trend === 'Bearish' ? 'text-red-400' :
-                'text-yellow-400'
-              }`}>
-              {marketStructure.shortTermTrend} / {marketStructure.longTermTrend}
+            <div className="text-xs text-gray-400">Current Price</div>
+            <div className="text-sm font-medium text-white">${Math.round(currentPrice / 1000)}K</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Resistance</div>
+            <div className="text-sm font-medium text-green-400">${Math.round(keyLevels.resistance / 1000)}K</div>
+          </div>
+          {!isSmallMobile && (
+            <>
+              <div>
+                <div className="text-xs text-gray-400">Support</div>
+                <div className="text-sm font-medium text-red-400">${Math.round(keyLevels.support / 1000)}K</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Volatility</div>
+                <div className="text-sm font-medium text-yellow-400">{(volatility * 100).toFixed(1)}%</div>
+              </div>
+            </>
+          )}
+          {isSmallMobile && (
+            <div>
+              <div className="text-xs text-gray-400">Support</div>
+              <div className="text-sm font-medium text-red-400">${Math.round(keyLevels.support / 1000)}K</div>
             </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Key Pivot</div>
-            <div className="text-sm font-medium text-white">${Math.round(currentPrice).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Next Resistance</div>
-            <div className="text-sm font-medium text-green-400">${Math.round(keyLevels.resistance).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Next Support</div>
-            <div className="text-sm font-medium text-red-400">${Math.round(keyLevels.support).toLocaleString()}</div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Chart Container */}
-      <div className="w-full bg-[#1a2332] rounded-lg p-2 mb-4 relative"
-        style={{ height: selectedTimeframe === 'TODAY' ? (isMobile ? '320px' : '420px') : (isMobile ? '180px' : '220px') }}
+      {/* Chart Container with responsive height */}
+      <div className="w-full bg-[#1a2332] rounded-lg p-2 mb-4 relative overflow-hidden"
+        style={{
+          height: selectedTimeframe === 'TODAY' ?
+            (isSmallMobile ? '280px' : isMobile ? '340px' : '420px') :
+            (isSmallMobile ? '180px' : isMobile ? '220px' : '280px')
+        }}
         onMouseLeave={hideTooltip}
+        onTouchEnd={hideTooltip}
       >
-        {createSVGChart()}
+        {createCandlestickChart()}
 
-        {/* Enhanced Tooltip */}
+        {/* Enhanced Tooltip with responsive positioning */}
         {tooltip.visible && tooltip.data && (
           <div
-            className={`absolute ${tooltip.type === 'info' ? 'bg-gray-800' : 'bg-gray-900'} border border-gray-600 rounded-lg p-3 text-white shadow-xl z-50 ${isMobile ? 'text-xs' : 'text-sm'
-              } ${tooltip.type === 'info' ? 'max-w-md' : 'min-w-48'}`}
+            className={`absolute ${tooltip.type === 'info' ? 'bg-gray-800' : 'bg-gray-900'} border border-gray-600 rounded-lg p-2 sm:p-3 text-white shadow-xl z-50 text-xs sm:text-sm ${tooltip.type === 'info' ? 'max-w-xs sm:max-w-md' : 'min-w-32 sm:min-w-48'
+              }`}
             style={{
-              left: tooltip.x + 10,
-              top: tooltip.y - 10,
-              transform: tooltip.x > (isMobile ? 200 : 300) ? 'translateX(-100%)' : 'none'
+              left: Math.min(tooltip.x + 10, screenSize.width - (tooltip.type === 'info' ? 300 : 200)),
+              top: Math.max(10, tooltip.y - 60),
+              maxWidth: screenSize.width - 40
             }}
           >
             {tooltip.type === 'info' ? (
-              // Info tooltip content
               <div className="space-y-2">
-                <div className="font-bold text-blue-400 border-b border-gray-600 pb-1">
+                <div className="font-bold text-blue-400 border-b border-gray-600 pb-1 text-sm">
                   {tooltip.data.title}
                 </div>
-                <div className="space-y-2">
-                  {tooltip.data.content.map((item: string, index: number) => (
-                    <div key={index} className="text-sm leading-relaxed">
+                <div className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+                  {tooltip.data.content.slice(0, isSmallMobile ? 2 : 4).map((item: string, index: number) => (
+                    <div key={index} className="text-xs leading-relaxed">
                       <span className="font-medium text-gray-300">
                         {item.split(':')[0]}:
                       </span>
                       <span className="text-gray-400 ml-1">
-                        {item.split(':').slice(1).join(':')}
+                        {item.split(':').slice(1).join(':').substring(0, isSmallMobile ? 50 : 100)}
+                        {isSmallMobile && item.length > 50 ? '...' : ''}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              // Chart tooltip content
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2">
                 {tooltip.data.type === 'candlestick' && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Time:</span>
-                      <span>{new Date(tooltip.data.timestamp).toLocaleTimeString()}</span>
+                      <span className="text-xs">{new Date(tooltip.data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">OHLC:</span>
-                      <span>
-                        ${Math.round(tooltip.data.open).toLocaleString()} /
-                        ${Math.round(tooltip.data.high).toLocaleString()} /
-                        ${Math.round(tooltip.data.low).toLocaleString()} /
-                        ${Math.round(tooltip.data.close).toLocaleString()}
-                      </span>
+                      <span className="text-gray-400">Price:</span>
+                      <span>${Math.round(tooltip.data.close / 1000)}K</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Change:</span>
@@ -3578,74 +4850,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Volume:</span>
-                      <span>{(tooltip.data.volume / 1000).toFixed(0)}K</span>
-                    </div>
-                  </>
-                )}
-
-                {tooltip.data.type === 'volume' && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Time:</span>
-                      <span>{new Date(tooltip.data.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Volume:</span>
-                      <span>{Math.round(tooltip.data.volume).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Price:</span>
-                      <span>${Math.round(tooltip.data.close).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Volume Type:</span>
-                      <span className={tooltip.data.close > tooltip.data.open ? 'text-green-400' : 'text-red-400'}>
-                        {tooltip.data.close > tooltip.data.open ? 'Buying Pressure' : 'Selling Pressure'}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {tooltip.data.type === 'historical' && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Date:</span>
-                      <span>{getSimpleDate(tooltip.data.date)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Price:</span>
-                      <span>${Math.round(tooltip.data.price).toLocaleString()}</span>
-                    </div>
-                  </>
-                )}
-
-                {tooltip.data.type === 'forecast' && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Date:</span>
-                      <span>{getSimpleDate(tooltip.data.date)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Signal:</span>
-                      <span className={tooltip.data.signal === 'LONG' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
-                        {tooltip.data.signal}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Entry:</span>
-                      <span>${Math.round(tooltip.data.entry).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Stop:</span>
-                      <span className="text-red-400">${Math.round(tooltip.data.stop_loss).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Target:</span>
-                      <span className="text-green-400">${Math.round(tooltip.data.take_profit).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">R:R Ratio:</span>
-                      <span className="text-blue-400">1:{getRiskReward(tooltip.data.entry, tooltip.data.stop_loss, tooltip.data.take_profit)}</span>
+                      <span>{(tooltip.data.volume / 1000000).toFixed(1)}M</span>
                     </div>
                   </>
                 )}
@@ -3655,58 +4860,44 @@ const PriceChart: React.FC<PriceChartProps> = ({
         )}
       </div>
 
-      {/* Enhanced Legend */}
+      {/* Enhanced Responsive Legend */}
       <div className="mb-4">
-        <div className={`flex flex-wrap gap-x-6 gap-y-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+        <div className={`flex flex-wrap gap-x-4 gap-y-2 ${isSmallMobile ? 'text-xs' : 'text-sm'}`}>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-0.5 bg-yellow-500"></div>
+            <div className="w-3 h-0.5 bg-yellow-500"></div>
             <span className="text-gray-400 whitespace-nowrap">Live Price</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-2 bg-blue-500" style={{ opacity: 0.3 }}></div>
+            <div className="w-3 h-2 bg-blue-500" style={{ opacity: 0.3 }}></div>
             <span className="text-gray-400 whitespace-nowrap">50% Confidence</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-2 bg-yellow-600" style={{ opacity: 0.3 }}></div>
+            <div className="w-3 h-2 bg-yellow-600" style={{ opacity: 0.3 }}></div>
             <span className="text-gray-400 whitespace-nowrap">80% Confidence</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-2 bg-green-500" style={{ opacity: 0.3 }}></div>
+            <div className="w-3 h-2 bg-green-500" style={{ opacity: 0.3 }}></div>
             <span className="text-gray-400 whitespace-nowrap">90% Confidence</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-0.5 bg-red-500" style={{ backgroundImage: 'repeating-linear-gradient(to right, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)' }}></div>
-            <span className="text-gray-400 whitespace-nowrap">Support/Resistance</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-0.5 bg-purple-600" style={{ backgroundImage: 'repeating-linear-gradient(to right, #7c3aed 0, #7c3aed 4px, transparent 4px, transparent 6px)' }}></div>
-            <span className="text-gray-400 whitespace-nowrap">Key Levels</span>
-          </div>
+          {!isSmallMobile && (
+            <>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-0.5 bg-red-500" style={{ backgroundImage: 'repeating-linear-gradient(to right, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)' }}></div>
+                <span className="text-gray-400 whitespace-nowrap">Support</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-0.5 bg-green-500" style={{ backgroundImage: 'repeating-linear-gradient(to right, #10b981 0, #10b981 3px, transparent 3px, transparent 6px)' }}></div>
+                <span className="text-gray-400 whitespace-nowrap">Resistance</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Market Context Panel */}
-      <div className="bg-[#1a2332] rounded-lg p-4">
-        <div className="text-gray-400 text-sm mb-3">Market Context & Catalysts</div>
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-4'} gap-4 text-sm`}>
-          <div>
-            <div className="text-xs text-gray-400">News Impact</div>
-            <div className="text-white">{marketContext.newsImpact}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Technical Setup</div>
-            <div className="text-white">{marketContext.technicalSetup}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Volume</div>
-            <div className={`${marketContext.volumeStatus === 'Above Average' ? 'text-green-400' :
-              marketContext.volumeStatus === 'Below Average' ? 'text-red-400' : 'text-yellow-400'
-              }`}>{marketContext.volumeStatus}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Correlation</div>
-            <div className="text-white">{marketContext.correlation}</div>
-          </div>
+      {/* Data Source Indicator for mobile */}
+      <div className="text-center">
+        <div className="text-xs text-gray-500">
+          {dataSource === 'real' ? '🟢 Live Data' : '🟡 Demo Data'} • Last updated: {new Date().toLocaleTimeString()}
         </div>
       </div>
     </div>
