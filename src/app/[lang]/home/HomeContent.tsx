@@ -5065,7 +5065,7 @@ const openReport = async () => {
             {/* <PresaleBanner walletConnected={connected} walletAddress={walletAddress} /> */}
 
             {/* Main content */}
-            <div className={`flex-1 flex flex-col bg-[#08121f] h-screen`}>
+            <div className={`flex-1 flex flex-col bg-[#08121f] min-h-screen`}>
                 {/* pt-16 md:pt-10 */}
                 {/* Header code remains the same */}
 
@@ -5205,14 +5205,24 @@ const openReport = async () => {
 
 
                 {/* content post header */}
-                <div className="flex h-full gap-5 ">
-                    <div
+                <div className="flex h-full gap-5 overflow-hidden ">
+                    {/* <div
                         className={`
                     ${isMobile ? (isMenuOpen ? 'block' : 'hidden') : 'block'} 
                     ${isMobile ? 'w-3/4' : 'w-64'} 
                     bg-[#08121f] border left-0 h-full rounded-lg ml-3
                    `}
-                    >
+                    > */}
+                    <div
+    className={`
+    bg-[#08121f] border rounded-lg flex-shrink-0 z-40
+    ${isMobile ? 
+        `fixed top-0 left-0 bottom-0 w-3/4 transition-transform duration-300 ease-in-out ml-0
+         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}` :
+        'w-64 relative ml-3'
+    }
+    `}
+>
                         <div className="flex flex-col h-full">
                             {/* Search Input and Header */}
                             {/* <div className="p-4 flex-shrink-0">

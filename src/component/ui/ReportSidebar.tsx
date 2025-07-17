@@ -311,7 +311,7 @@ const formattedAccuracyDisplay =
             <div
                 ref={panelRef}
                 className={`
-                    fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-3/5'} bg-[#0a1628] 
+                    fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-5/6'} bg-[#0a1628] 
                     transform transition-transform duration-300 ease-in-out
                     ${isOpen ? 'translate-x-0' : 'translate-x-full'}
                     flex flex-col shadow-xl z-50 text-white

@@ -522,7 +522,7 @@ const HourlyPredictionsTable: React.FC<HourlyPredictionsTableProps> = ({
 
   // Compact table for the sidebar
   const CompactTable = () => (
-    <div className="h-84 overflow-y-auto">
+    <div className="max-h-[500px] overflow-y-scroll">
       <div className="space-y-2">
         {[...hourlyForecast].reverse().map((forecast, reverseIndex) => {
           // Calculate original index for PnL calculation
