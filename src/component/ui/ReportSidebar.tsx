@@ -483,7 +483,7 @@ const formattedAccuracyDisplay =
                         {/* Left Column - News Impact & Trending News */}
                         <div className="flex-[2] space-y-6">
                             {/* News Impact */}
-                            <div>
+                            {/* <div>
                                 <div className="flex items-center space-x-2 mb-4">
                                     <span className="text-lg">📢</span>
                                     <h3 className="font-bold">
@@ -492,7 +492,7 @@ const formattedAccuracyDisplay =
                                 </div>
 
                                 <div className={`${isMobile ? 'grid grid-cols-1 gap-2 mb-4' : 'grid grid-cols-4 gap-4 mb-4 h-16'}`}>
-                                    {/* Main News Card */}
+                                  
                                     <div className="col-span-2 bg-[#1a2332] rounded-lg p-4 h-full flex items-center justify-between">
                                         <TwoLineTitle>
                                             {reportData.newsImpact[0].title.toUpperCase()}
@@ -502,7 +502,7 @@ const formattedAccuracyDisplay =
                                         </span>
                                     </div>
 
-                                    {/* Volatility & Liquidity Cards */}
+                    
                                     <div className="bg-[#1a2332] rounded-lg p-4 text-center">
                                         <div className="text-gray-300 text-xs mb-2">VOLATILITY</div>
                                         <div className="text-white font-bold text-lg">{reportData.volatility.toUpperCase()}</div>
@@ -513,10 +513,10 @@ const formattedAccuracyDisplay =
                                         <div className="text-white font-bold text-lg">{reportData.liquidity.toUpperCase()}</div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Trending News */}
-                            <section className="mt-10">
+                            <section className="">
                                 <div className="flex items-center space-x-2 my-4">
                                     <span className="text-lg">🚀</span>
                                     <h3 className="font-bold">
