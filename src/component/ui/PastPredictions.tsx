@@ -332,10 +332,29 @@ interface PastMacroNews extends PastNewsItem {
   description?: string;
 }
 
+interface HourlyEntry {
+  time: string;                       // e.g. "2025-07-17T00:00:00+00:00"
+  signal: 'LONG' | 'SHORT' | 'HOLD';
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  forecast_price: number;
+  current_price: number;
+  deviation_percent: number;
+  accuracy_percent: number;
+  risk_reward_ratio: number;
+  sentiment_score: number;
+  confidence_50: [number, number];
+  confidence_80: [number, number];
+  confidence_90: [number, number];
+}
+
+
 interface PastPredictionData {
   fetched_date: string;
   crypto_news: PastCryptoNews[];
   macro_news: PastMacroNews[];
+  hourlyForecast?: HourlyEntry[];
 }
 
 interface PastPredictionsResponse {
@@ -454,6 +473,7 @@ interface PastPredictionsProps {
 
 const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobile = false }) => {
   const [pastData, setPastData] = useState<PastPredictionData[]>([]);
+  const [hourlyByDate, setHourlyByDate] = useState<Record<string, HourlyEntry[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -480,7 +500,16 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
         }
 
         const data: PastPredictionsResponse = await response.json();
-        
+        const { past_news_last_3_days, forecast_hourly_last_3_days = [] } = data;
+
+        const byDate: Record<string, HourlyEntry[]> = {};
+        forecast_hourly_last_3_days.forEach(entry => {
+          const day = entry.time.slice(0, 10);
+          byDate[day] = byDate[day] || [];
+          byDate[day].push(entry);
+        });
+        setHourlyByDate(byDate);
+
         // Check if the expected data structure exists
         if (!data) {
           throw new Error('No data received from API');
@@ -504,10 +533,10 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           // Ensure required properties exist
           const processedDayData = {
             fetched_date: dayData.fetched_date || new Date().toISOString().split('T')[0],
-            crypto_news: Array.isArray(dayData.crypto_news) 
+            crypto_news: Array.isArray(dayData.crypto_news)
               ? dayData.crypto_news.map(item => processNewsItem(item)).filter(Boolean)
               : [],
-            macro_news: Array.isArray(dayData.macro_news) 
+            macro_news: Array.isArray(dayData.macro_news)
               ? dayData.macro_news.map(item => processNewsItem(item)).filter(Boolean)
               : []
           };
@@ -525,7 +554,7 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
         setPastData(processedData);
       } catch (err) {
         console.error('Error fetching past predictions:', err);
-        
+
         // Provide more detailed error information
         let errorMessage = 'Failed to fetch data';
         if (err instanceof Error) {
@@ -533,14 +562,14 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
         } else if (typeof err === 'string') {
           errorMessage = err;
         }
-        
+
         // Log the full error for debugging
         console.error('Full error details:', {
           error: err,
           timestamp: new Date().toISOString(),
           apiUrl: process.env.NEXT_PUBLIC_PAST_PREDICTION_API || '/api/past-prediction'
         });
-        
+
         setError(errorMessage);
       } finally {
         setLoading(false);
@@ -567,10 +596,10 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
 
     // Extract sentiment data from the analysis field
     let parsed: any = {};
-    
+
     if (item.analysis && typeof item.analysis === 'string') {
       const match = item.analysis.match(/```json\s*([\s\S]*?)```/);
-      
+
       if (match) {
         try {
           parsed = JSON.parse(match[1]);
@@ -587,8 +616,8 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
       return 'bullish';
     };
 
-    const sentimentScore = (typeof parsed.sentiment_score === 'number' && !isNaN(parsed.sentiment_score)) 
-      ? parsed.sentiment_score 
+    const sentimentScore = (typeof parsed.sentiment_score === 'number' && !isNaN(parsed.sentiment_score))
+      ? parsed.sentiment_score
       : 2.5;
 
     return {
@@ -649,9 +678,9 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           <button
             onClick={() => {
               console.log('Current state:', { pastData, loading, error });
-              console.log('Environment:', { 
+              console.log('Environment:', {
                 NODE_ENV: process.env.NODE_ENV,
-                API_URL: process.env.NEXT_PUBLIC_PAST_PREDICTION_API 
+                API_URL: process.env.NEXT_PUBLIC_PAST_PREDICTION_API
               });
             }}
             className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs transition-colors"
@@ -691,7 +720,13 @@ const PastPredictions: React.FC<PastPredictionsProps> = ({ onViewReport, isMobil
           <PredictionCard
             key={`${dayData.fetched_date}-${index}`}
             data={dayData}
-            onViewReport={onViewReport}
+            // onViewReport={onViewReport}
+            onViewReport={() =>
+              onViewReport({
+                ...dayData,
+                hourlyForecast: hourlyByDate[dayData.fetched_date] || []
+              })
+            }
             isMobile={isMobile}
           />
         ))}

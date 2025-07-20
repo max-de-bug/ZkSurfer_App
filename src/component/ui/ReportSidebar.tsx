@@ -7,6 +7,23 @@ import Gauge from '@/component/ui/Gauge';
 import PriceChart from '@/component/ui/PriceChart';
 import HourlyPredictionsTable from './HourelyForecast';
 
+interface HourlyEntry {
+  time: string;                       // e.g. "2025-07-17T00:00:00+00:00"
+  signal: 'LONG' | 'SHORT' | 'HOLD';
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  forecast_price: number;
+  current_price: number;
+  deviation_percent: number;
+  accuracy_percent: number;
+  risk_reward_ratio: number;
+  sentiment_score: number;
+  confidence_50: [number, number];
+  confidence_80: [number, number];
+  confidence_90: [number, number];
+}
+
 // New interface for past prediction data
 interface PastPredictionData {
     fetched_date: string;
@@ -33,6 +50,7 @@ interface PastPredictionData {
         reason?: string;
         rationale?: string;
     }>;
+    hourlyForecast?: HourlyEntry[];
 }
 
 interface ReportSidebarProps {
@@ -147,7 +165,8 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                 }))
             },
             forecastNext3Days: [],
-            priceHistoryLast7Days: []
+            priceHistoryLast7Days: [],
+            forecastTodayHourly: pastData.hourlyForecast || [],
         };
     };
 
@@ -372,15 +391,36 @@ const formattedAccuracyDisplay =
                                     hourlyForecast={reportData.forecastTodayHourly || []}
                                 />
                             ) : (
-                                <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
-                                    <div className="text-center">
-                                        <div className="text-4xl mb-2">📊</div>
-                                        <p className="text-gray-400 text-sm">Historical Report</p>
-                                        <p className="text-xs text-gray-500">
-                                            {new Date(data.fetched_date).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
+                                // <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
+                                //     <div className="text-center">
+                                //         <div className="text-4xl mb-2">📊</div>
+                                //         <p className="text-gray-400 text-sm">Historical Report</p>
+                                //         <p className="text-xs text-gray-500">
+                                //             {new Date(data.fetched_date).toLocaleDateString()}
+                                //         </p>
+                                //     </div>
+                                // </div>
+                                <section className="">
+  {/* Chart on the left */}
+  {/* <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
+    <span className="text-sm text-gray-300">Today’s Hourly Forecast</span>
+    <PriceChart
+      priceHistory={reportData.priceHistoryLast7Days}
+      forecast={reportData.forecastNext3Days}
+      hourlyForecast={reportData.forecastTodayHourly}
+    />
+  </div> */}
+
+  {/* Table on the right */}
+  <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
+    <span className="text-sm text-gray-300">Hourly Breakdown</span>
+    <HourlyPredictionsTable
+      hourlyForecast={reportData.forecastTodayHourly}
+      className="mt-2"
+    />
+  </div>
+</section>
+
                             )}
                         </div>
 
