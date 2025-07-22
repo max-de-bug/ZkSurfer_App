@@ -415,7 +415,7 @@ const formattedAccuracyDisplay =
   <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
     <span className="text-sm text-gray-300">Hourly Breakdown</span>
     <HourlyPredictionsTable
-      hourlyForecast={reportData.forecastTodayHourly}
+      hourlyForecast={reportData.forecastTodayHourly ?? []}
       className="mt-2"
     />
   </div>
