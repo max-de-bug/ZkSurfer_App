@@ -6,6 +6,9 @@ import NewsCard from '@/component/ui/NewsCard';
 import Gauge from '@/component/ui/Gauge';
 import PriceChart from '@/component/ui/PriceChart';
 import HourlyPredictionsTable from './HourelyForecast';
+import { Trade, TradingIntegration } from './TradingIntegration';
+import { getOrderStatus, placeTestOrder } from '@/lib/hyperLiquidClient';
+import { PlaceOrderBody } from '@/lib/hlTypes';
 
 interface HourlyEntry {
   time: string;                       // e.g. "2025-07-17T00:00:00+00:00"
@@ -65,6 +68,32 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const [btcPrice, setBtcPrice] = useState<number | null>(null);
     const [btcChange, setBtcChange] = useState<number | null>(null);
     const [loadingBtc, setLoadingBtc] = useState(true);
+
+//     const BTC_ASSET_ID = 0;          // <-- replace with real id (see /meta call)
+// const USD_CAP = 100;             // max notional you want to risk
+// const LOT_SIZE = 0.001;          // adjust to HL tick/lot size for BTC
+// const roundLot = (x: number) => (Math.floor(x / LOT_SIZE) * LOT_SIZE).toFixed(3);
+
+// function calcSize(price: number) {
+//   return roundLot(USD_CAP / price); // simple $ cap sizing
+// }
+
+const BTC_ASSET_ID = 0;
+const USD_CAP = 100;             // Your $100 test amount
+const LOT_SIZE = 0.00001;        // Use very small lot size (5 decimals)
+const MIN_ORDER_SIZE = 0.0001;   // Hyperliquid minimum (ensure this is correct)
+
+const roundLot = (x: number) => {
+  // Calculate lots and ensure we get at least the minimum
+  const lots = Math.max(Math.floor(x / LOT_SIZE), Math.ceil(MIN_ORDER_SIZE / LOT_SIZE));
+  return lots * LOT_SIZE;
+};
+
+function calcSize(price: number) {
+  const rawSize = USD_CAP / price;
+  const size = roundLot(rawSize);
+  return size.toFixed(5); // 5 decimals for precision
+}
 
      const [latest, setLatest] = useState<{
     deviation_percent?: number | string;
@@ -177,6 +206,8 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
             : data as FullReportData
         : null;
 
+const hourlyFc = reportData?.forecastTodayHourly ?? [];
+
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768);
@@ -254,6 +285,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
   // keep only real, finite numbers (drops NaN, Infinity, undefined)
   .filter(score => Number.isFinite(score));
 
+
     const avgSentiment = allScores.length > 0
         ? allScores.reduce((s, a) => s + a, 0) / allScores.length
         : 2.5;
@@ -316,6 +348,101 @@ const formattedAccuracyDisplay =
           ? rawAcc
           : `${rawAcc}%`
       : '';
+
+
+     const [trades, setTrades] = useState<Trade[]>([]);
+
+     const [placing, setPlacing] = useState(false);
+
+     const handleManualTrade = async () => {
+  try {
+    setPlacing(true);
+    // const slot = hourlyFc.find(h => h.signal !== 'HOLD') ?? hourlyFc[0];
+    const slot = hourlyFc[hourlyFc.length - 1];
+
+    if (!slot) return;
+
+    const TICK_SIZE = 1; // or use 0.1 or 0.01 if you confirm with /meta
+
+// In handleManualTrade:
+const roundedPrice = Math.round(slot.forecast_price / TICK_SIZE) * TICK_SIZE;
+
+const payload: PlaceOrderBody = {
+  asset: BTC_ASSET_ID,
+  side: slot.signal,                           // "LONG" | "SHORT"
+  price: roundedPrice,                         // 👈 use tick-corrected price
+  size: calcSize(roundedPrice),                // recalc size if you want
+  takeProfit: slot.take_profit && Math.round(Number(slot.take_profit) / TICK_SIZE) * TICK_SIZE,
+  stopLoss: slot.stop_loss && Math.round(Number(slot.stop_loss) / TICK_SIZE) * TICK_SIZE,
+};
+
+    // const payload: PlaceOrderBody = {
+    //   asset: BTC_ASSET_ID,
+    //   side: slot.signal,                           // "LONG" | "SHORT"
+    //   price: slot.forecast_price,
+    //   size: calcSize(slot.forecast_price),         // <= capped by USD_CAP
+    //   takeProfit: slot.take_profit?.toString(),
+    //   stopLoss:  slot.stop_loss?.toString()
+    // };
+
+    const res = await fetch('/api/hl/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'HL order failed');
+
+    const status0 = json.response.data.statuses[0];
+    const oid = status0.resting?.oid ?? status0.filled?.oid;
+
+    const trade: Trade = {
+      id: String(oid),
+      timestamp: Date.now(),
+      signal: slot.signal,
+      entryPrice: slot.forecast_price,
+      status: 'open'
+    };
+    setTrades(t => [...t, trade]);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setPlacing(false);
+  }
+};
+
+// useEffect(() => {
+//   let timer: NodeJS.Timeout;
+
+//   const scheduleTopOfHour = () => {
+//     const now = new Date();
+//     const msLeft =
+//       (60 - now.getUTCMinutes()) * 60_000 -
+//       now.getUTCSeconds() * 1_000 -
+//       now.getUTCMilliseconds();
+
+//     timer = setTimeout(async () => {
+//       try {
+//         // Call your cancel endpoint
+//         await fetch('/api/hl/cancel-open', { method: 'POST' });
+//         // Optionally close positions here with another endpoint if filled but still open
+//         // await fetch('/api/hl/close', { method: 'POST' });
+
+//         // Mark local trades as closed if you want to sync UI instantly
+//         setTrades(ts => ts.map(t => t.status === 'open' ? { ...t, status: 'closed' } : t));
+//       } catch (e) {
+//         console.error('cancel-open failed', e);
+//       }
+
+//       scheduleTopOfHour();
+//     }, msLeft);
+//   };
+
+//   scheduleTopOfHour();
+//   return () => clearTimeout(timer);
+// }, []);
+
 
 
     return (
@@ -446,6 +573,14 @@ const formattedAccuracyDisplay =
         </div>
     </div>
 
+    <button
+  onClick={handleManualTrade}
+  disabled={placing}
+  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded disabled:opacity-50"
+>
+  {placing ? 'Placing…' : 'Test Trade (HL Testnet)'}
+</button>
+
     {/* MARKET SENTIMENT */}
     <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
         <div className="text-3xl">{marketEmoji}</div>
@@ -467,10 +602,16 @@ const formattedAccuracyDisplay =
         />
     </div>
      {!isPastData(data) && reportData.forecastTodayHourly && (
+        <div>
         <HourlyPredictionsTable 
             hourlyForecast={reportData.forecastTodayHourly}
             className="mt-4"
         />
+         <TradingIntegration
+        hourlyForecast={hourlyFc}
+        onTradesUpdate={setTrades}
+      />
+        </div>
     )}
 </div>
                         {/* 4 Cards - Right Side */}

@@ -9,7 +9,7 @@
     "lint": "next lint",
     "postinstall": "patch-package"
   },
-   "resolutions": {
+  "resolutions": {
     "bigint": "npm:big-integer@^1.6.51",
     "@types/bn.js": "^5.1.1"
   },
@@ -73,6 +73,7 @@
     "got": "^14.4.7",
     "houseform": "^1.13.0",
     "html2canvas": "^1.4.1",
+    "hyperliquid": "^1.7.6",
     "jspdf": "^3.0.1",
     "konva": "^9.3.20",
     "lightweight-charts": "^5.0.7",
