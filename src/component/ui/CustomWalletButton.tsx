@@ -450,7 +450,7 @@ export const CustomWalletButton = () => {
               }}
             >
               <div className="transition-all ease-out duration-500 px-10 lg:px-12 py-4 text-center bg-clip-text text-transparent hover:text-white bg-gradient-to-l from-zkIndigo to-zkPurple font-bold tracking-wider">
-                Connect Wallet
+                Connect
               </div>
             </div>
           </div>

@@ -10,9 +10,9 @@ const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 px-4">
             <div className="bg-[#171D3D] rounded-lg shadow-lg w-full sm:w-2/6 p-6 text-center">
-                <h2 className="text-xl font-bold text-white">Connect Your Wallet</h2>
+                <h2 className="text-xl font-bold text-white">LogIn/SignUp</h2>
                 <p className="text-gray-300 mt-2">
-                    You need to connect your wallet to access ZkTerminal features.
+                    You need to connect your wallet or use your email address to access ZkTerminal features.
                 </p>
 
                 {/* Buttons Section */}
