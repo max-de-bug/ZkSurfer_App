@@ -151,8 +151,8 @@ import { getDayState, pushTrade } from '@/lib/dayState';
 export const runtime = 'nodejs';  // must be Node.js for the SDK
 
 // ——— SDK Configuration ————————————————————————————————————————————————
-const PK = process.env.HL_PRIVATE_KEY;
-const MAIN_WALLET = process.env.HL_MAIN_WALLET;
+const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
+const MAIN_WALLET = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
 if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
 if (!MAIN_WALLET) throw new Error('HL_MAIN_WALLET missing in env');
 
