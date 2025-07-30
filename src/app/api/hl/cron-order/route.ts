@@ -35,12 +35,18 @@ export async function GET() {
             headers: { 'Cache-Control': 'no-cache' }
         });
 
+        const forecastJson = await forecastRes.json();
+        console.log('📊 [Forecast Response]', JSON.stringify(forecastJson, null, 2));
+
         const { forecast_today_hourly } = await forecastRes.json();
+
 
         // ✅ Get latest forecast (last entry)
         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
             ? forecast_today_hourly[forecast_today_hourly.length - 1]
             : null;
+
+        console.log('🕐 [Latest Hourly Forecast Slot]', JSON.stringify(slot, null, 2));
 
         // ✅ Validate signal
         if (
