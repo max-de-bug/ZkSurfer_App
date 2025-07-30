@@ -67,6 +67,7 @@ import DynamicSubscriptionWidgit from '@/component/ui/DynamicSubscriptionWidgit'
 import SubscriptionModal from '@/component/ui/SubscriptionModal';
 import ReportPaymentModal from '@/component/ui/ReportPaymentModal';
 import { useSubscriptionStore } from '@/stores/subscription-store';
+import { OnboardingTour } from '@/component/ui/OnBoardingTour';
 
 
 interface GeneratedTweet {
@@ -424,6 +425,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         setIsDropdownOpen(!isDropdownOpen);
     };
 
+    const [showTour, setShowTour] = useState(false)
+
     // const [tickerInfoMap, setTickerInfoMap] = useState<Map<string, any>>(new Map());
     // const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
@@ -509,132 +512,132 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     //     setShowSubscriptionModal(true);
     // };
 
-const openReport = async () => {
-  console.log('openReport called on mobile:', isMobile);
-  console.log('isSubscribed', isSubscribed);
+    const openReport = async () => {
+        console.log('openReport called on mobile:', isMobile);
+        console.log('isSubscribed', isSubscribed);
 
-  if (!isSubscribed) {
-    setShowSubscriptionModal(true);
-    return;
-  }
-
-  const raw = await fetch("/api/today-prediction", {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
-    },
-  }).then(r => r.json());
-
-  const today = Array.isArray(raw.todays_news) && raw.todays_news.length > 0
-    ? raw.todays_news[0]
-    : { crypto_news: [], macro_news: [] };
-
-  const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
-    arr.map(n => {
-      const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
-      let parsed: any;
-      if (match) {
-        try {
-          parsed = JSON.parse(match[1]);
-        } catch (e) {
-          console.warn('Invalid JSON for', n.news_id, e);
+        if (!isSubscribed) {
+            setShowSubscriptionModal(true);
+            return;
         }
-      }
-      parsed = parsed || {
-        sentiment_score: 0,
-        investment: { advice: 'Hold', reason: 'No details available' },
-        rationale: ''
-      };
-      const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
-      return {
-        news_id: n.news_id,
-        title: n.title,
-        link: n.link,
-        analysis: n.analysis,
-        symbol: symbolMatch?.[1] ?? '—',
-        sentimentScore: parsed.sentiment_score,
-        sentimentTag: normalizeSentiment(parsed.sentiment_score),
-        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
-        reason: parsed.investment.reason,
-        rationale: parsed.rationale,
-      };
-    });
 
-  const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
-    arr.map(n => {
-      const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
-      let parsed: any;
-      if (match) {
-        try {
-          parsed = JSON.parse(match[1]);
-        } catch (e) {
-          console.warn('Invalid JSON for', n.news_id, e);
-        }
-      }
-      parsed = parsed || {
-        sentiment_score: 0,
-        investment: { advice: 'Hold', reason: 'No details available' },
-        rationale: ''
-      };
-      return {
-        news_id: n.news_id,
-        title: n.title,
-        link: n.link,
-        description: n.description || '',
-        analysis: n.analysis,
-        sentimentScore: parsed.sentiment_score,
-        sentimentTag: normalizeSentiment(parsed.sentiment_score),
-        advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
-        reason: parsed.investment.reason,
-        rationale: parsed.rationale,
-      };
-    });
+        const raw = await fetch("/api/today-prediction", {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                Pragma: "no-cache",
+                Expires: "0",
+            },
+        }).then(r => r.json());
 
-  const mapHourly = (arr: any[] = []): HourlyForecast[] =>
-    arr.map(h => ({
-      time: h.time,
-      signal: h.signal,
-      entry_price: h.entry_price,
-      stop_loss: h.stop_loss,
-      take_profit: h.take_profit,
-      forecast_price: h.forecast_price,
-      current_price: h.current_price,
-      deviation_percent: h.deviation_percent,
-      accuracy_percent: h.accuracy_percent,
-      risk_reward_ratio: h.risk_reward_ratio,
-      sentiment_score: h.sentiment_score,
-      confidence_50: h.confidence_50,
-      confidence_80: h.confidence_80,
-      confidence_90: h.confidence_90,
-    }));
+        const today = Array.isArray(raw.todays_news) && raw.todays_news.length > 0
+            ? raw.todays_news[0]
+            : { crypto_news: [], macro_news: [] };
 
-  const report: FullReportData = {
-    predictionAccuracy: dummyReportData.predictionAccuracy,
-    predictionSeries: dummyReportData.predictionSeries,
-    priceStats: dummyReportData.priceStats,
-    marketSentiment: dummyReportData.marketSentiment,
-    avoidTokens: dummyReportData.avoidTokens,
-    newsImpact: dummyReportData.newsImpact,
-    volatility: dummyReportData.volatility,
-    liquidity: dummyReportData.liquidity,
-    trendingNews: dummyReportData.trendingNews,
-    whatsNew: dummyReportData.whatsNew,
-    recommendations: dummyReportData.recommendations,
+        const mapCryptoNews = (arr: any[]): CryptoNewsItem[] =>
+            arr.map(n => {
+                const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+                let parsed: any;
+                if (match) {
+                    try {
+                        parsed = JSON.parse(match[1]);
+                    } catch (e) {
+                        console.warn('Invalid JSON for', n.news_id, e);
+                    }
+                }
+                parsed = parsed || {
+                    sentiment_score: 0,
+                    investment: { advice: 'Hold', reason: 'No details available' },
+                    rationale: ''
+                };
+                const symbolMatch = n.title.match(/\b(BTC|ETH|SOL|XRP|ADA)\b/);
+                return {
+                    news_id: n.news_id,
+                    title: n.title,
+                    link: n.link,
+                    analysis: n.analysis,
+                    symbol: symbolMatch?.[1] ?? '—',
+                    sentimentScore: parsed.sentiment_score,
+                    sentimentTag: normalizeSentiment(parsed.sentiment_score),
+                    advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+                    reason: parsed.investment.reason,
+                    rationale: parsed.rationale,
+                };
+            });
 
-    todaysNews: {
-      crypto: mapCryptoNews(today.crypto_news),
-      macro: mapMacroNews(today.macro_news),
-    },
+        const mapMacroNews = (arr: any[]): MacroNewsItem[] =>
+            arr.map(n => {
+                const match = n.analysis.match(/```json\s*([\s\S]*?)```/);
+                let parsed: any;
+                if (match) {
+                    try {
+                        parsed = JSON.parse(match[1]);
+                    } catch (e) {
+                        console.warn('Invalid JSON for', n.news_id, e);
+                    }
+                }
+                parsed = parsed || {
+                    sentiment_score: 0,
+                    investment: { advice: 'Hold', reason: 'No details available' },
+                    rationale: ''
+                };
+                return {
+                    news_id: n.news_id,
+                    title: n.title,
+                    link: n.link,
+                    description: n.description || '',
+                    analysis: n.analysis,
+                    sentimentScore: parsed.sentiment_score,
+                    sentimentTag: normalizeSentiment(parsed.sentiment_score),
+                    advice: parsed.investment.advice as 'Buy' | 'Hold' | 'Sell',
+                    reason: parsed.investment.reason,
+                    rationale: parsed.rationale,
+                };
+            });
 
-    forecastTodayHourly: mapHourly(raw.forecast_today_hourly),
-  };
+        const mapHourly = (arr: any[] = []): HourlyForecast[] =>
+            arr.map(h => ({
+                time: h.time,
+                signal: h.signal,
+                entry_price: h.entry_price,
+                stop_loss: h.stop_loss,
+                take_profit: h.take_profit,
+                forecast_price: h.forecast_price,
+                current_price: h.current_price,
+                deviation_percent: h.deviation_percent,
+                accuracy_percent: h.accuracy_percent,
+                risk_reward_ratio: h.risk_reward_ratio,
+                sentiment_score: h.sentiment_score,
+                confidence_50: h.confidence_50,
+                confidence_80: h.confidence_80,
+                confidence_90: h.confidence_90,
+            }));
 
-  setReportData(report);
-  setIsReportOpen(true);
-};
+        const report: FullReportData = {
+            predictionAccuracy: dummyReportData.predictionAccuracy,
+            predictionSeries: dummyReportData.predictionSeries,
+            priceStats: dummyReportData.priceStats,
+            marketSentiment: dummyReportData.marketSentiment,
+            avoidTokens: dummyReportData.avoidTokens,
+            newsImpact: dummyReportData.newsImpact,
+            volatility: dummyReportData.volatility,
+            liquidity: dummyReportData.liquidity,
+            trendingNews: dummyReportData.trendingNews,
+            whatsNew: dummyReportData.whatsNew,
+            recommendations: dummyReportData.recommendations,
+
+            todaysNews: {
+                crypto: mapCryptoNews(today.crypto_news),
+                macro: mapMacroNews(today.macro_news),
+            },
+
+            forecastTodayHourly: mapHourly(raw.forecast_today_hourly),
+        };
+
+        setReportData(report);
+        setIsReportOpen(true);
+    };
 
 
     // const openReport = async () => {
@@ -943,6 +946,7 @@ const openReport = async () => {
     useEffect(() => {
         if (!wallet.connected) {
             setShowConnectModal(true);
+           // setShowTour(true)    
         } else {
             setShowConnectModal(false);
         }
@@ -5057,10 +5061,17 @@ const openReport = async () => {
         return null;
     }
 
+
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
-            {showConnectModal && <ConnectWalletModal onClose={() => setShowConnectModal(false)} />}
+            {showConnectModal && <ConnectWalletModal onClose={() => 
+                {setShowConnectModal(false)  
+                setShowTour(true)  
+
+                 }} 
+                 />
+                 }
 
             {/* <PresaleBanner walletConnected={connected} walletAddress={walletAddress} /> */}
 
@@ -5117,7 +5128,10 @@ const openReport = async () => {
                                 </div>
                                 {/* Right group: wallet connect and dropdown */}
                                 <div className="flex items-center gap-2">
-                                    <CustomWalletButton />
+                                    {/* <CustomWalletButton /> */}
+                                    <div className="wallet-button">
+  <CustomWalletButton />
+</div>
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsOpen(!isOpen)}
@@ -5153,53 +5167,62 @@ const openReport = async () => {
                         </div>
 
                     ) : (
-                        // Desktop header: your original one (or adjusted as needed)
-                        <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
-                            <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
-                                <div>
-                                    <Image
-                                        src="/images/tiger.svg"
-                                        alt="logo"
-                                        width={30}
-                                        height={30}
-                                    />
+                        <>
+                            <OnboardingTour
+                                isOpen={showTour}
+                                onClose={() => setShowTour(false)}
+                            />
+
+
+
+                        {/* // Desktop header: your original one (or adjusted as needed) */}
+                            <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
+                                <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
+                                    <div>
+                                        <Image
+                                            src="/images/tiger.svg"
+                                            alt="logo"
+                                            width={30}
+                                            height={30}
+                                        />
+                                    </div>
+                                    <div className="font-ttfirs text-xl">ZkTerminal</div>
                                 </div>
-                                <div className="font-ttfirs text-xl">ZkTerminal</div>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <CustomWalletButton />
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsOpen(!isOpen)}
-                                        className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
-                                    >
-                                        {selectedModel} ▼
-                                    </button>
-                                    {isOpen && (
-                                        <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
-                                            <button
-                                                className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                                onClick={() => {
-                                                    setSelectedModel("DeepSeek");
-                                                    setIsOpen(false);
-                                                }}
-                                            >
-                                                DeepSeek
-                                            </button>
-                                            <button
-                                                className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
-                                                onClick={() => {
-                                                    setSelectedModel("Mistral");
-                                                    setIsOpen(false);
-                                                }}
-                                            >
-                                                Mistral
-                                            </button>
-                                        </div>
-                                    )}
+                                <div className="flex items-center space-x-4">
+                                    <CustomWalletButton />
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsOpen(!isOpen)}
+                                            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
+                                        >
+                                            {selectedModel} ▼
+                                        </button>
+                                        {isOpen && (
+                                            <div className="absolute left-0 mt-2 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50">
+                                                <button
+                                                    className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                    onClick={() => {
+                                                        setSelectedModel("DeepSeek");
+                                                        setIsOpen(false);
+                                                    }}
+                                                >
+                                                    DeepSeek
+                                                </button>
+                                                <button
+                                                    className="w-full px-4 py-2 hover:bg-gray-700 text-white text-left"
+                                                    onClick={() => {
+                                                        setSelectedModel("Mistral");
+                                                        setIsOpen(false);
+                                                    }}
+                                                >
+                                                    Mistral
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </header>
+                            </header>
+                        </>
                     )}
                 </div>
 
@@ -5214,15 +5237,15 @@ const openReport = async () => {
                    `}
                     > */}
                     <div
-    className={`
+                        className={`
     bg-[#08121f] border rounded-lg flex-shrink-0 z-40
-    ${isMobile ? 
-        `fixed top-0 left-0 bottom-0 w-3/4 transition-transform duration-300 ease-in-out ml-0
+    ${isMobile ?
+                                `fixed top-0 left-0 bottom-0 w-3/4 transition-transform duration-300 ease-in-out ml-0
          ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}` :
-        'w-64 relative ml-3'
-    }
+                                'w-64 relative ml-3'
+                            }
     `}
->
+                    >
                         <div className="flex flex-col h-full">
                             {/* Search Input and Header */}
                             {/* <div className="p-4 flex-shrink-0">
@@ -5961,7 +5984,7 @@ const openReport = async () => {
                                                 </label>
 
                                                 {/* Textarea for input */}
-                                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full">
+                                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full command-input">
                                                     <textarea
                                                         ref={inputRef}
                                                         value={inputMessage}
@@ -6209,7 +6232,7 @@ const openReport = async () => {
                             <div className="flex-grow overflow-y-auto p-4 space-y-4">
                                 {/* Current Prediction Report Card (Your existing card) */}
                                 <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 text-white border border-gray-700 shadow-2xl w-full mx-auto" onClick={openReport}>
-                                    <div className="flex flex-col items-start">
+                                    <div className="prediction-card flex flex-col items-start">
                                         <div className="">
                                             <h2 className="text-lg font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                                                 PREDICTION REPORT

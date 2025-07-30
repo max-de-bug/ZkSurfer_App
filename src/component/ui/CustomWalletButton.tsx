@@ -408,7 +408,7 @@ export const CustomWalletButton = () => {
     localStorage.getItem("walletName") === MagicWalletName;
 
   return (
-    <div className="flex items-center justify-center relative">
+    <div className="flex items-center justify-center relative wallet-button">
       {isMagicWallet && (publicKey || walletAddress) && walletAddress ? (
         <CustomConnectedButton address={walletAddress} />
       ) : publicKey ? (
@@ -432,7 +432,7 @@ export const CustomWalletButton = () => {
         // )
         : (
           <div
-            className="transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
+            className="wallet-button transition-all ease-out duration-500 relative cursor-pointer group block w-full overflow-hidden border-transparent bg-gradient-to-br from-zkLightPurple via-zkLightPurple to-zkIndigo p-[1px] hover:p-0"
             style={{
               clipPath:
                 "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",
@@ -443,7 +443,7 @@ export const CustomWalletButton = () => {
             onClick={handleClick}
           >
             <div
-              className="transition-all ease-out relative duration-500 active:bg-opacity-80 block w-full overflow-hidden custom-gradient hover:bg-gradient-to-r hover:from-zkPurple hover:to-zkIndigo60 active:from-zkPurple60 hover:p-[1px]"
+              className="wallet-button transition-all ease-out relative duration-500 active:bg-opacity-80 block w-full overflow-hidden custom-gradient hover:bg-gradient-to-r hover:from-zkPurple hover:to-zkIndigo60 active:from-zkPurple60 hover:p-[1px]"
               style={{
                 clipPath:
                   "polygon(0% 0%, calc(100% - 20px) 0%, 100% 20px, 100% 100%, 20px 100%, 0% calc(100% - 20px), 0% 100%, 0% 0%)",

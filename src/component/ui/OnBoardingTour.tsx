@@ -21,9 +21,11 @@ const getImageUrl = (imageData: string | StaticImageData): string => {
 export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
   const tourRef = useRef<Tour | null>(null)
   const [mediaUrls, setMediaUrls] = useState<{
-    gif: string | null
-    video: string | null
-  }>({ gif: null, video: null })
+    connectWalletGif: string | null
+    predictionGif: string | null
+    imageGif: string | null
+    apiGif: string | null
+  }>({ connectWalletGif: null, predictionGif: null, imageGif: null, apiGif: null })
 
   const cleanupTour = () => {
     if (tourRef.current) {
@@ -62,25 +64,40 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
   useEffect(() => {
     const loadMediaFiles = async () => {
       try {
-        // Dynamic import the files from tmp folder
-        const gifModule = await import("../../../tmp/connect-wallet.gif")
-        // const videoModule = await import("../../../tmp/connect-wallet.mp4")
+        // Dynamic import all GIF files from tmp folder
+        const connectWalletModule = await import("../../../tmp/connect-wallet.gif")
+        const predictionModule = await import("../../../tmp/prediction.gif")
+        const imageModule = await import("../../../tmp/image.gif")
+        const apiModule = await import("../../../tmp/api.gif")
         
         // Extract the src property using helper function
-        const gifUrl = getImageUrl(gifModule.default)
-        // const videoUrl = getImageUrl(videoModule.default)
+        const connectWalletUrl = getImageUrl(connectWalletModule.default)
+        const predictionUrl = getImageUrl(predictionModule.default)
+        const imageUrl = getImageUrl(imageModule.default)
+        const apiUrl = getImageUrl(apiModule.default)
         
-        console.log("Loaded media files:", { gif: gifUrl })
-        // , video: videoUrl
+        console.log("Loaded media files:", { 
+          connectWallet: connectWalletUrl,
+          prediction: predictionUrl,
+          image: imageUrl,
+          api: apiUrl
+        })
         
         setMediaUrls({
-          gif: gifUrl,
-          video: null
+          connectWalletGif: connectWalletUrl,
+          predictionGif: predictionUrl,
+          imageGif: imageUrl,
+          apiGif: apiUrl
         })
       } catch (error) {
         console.error("Failed to load media files:", error)
         // Set fallback values
-        setMediaUrls({ gif: null, video: null })
+        setMediaUrls({ 
+          connectWalletGif: null, 
+          predictionGif: null, 
+          imageGif: null, 
+          apiGif: null 
+        })
       }
     }
 
@@ -97,9 +114,9 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
       text: `
         <div style="text-align: center; color: #e5e7eb; padding: 20px;">
           <div class="tour-media-container" id="connect-wallet-media">
-            ${mediaUrls.gif ? 
+            ${mediaUrls.connectWalletGif ? 
               `<img 
-                src="${mediaUrls.gif}"
+                src="${mediaUrls.connectWalletGif}"
                 alt="Connect wallet demonstration"
                 style="
                   width: 100%; 
@@ -157,21 +174,17 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
       text: `
         <div style="text-align: center; color: #e5e7eb; padding: 20px;">
           <div class="tour-media-container" id="prediction-media">
-            ${mediaUrls.video ? 
-              `<video 
-                src="${mediaUrls.video}"
-                autoplay 
-                loop 
-                muted
+            ${mediaUrls.predictionGif ? 
+              `<img 
+                src="${mediaUrls.predictionGif}"
+                alt="Prediction report demonstration"
                 style="
                   width: 100%; 
                   height: 100%; 
                   border-radius: 8px;
                   object-fit: cover;
                 "
-              >
-                Your browser does not support the video tag.
-              </video>` :
+              />` :
               `<div style="
                 color: #10b981; 
                 font-size: 24px; 
@@ -221,9 +234,9 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
       text: `
         <div style="text-align: center; color: #e5e7eb; padding: 20px;">
           <div class="tour-media-container">
-            ${mediaUrls.gif ? 
+            ${mediaUrls.imageGif ? 
               `<img 
-                src="${mediaUrls.gif}"
+                src="${mediaUrls.imageGif}"
                 alt="Command palette demonstration"
                 style="
                   width: 100%; 
@@ -293,9 +306,9 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
       text: `
         <div style="text-align: center; color: #e5e7eb; padding: 20px;">
           <div class="tour-media-container">
-            ${mediaUrls.gif ? 
+            ${mediaUrls.apiGif ? 
               `<img 
-                src="${mediaUrls.gif}"
+                src="${mediaUrls.apiGif}"
                 alt="API key demonstration"
                 style="
                   width: 100%; 
@@ -468,8 +481,8 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
           /* Media container styling */
           .tour-media-container {
             margin: 0 auto 16px auto; 
-            width: 320px; 
-            height: 200px; 
+            width: 300px; 
+            height: 180px; 
             border-radius: 12px; 
             border: 1px solid #374151;
             background: linear-gradient(135deg, #1f2937 0%, #374151 100%);

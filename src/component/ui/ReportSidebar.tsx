@@ -69,6 +69,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const [btcChange, setBtcChange] = useState<number | null>(null);
     const [loadingBtc, setLoadingBtc] = useState(true);
 
+
 //     const BTC_ASSET_ID = 0;          // <-- replace with real id (see /meta call)
 // const USD_CAP = 100;             // max notional you want to risk
 // const LOT_SIZE = 0.001;          // adjust to HL tick/lot size for BTC
@@ -79,9 +80,12 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
 // }
 
 const BTC_ASSET_ID = 0;
-const USD_CAP = 100;             // Your $100 test amount
+const USD_CAP = 600;             // Your $100 test amount
 const LOT_SIZE = 0.00001;        // Use very small lot size (5 decimals)
 const MIN_ORDER_SIZE = 0.0001;   // Hyperliquid minimum (ensure this is correct)
+
+// 🎯 Dynamic leverage based on performance
+const [dayPnL, setDayPnL] = useState({ profit: 0, loss: 0 });
 
 const roundLot = (x: number) => {
   // Calculate lots and ensure we get at least the minimum
@@ -89,16 +93,132 @@ const roundLot = (x: number) => {
   return lots * LOT_SIZE;
 };
 
-function calcSize(price: number) {
-  const rawSize = USD_CAP / price;
-  const size = roundLot(rawSize);
-  return size.toFixed(5); // 5 decimals for precision
+
+// useEffect(() => {
+//   async function loadTrades() {
+//     try {
+//       const wallet = process.env.NEXT_PUBLIC_HL_MAIN_WALLET!;
+//       const res = await fetch(`/api/hl/trades?wallet=${wallet}`);
+//       const { trades, summary } = await res.json();
+//       console.log('HP trade history', trades);
+//       console.log('HP trade summary', summary);
+      
+//       // Extract daily P&L for dynamic leverage calculation
+//       if (summary) {
+//   setDayPnL({
+//     profit: summary.realizedPnl ? Math.max(0, summary.realizedPnl) : 0,
+//     loss: summary.realizedLoss || 0
+//   });
+// }
+//     } catch (e) {
+//       console.error('Failed to load trades', e);
+//     }
+//   }
+//   loadTrades();
+// }, []);
+
+// function calcSize(price: number) {
+//   const rawSize = USD_CAP / price;
+//   const size = roundLot(rawSize);
+//   return size.toFixed(5); // 5 decimals for precision
+// }
+
+const BASE_USD_CAP = 500
+
+// function calcSize(price: number, leverage: number = 1) {
+//   const effectiveCapital = BASE_USD_CAP * leverage;
+//   const rawSize = effectiveCapital / price;
+//   const size = roundLot(rawSize);
+//   return size.toFixed(5);
+// }
+
+const [availableMargin, setAvailableMargin] = useState<number>(0);
+
+useEffect(() => {
+  async function loadMargin() {
+    try {
+      const res = await fetch('/api/hl/margin');
+      const json = await res.json();
+      setAvailableMargin(json.availableMargin);
+    } catch (e) {
+      console.error('could not load margin', e);
+    }
+  }
+  loadMargin();
+}, []);
+
+
+function calcSize(price: number, leverage: number = 1) {
+  // 1) maximum notional you can open on‑chain
+  const maxNotional = availableMargin * leverage;
+
+  // 2) cap by your strategy’s base USD cap
+  const strategyNotional = Math.min(BASE_USD_CAP * leverage, maxNotional);
+
+  // 3) convert dollars to coins
+  const rawSize = strategyNotional / price;
+  const lots = roundLot(rawSize);
+  return lots.toFixed(5);
+}
+
+
+
+
+function getRiskMetrics(price: number, size: string, leverage: number) {
+  const sizeNum = parseFloat(size);
+  const notionalValue = sizeNum * price;
+  const actualRisk = notionalValue / leverage;
+  const requiredMargin = actualRisk;
+  
+  return {
+    notionalValue,
+    actualRisk,
+    requiredMargin,
+    leverage
+  };
+}
+
+// Calculate dynamic leverage based on daily performance
+function calculateDynamicLeverage(dailyProfit: number, dailyLoss: number, signalConfidence?: number) {
+  const baseLeverage = 10; // Your preferred base leverage
+  
+  // Rule 1: If close to daily target ($100), reduce leverage to preserve gains
+  if (dailyProfit >= 80) {
+    return Math.max(5, baseLeverage - 5); // Reduce to 5x when close to target
+  }
+  
+  // Rule 2: If significant daily loss, reduce leverage to limit risk
+  if (dailyLoss >= 100) {
+    return Math.max(3, baseLeverage - 7); // Reduce to 3x when loss is high
+  }
+  
+  // Rule 3: If doing well (profit > 40), slightly increase leverage
+  if (dailyProfit >= 40 && dailyLoss <= 20) {
+    return Math.min(15, baseLeverage + 5); // Increase to 15x when performing well
+  }
+  
+  // Rule 4: If early in day and no major losses, use base leverage
+  if (dailyLoss <= 30) {
+    return baseLeverage; // Stay at 10x
+  }
+  
+  // Rule 5: If moderate losses, slightly reduce leverage
+  if (dailyLoss >= 50 && dailyLoss < 100) {
+    return Math.max(7, baseLeverage - 3); // Reduce to 7x
+  }
+  
+  // Default to base leverage
+  return baseLeverage;
 }
 
      const [latest, setLatest] = useState<{
     deviation_percent?: number | string;
     overall_accuracy_percent?: number | string;
   } | null>(null);
+
+    const [trades, setTrades] = useState<Trade[]>([]);
+
+     const [placing, setPlacing] = useState(false);
 
   // 2️⃣ Fetch it once on mount
   useEffect(() => {
@@ -350,9 +470,6 @@ const formattedAccuracyDisplay =
       : '';
 
 
-     const [trades, setTrades] = useState<Trade[]>([]);
-
-     const [placing, setPlacing] = useState(false);
 
      const handleManualTrade = async () => {
   try {
@@ -362,18 +479,23 @@ const formattedAccuracyDisplay =
 
     if (!slot) return;
 
-    const TICK_SIZE = 1; // or use 0.1 or 0.01 if you confirm with /meta
+    const dynamicLeverage = calculateDynamicLeverage(dayPnL.profit, dayPnL.loss, slot.confidence_90?.[1]);
+    console.log(`🎯 Dynamic Leverage: ${dynamicLeverage}x (Profit: $${dayPnL.profit}, Loss: $${dayPnL.loss})`);
 
-// In handleManualTrade:
-const roundedPrice = Math.round(slot.forecast_price / TICK_SIZE) * TICK_SIZE;
+    const TICK_SIZE = 1; // or use 0.1 or 0.01 if you confirm with /meta
+    const roundedPrice = Math.round(slot.forecast_price / TICK_SIZE) * TICK_SIZE;
+    const size = calcSize(roundedPrice, dynamicLeverage);
+    const riskMetrics = getRiskMetrics(roundedPrice, size, dynamicLeverage);
+
 
 const payload: PlaceOrderBody = {
   asset: BTC_ASSET_ID,
   side: slot.signal,                           // "LONG" | "SHORT"
   price: roundedPrice,                         // 👈 use tick-corrected price
-  size: calcSize(roundedPrice),                // recalc size if you want
+  size: calcSize(roundedPrice, dynamicLeverage),                // recalc size if you want
   takeProfit: slot.take_profit && Math.round(Number(slot.take_profit) / TICK_SIZE) * TICK_SIZE,
   stopLoss: slot.stop_loss && Math.round(Number(slot.stop_loss) / TICK_SIZE) * TICK_SIZE,
+  leverage: dynamicLeverage
 };
 
     // const payload: PlaceOrderBody = {
@@ -411,6 +533,25 @@ const payload: PlaceOrderBody = {
     setPlacing(false);
   }
 };
+
+// useEffect(() => {
+//   const iv = setInterval(async () => {
+//     try {
+//       const res = await fetch('/api/hl/pnl');
+//       if (!res.ok) {
+//         console.error('PnL fetch failed:', res.status);
+//         return;
+//       }
+//       const data = await res.json();
+//       console.log('[PnL]', data);
+//     } catch (e) {
+//       console.error('PnL parse error:', e);
+//     }
+//   }, 10_000);
+//   return () => clearInterval(iv);
+// }, []);
+
+
 
 // useEffect(() => {
 //   let timer: NodeJS.Timeout;
@@ -573,13 +714,13 @@ const payload: PlaceOrderBody = {
         </div>
     </div>
 
-    <button
+    {/* <button
   onClick={handleManualTrade}
   disabled={placing}
   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded disabled:opacity-50"
 >
   {placing ? 'Placing…' : 'Test Trade (HL Testnet)'}
-</button>
+</button> */}
 
     {/* MARKET SENTIMENT */}
     <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
