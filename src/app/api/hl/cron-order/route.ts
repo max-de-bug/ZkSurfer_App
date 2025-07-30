@@ -31,15 +31,19 @@ export async function GET() {
     try {
         // ✅ Fetch today's hourly prediction
         const forecastRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/today-prediction`, {
+            method: "GET",
             cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache' }
+            headers: {
+                'Cache-Control': "no-cache,no-store, must-revalidate",
+                Pragma: "no-cache",
+                Expires: "0"
+            }
         });
 
         const forecastJson = await forecastRes.json();
         console.log('📊 [Forecast Response]', JSON.stringify(forecastJson, null, 2));
 
-        const { forecast_today_hourly } = await forecastRes.json();
-
+        const { forecast_today_hourly } = forecastJson;
 
         // ✅ Get latest forecast (last entry)
         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
