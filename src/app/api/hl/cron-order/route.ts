@@ -1,3 +1,170 @@
+// // pages/api/hl/cron-order.ts
+// import { NextResponse } from 'next/server';
+// import { Hyperliquid, Tif } from 'hyperliquid';
+// import { getDayState, pushTrade } from '@/lib/dayState';
+
+// export const runtime = 'nodejs';  // must be Node.js for the SDK
+
+// // ——— SDK Configuration ————————————————————————————————————————————————
+// const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
+// const MAIN_WALLET = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
+// if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
+// if (!MAIN_WALLET) throw new Error('HL_MAIN_WALLET missing in env');
+
+// const sdk = new Hyperliquid({
+//     privateKey: PK,
+//     walletAddress: MAIN_WALLET,
+//     testnet: false
+// });
+
+// // ——— Helpers ———————————————————————————————————————————————————————————
+// const BASE_USD_CAP = 500;
+// const LOT_SIZE = 0.00001;
+// const MIN_ORDER_SIZE = 0.0001;
+
+// function roundLot(x: number) {
+//     const lots = Math.max(
+//         Math.floor(x / LOT_SIZE),
+//         Math.ceil(MIN_ORDER_SIZE / LOT_SIZE)
+//     );
+//     return lots * LOT_SIZE;
+// }
+
+// function calcSize(price: number, leverage: number, availableMargin = 1000) {
+//     const maxNotional = availableMargin * leverage;
+//     const strategyNotional = Math.min(BASE_USD_CAP * leverage, maxNotional);
+//     return roundLot(strategyNotional / price).toFixed(5);
+// }
+
+// function calculateDynamicLeverage(profit: number, loss: number, confidence?: number) {
+//     const base = 10;
+//     if (profit >= 80) return 5;
+//     if (loss >= 100) return 3;
+//     if (profit >= 40 && loss <= 20) return 15;
+//     if (loss <= 30) return base;
+//     if (loss >= 50 && loss < 100) return 7;
+//     return base;
+// }
+
+// // ——— Cron Handler —————————————————————————————————————————————————————
+// export async function GET() {
+//     try {
+//         // 1️⃣ Fetch the forecast directly from your Python backend
+//         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+//         if (!apiKey) {
+//             return NextResponse.json(
+//                 { error: 'NEXT_PUBLIC_API_KEY not defined' },
+//                 { status: 500 }
+//             );
+//         }
+
+//         const forecastRes = await fetch('https://zynapse.zkagi.ai/today', {
+//             method: 'GET',
+//             cache: 'no-store',
+//             headers: {
+//                 accept: 'application/json',
+//                 'api-key': apiKey
+//             }
+//         });
+//         if (!forecastRes.ok) {
+//             const txt = await forecastRes.text();
+//             console.error('Forecast API error:', txt);
+//             return NextResponse.json(
+//                 { error: `Forecast API error (${forecastRes.status})` },
+//                 { status: forecastRes.status }
+//             );
+//         }
+
+//         const { forecast_today_hourly } = await forecastRes.json();
+
+
+//         // 2️⃣ Pick the latest hourly slot
+//         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
+//             ? forecast_today_hourly[forecast_today_hourly.length - 1]
+//             : null;
+//         console.log('📊 [Forecast Response]', JSON.stringify(slot, null, 2));
+
+//         if (
+//             !slot ||
+//             slot.signal === 'HOLD' ||
+//             slot.forecast_price == null ||
+//             typeof slot.signal !== 'string'
+//         ) {
+//             console.warn('⚠️ No valid trade signal. Skipping.');
+//             return NextResponse.json({ message: 'No trade signal' });
+//         }
+
+//         // 3️⃣ Compute size & leverage
+//         const dayState = getDayState();
+//         const price = Math.round(slot.forecast_price);
+//         const leverage = calculateDynamicLeverage(
+//             Math.max(0, dayState.realizedPnl),
+//             dayState.realizedLoss,
+//             slot.confidence_90?.[1]
+//         );
+//         const size = calcSize(price, leverage);
+
+//         // 4️⃣ Build the SDK order params
+//         const coin = 'BTC-PERP';
+//         const isBuy = slot.signal === 'LONG';
+//         const orderParams = {
+//             coin,
+//             is_buy: isBuy,
+//             sz: Number(size),
+//             limit_px: price,
+//             order_type: { limit: { tif: 'Gtc' as Tif } },
+//             reduce_only: false,
+//             ...(slot.take_profit != null && { tp: Number(slot.take_profit) }),
+//             ...(slot.stop_loss != null && { sl: Number(slot.stop_loss) })
+//         };
+
+//         console.log('📤 Placing order with params:', orderParams);
+
+//         // 5️⃣ Place the order via the Hyperliquid SDK
+//         const result = await sdk.exchange.placeOrder(orderParams);
+//         console.log('📥 [SDK Response]', JSON.stringify(result, null, 2));
+//         if (result.status === 'err') {
+//             throw new Error(`SDK order error: ${result.response}`);
+//         }
+
+//         // 6️⃣ Track any fills
+//         const statuses = result.response.data.statuses ?? [];
+//         statuses.forEach((s: { filled: { avgPx: any; totalSz: any; oid: any; }; }) => {
+//             if ('filled' in s && s.filled) {
+//                 const { avgPx, totalSz, oid } = s.filled;
+//                 const pnl = (isBuy ? avgPx - price : price - avgPx) * totalSz;
+//                 pushTrade({
+//                     id: String(oid),
+//                     pnl,
+//                     side: slot.signal,
+//                     size: totalSz,
+//                     avgPrice: avgPx,
+//                     leverage,
+//                     timestamp: Date.now()
+//                 });
+//             }
+//         });
+
+//         // 7️⃣ Return success
+//         // return NextResponse.json({
+//         const payload = {
+//             success: true,
+//             timestamp: new Date().toISOString(),
+//             forecastSlot: slot,
+//             payload: { asset: 0, side: slot.signal, price, size, leverage },
+//             sdkResponse: result
+//         };
+
+//         console.log('📤 [Returning Payload]', JSON.stringify(payload, null, 2));
+//         return NextResponse.json(payload);
+
+//     } catch (err: any) {
+//         console.error('❌ Cron order error:', err);
+//         return NextResponse.json({ error: err.message }, { status: 500 });
+//     }
+// }
+
+
 // pages/api/hl/cron-order.ts
 import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
@@ -7,9 +174,12 @@ export const runtime = 'nodejs';  // must be Node.js for the SDK
 
 // ——— SDK Configuration ————————————————————————————————————————————————
 const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
-const MAIN_WALLET = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
+const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
 if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
-if (!MAIN_WALLET) throw new Error('HL_MAIN_WALLET missing in env');
+if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
+
+// Create properly typed constants
+const MAIN_WALLET: string = MAIN_WALLET_RAW;
 
 const sdk = new Hyperliquid({
     privateKey: PK,
@@ -17,11 +187,17 @@ const sdk = new Hyperliquid({
     testnet: false
 });
 
-// ——— Helpers ———————————————————————————————————————————————————————————
-const BASE_USD_CAP = 500;
+// ——— Dynamic Position Sizing Constants ———————————————————————————————
 const LOT_SIZE = 0.00001;
 const MIN_ORDER_SIZE = 0.0001;
+const MIN_PROFIT_PER_TRADE = 17.5; // MINIMUM profit target (not fixed)
+const MAX_LOSS_PER_TRADE = 30;
+const DAILY_LOSS_LIMIT = 150;
+const CAPITAL_USAGE_PERCENT = 0.90; // Use 90% of available USDC per trade
+const MAX_LEVERAGE = 25; // Increased for higher profits
+const MIN_LEVERAGE = 5;  // Higher minimum for aggressive targets
 
+// ——— Helper Functions ————————————————————————————————————————————————
 function roundLot(x: number) {
     const lots = Math.max(
         Math.floor(x / LOT_SIZE),
@@ -30,23 +206,152 @@ function roundLot(x: number) {
     return lots * LOT_SIZE;
 }
 
-function calcSize(price: number, leverage: number, availableMargin = 1000) {
-    const maxNotional = availableMargin * leverage;
-    const strategyNotional = Math.min(BASE_USD_CAP * leverage, maxNotional);
-    return roundLot(strategyNotional / price).toFixed(5);
+// ——— Get Real-Time USDC Balance (FIXED) ——————————————————————————————
+async function getAvailableUSDC() {
+    try {
+        // CORRECT METHOD: Use perpetuals clearinghouse state
+        const clearinghouseState = await sdk.info.perpetuals.getClearinghouseState(MAIN_WALLET);
+        const marginSummary = clearinghouseState.marginSummary;
+
+        console.log('💰 Account Summary:', {
+            totalValue: marginSummary.accountValue,
+            totalMarginUsed: marginSummary.totalMarginUsed || 0,
+            withdrawable: clearinghouseState.withdrawable || marginSummary.accountValue
+        });
+
+        return {
+            totalUSDC: parseFloat(marginSummary.accountValue),
+            availableMargin: parseFloat(clearinghouseState.withdrawable || marginSummary.accountValue)
+        };
+    } catch (err) {
+        console.error('Failed to get USDC balance:', err);
+        return { totalUSDC: 500, availableMargin: 500 }; // Fallback
+    }
 }
 
+// ——— Aggressive Dynamic Leverage (HIGHER FOR PROFITS) ————————————————
 function calculateDynamicLeverage(profit: number, loss: number, confidence?: number) {
-    const base = 10;
-    if (profit >= 80) return 5;
-    if (loss >= 100) return 3;
-    if (profit >= 40 && loss <= 20) return 15;
-    if (loss <= 30) return base;
-    if (loss >= 50 && loss < 100) return 7;
-    return base;
+    // VERY aggressive to maximize profit potential
+    if (loss >= 120) return 3;   // Emergency brake only
+    if (loss >= 80) return 6;    // Heavy caution
+    if (profit >= 300 && loss <= 30) return 25; // MAX leverage on hot streak
+    if (profit >= 200 && loss <= 50) return 20; // High leverage for good performance  
+    if (profit >= 100 && loss <= 40) return 18; // Above average performance
+    if (loss <= 40) return 15;   // Normal aggressive mode
+    if (loss >= 60) return 10;   // Defensive mode
+    return 12; // Default aggressive (increased from 10)
 }
 
-// ——— Cron Handler —————————————————————————————————————————————————————
+// ——— MINIMUM Profit-Target Based Sizing (DYNAMIC UPWARD) ——————————————
+function calculateOptimalSize(
+    price: number,
+    availableUSDC: number,
+    currentProfit: number,
+    currentLoss: number,
+    expectedMovePercent = 2.0 // Slightly higher expected move
+) {
+    // MINIMUM profit scaling - increases with performance
+    let targetProfit = MIN_PROFIT_PER_TRADE;
+
+    // DYNAMIC UPWARD SCALING based on performance
+    if (currentProfit >= 150 && currentLoss <= 30) {
+        targetProfit = Math.min(40, targetProfit * 1.8); // Up to $40 on hot streak
+    } else if (currentProfit >= 100 && currentLoss <= 50) {
+        targetProfit = Math.min(30, targetProfit * 1.5); // Up to $30 when doing well
+    } else if (currentProfit >= 50 && currentLoss <= 60) {
+        targetProfit = Math.min(25, targetProfit * 1.3); // Scale up moderately
+    }
+
+    // Use HIGH percentage of available capital (90%)
+    const capitalPerTrade = availableUSDC * CAPITAL_USAGE_PERCENT;
+
+    // Calculate required notional for DYNAMIC profit target
+    const requiredNotional = (targetProfit / expectedMovePercent) * 100;
+
+    // Calculate needed leverage for target
+    const neededLeverage = Math.min(
+        requiredNotional / capitalPerTrade,
+        MAX_LEVERAGE
+    );
+
+    // But also check what leverage gives us maximum safe size
+    const maxSafeLeverage = MAX_LEVERAGE;
+    const maxSafeNotional = capitalPerTrade * maxSafeLeverage;
+
+    // Use the HIGHER of: target-based or maximum safe leverage
+    const leverage = Math.max(
+        Math.max(MIN_LEVERAGE, Math.round(neededLeverage)),
+        Math.round(maxSafeNotional / requiredNotional * MIN_LEVERAGE)
+    );
+
+    const finalLeverage = Math.min(leverage, MAX_LEVERAGE);
+    const notionalValue = capitalPerTrade * finalLeverage;
+    const positionSize = notionalValue / price;
+
+    // Calculate ACTUAL expected profit (could be higher than minimum)
+    const actualExpectedProfit = (notionalValue * expectedMovePercent) / 100;
+
+    console.log(`💰 Capital: $${capitalPerTrade.toFixed(0)}, Leverage: ${finalLeverage}x`);
+    console.log(`📊 Notional: $${notionalValue.toFixed(0)}, Size: ${positionSize.toFixed(5)}`);
+    console.log(`🎯 MIN Target: $${MIN_PROFIT_PER_TRADE}, DYNAMIC Target: $${targetProfit.toFixed(1)}, ACTUAL Expected: $${actualExpectedProfit.toFixed(1)}`);
+
+    return {
+        size: roundLot(positionSize),
+        leverage: finalLeverage,
+        notionalValue,
+        capitalUsed: capitalPerTrade,
+        expectedProfit: actualExpectedProfit, // This can be MUCH higher than minimum
+        dynamicTarget: targetProfit,
+        maxRisk: Math.min((notionalValue * 2.5) / 100, MAX_LOSS_PER_TRADE) // 2.5% max adverse move
+    };
+}
+
+// ——— Dynamic Size Calculator (NO UPPER LIMITS) ———————————————————————
+async function calcDynamicSize(price: number, signal: string, confidence?: number) {
+    const { availableMargin } = await getAvailableUSDC();
+    const dayState = getDayState();
+
+    // Calculate base leverage from performance
+    const baseLeverage = calculateDynamicLeverage(
+        Math.max(0, dayState.realizedPnl),
+        dayState.realizedLoss,
+        confidence
+    );
+
+    // Calculate optimal position for MINIMUM profit target (can go higher)
+    const optimal = calculateOptimalSize(
+        price,
+        availableMargin,
+        Math.max(0, dayState.realizedPnl),
+        dayState.realizedLoss
+    );
+
+    // Use the HIGHER leverage for maximum profit potential
+    const finalLeverage = Math.max(baseLeverage, optimal.leverage);
+
+    // Recalculate with MAXIMUM leverage between the two
+    const capitalPerTrade = availableMargin * CAPITAL_USAGE_PERCENT;
+    const finalNotional = capitalPerTrade * finalLeverage;
+    const finalSize = finalNotional / price;
+
+    // ACTUAL expected profit (will likely exceed minimum)
+    const actualExpectedProfit = (finalNotional * 2.0) / 100; // 2% expected move
+    const maxRisk = Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE);
+
+    return {
+        size: roundLot(finalSize).toFixed(5),
+        leverage: finalLeverage,
+        notional: finalNotional,
+        expectedProfit: actualExpectedProfit,
+        minTarget: MIN_PROFIT_PER_TRADE,
+        maxRisk,
+        capitalUsed: capitalPerTrade,
+        availableUSDC: availableMargin,
+        profitPotential: actualExpectedProfit >= MIN_PROFIT_PER_TRADE ? 'TARGET_EXCEEDED' : 'MINIMUM_MET'
+    };
+}
+
+// ——— Main Cron Handler ————————————————————————————————————————————————
 export async function GET() {
     try {
         // 1️⃣ Fetch the forecast directly from your Python backend
@@ -66,6 +371,7 @@ export async function GET() {
                 'api-key': apiKey
             }
         });
+
         if (!forecastRes.ok) {
             const txt = await forecastRes.text();
             console.error('Forecast API error:', txt);
@@ -76,7 +382,6 @@ export async function GET() {
         }
 
         const { forecast_today_hourly } = await forecastRes.json();
-
 
         // 2️⃣ Pick the latest hourly slot
         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
@@ -94,23 +399,40 @@ export async function GET() {
             return NextResponse.json({ message: 'No trade signal' });
         }
 
-        // 3️⃣ Compute size & leverage
+        // 3️⃣ Check daily loss limit BEFORE sizing
         const dayState = getDayState();
-        const price = Math.round(slot.forecast_price);
-        const leverage = calculateDynamicLeverage(
-            Math.max(0, dayState.realizedPnl),
-            dayState.realizedLoss,
-            slot.confidence_90?.[1]
-        );
-        const size = calcSize(price, leverage);
+        if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
+            console.log(`🛑 Daily loss limit reached ($${DAILY_LOSS_LIMIT}). Stopping trades.`);
+            return NextResponse.json({
+                message: `Daily loss limit reached: $${dayState.realizedLoss}`
+            });
+        }
 
-        // 4️⃣ Build the SDK order params
+        // 4️⃣ AGGRESSIVE Dynamic position sizing (NO UPPER LIMITS)
+        const price = Math.round(slot.forecast_price);
+        const positionCalc = await calcDynamicSize(price, slot.signal, slot.confidence_90?.[1]);
+
+        console.log('🚀 AGGRESSIVE Position Calculation:', {
+            availableUSDC: positionCalc.availableUSDC.toFixed(0),
+            capitalUsed: positionCalc.capitalUsed.toFixed(0),
+            usagePercent: (positionCalc.capitalUsed / positionCalc.availableUSDC * 100).toFixed(1) + '%',
+            size: positionCalc.size,
+            leverage: positionCalc.leverage,
+            notional: positionCalc.notional.toFixed(0),
+            minTarget: positionCalc.minTarget.toFixed(1),
+            expectedProfit: positionCalc.expectedProfit.toFixed(2),
+            profitPotential: positionCalc.profitPotential,
+            maxRisk: positionCalc.maxRisk.toFixed(2),
+            currentDayLoss: dayState.realizedLoss.toFixed(2)
+        });
+
+        // 5️⃣ Build the SDK order params
         const coin = 'BTC-PERP';
         const isBuy = slot.signal === 'LONG';
         const orderParams = {
             coin,
             is_buy: isBuy,
-            sz: Number(size),
+            sz: Number(positionCalc.size),
             limit_px: price,
             order_type: { limit: { tif: 'Gtc' as Tif } },
             reduce_only: false,
@@ -118,16 +440,17 @@ export async function GET() {
             ...(slot.stop_loss != null && { sl: Number(slot.stop_loss) })
         };
 
-        console.log('📤 Placing order with params:', orderParams);
+        console.log('📤 Placing LARGE order with params:', orderParams);
 
-        // 5️⃣ Place the order via the Hyperliquid SDK
+        // 6️⃣ Place the order via the Hyperliquid SDK
         const result = await sdk.exchange.placeOrder(orderParams);
         console.log('📥 [SDK Response]', JSON.stringify(result, null, 2));
+
         if (result.status === 'err') {
             throw new Error(`SDK order error: ${result.response}`);
         }
 
-        // 6️⃣ Track any fills
+        // 7️⃣ Track any fills
         const statuses = result.response.data.statuses ?? [];
         statuses.forEach((s: { filled: { avgPx: any; totalSz: any; oid: any; }; }) => {
             if ('filled' in s && s.filled) {
@@ -139,23 +462,40 @@ export async function GET() {
                     side: slot.signal,
                     size: totalSz,
                     avgPrice: avgPx,
-                    leverage,
+                    leverage: positionCalc.leverage,
                     timestamp: Date.now()
                 });
             }
         });
 
-        // 7️⃣ Return success
-        // return NextResponse.json({
+        // 8️⃣ Return comprehensive success response
         const payload = {
             success: true,
             timestamp: new Date().toISOString(),
             forecastSlot: slot,
-            payload: { asset: 0, side: slot.signal, price, size, leverage },
+            positionDetails: {
+                size: positionCalc.size,
+                leverage: positionCalc.leverage,
+                notional: positionCalc.notional,
+                minProfitTarget: positionCalc.minTarget,
+                expectedProfit: positionCalc.expectedProfit,
+                profitPotential: positionCalc.profitPotential,
+                maxRisk: positionCalc.maxRisk,
+                capitalUsed: positionCalc.capitalUsed,
+                availableUSDC: positionCalc.availableUSDC,
+                capitalUsagePercent: (positionCalc.capitalUsed / positionCalc.availableUSDC * 100)
+            },
+            payload: {
+                asset: 0,
+                side: slot.signal,
+                price,
+                size: positionCalc.size,
+                leverage: positionCalc.leverage
+            },
             sdkResponse: result
         };
 
-        console.log('📤 [Returning Payload]', JSON.stringify(payload, null, 2));
+        console.log('📤 [Returning AGGRESSIVE Payload]', JSON.stringify(payload, null, 2));
         return NextResponse.json(payload);
 
     } catch (err: any) {
