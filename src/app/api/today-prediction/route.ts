@@ -52,7 +52,7 @@ export async function GET(_req: NextRequest) {
     const res = await fetch(endpoint, {
       cache: "no-store",
       headers: {
-        "x-api-key": apiKey,
+        "api-key": apiKey,
         "Content-Type": "application/json"
       }
     });
