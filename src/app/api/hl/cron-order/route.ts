@@ -518,7 +518,7 @@ async function getAvailableUSDC() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 type: 'clearinghouseState',
-                user: MAIN_WALLET
+                user: USER_WALLET
             })
         });
 
@@ -532,7 +532,7 @@ async function getAvailableUSDC() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 type: 'spotClearinghouseState',
-                user: MAIN_WALLET
+                user: USER_WALLET
             })
         });
 
@@ -662,7 +662,7 @@ async function closeOldPositions() {
                     });
 
                     const allMids = await priceResponse.json();
-                    const coinPrice = allMids[`${coin}-PERP`];
+                    const coinPrice = allMids[`${coin}`];
 
                     if (!coinPrice) {
                         console.error(`❌ No price found for ${coin}`);
