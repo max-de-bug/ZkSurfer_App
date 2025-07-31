@@ -1212,7 +1212,6 @@ async function getAvailableUSDC() {
 }
 
 // ——— Auto-Close Old Positions Function ——————————————————————————————
-// ——— Auto-Close Old Positions Function (IMMEDIATE MARKET ORDERS) ——————————————————————————————
 async function closeOldPositions() {
     try {
         console.log('🕐 Checking for positions older than 1 hour...');
@@ -1253,17 +1252,6 @@ async function closeOldPositions() {
 
         const fills = await fillsResponse.json();
 
-        // Get current market prices for aggressive market orders
-        const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'allMids'
-            })
-        });
-
-        const allMids = await priceResponse.json();
-
         for (const position of positions) {
             const coin = position.position.coin;
             const size = parseFloat(position.position.szi);
@@ -1285,13 +1273,23 @@ async function closeOldPositions() {
 
             // Close positions older than 1 hour
             if (positionAge > (60 * 60 * 1000)) {
-                console.log(`🔴 IMMEDIATELY closing ${coin} position (${ageHours.toFixed(2)}h old)`);
+                console.log(`🔴 Closing ${coin} position (${ageHours.toFixed(2)}h old)`);
 
                 try {
                     // Determine order side (opposite of position)
                     const isBuy = size < 0; // If short position, buy to close
                     const absSize = Math.abs(size);
 
+                    // Get current market price for market order
+                    const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'allMids'
+                        })
+                    });
+
+                    const allMids = await priceResponse.json();
                     const coinPrice = allMids[`${coin}`];
 
                     if (!coinPrice) {
@@ -1299,44 +1297,31 @@ async function closeOldPositions() {
                         continue;
                     }
 
-                    // AGGRESSIVE MARKET ORDER - Use 3% slippage to ensure immediate fill
-                    const aggressivePrice = isBuy ?
-                        coinPrice * 1.03 :  // Buy 3% above market (guaranteed fill for long close)
-                        coinPrice * 0.97;   // Sell 3% below market (guaranteed fill for short close)
-
-                    // IMMEDIATE MARKET-LIKE ORDER with very aggressive pricing
+                    // Place market order to close position
                     const closeOrderParams = {
                         coin: `${coin}-PERP`,
                         is_buy: isBuy,
                         sz: absSize,
-                        limit_px: aggressivePrice, // VERY aggressive pricing for immediate fill
-                        order_type: { limit: { tif: 'Ioc' as Tif } }, // Immediate or Cancel
+                        limit_px: isBuy ? coinPrice * 1.005 : coinPrice * 0.995, // 0.5% slippage
+                        order_type: { limit: { tif: 'Ioc' as Tif } }, // Immediate or Cancel (market-like)
                         reduce_only: true // Important: only close existing position
                     };
 
-                    console.log(`📤 IMMEDIATE MARKET CLOSE for ${coin}:`, {
-                        side: isBuy ? 'BUY' : 'SELL',
-                        size: absSize,
-                        marketPrice: coinPrice,
-                        aggressivePrice: aggressivePrice,
-                        slippage: isBuy ? '+3%' : '-3%'
-                    });
+                    console.log(`📤 Closing ${coin} position with params:`, closeOrderParams);
 
                     const closeResult = await sdk.exchange.placeOrder(closeOrderParams);
                     console.log('Close order result:', closeResult);
 
                     if (closeResult.status === 'ok') {
-                        // Check if order was filled immediately
-                        const statuses = closeResult.response.data.statuses ?? [];
-                        let wasFilledImmediately = false;
+                        console.log(`✅ Successfully closed ${coin} position`);
+                        closedPositions++;
+                        freedMargin += marginUsed;
 
+                        // Track the close in day state
+                        const statuses = closeResult.response.data.statuses ?? [];
                         statuses.forEach((s: any) => {
                             if ('filled' in s && s.filled) {
                                 const { avgPx, totalSz, oid } = s.filled;
-                                wasFilledImmediately = true;
-
-                                console.log(`✅ IMMEDIATELY FILLED ${coin} position at ${avgPx}`);
-
                                 const pnl = isBuy ?
                                     (latestFill.px - avgPx) * totalSz :
                                     (avgPx - latestFill.px) * totalSz;
@@ -1350,64 +1335,8 @@ async function closeOldPositions() {
                                     leverage: position.position.leverage.value,
                                     timestamp: Date.now()
                                 });
-
-                                closedPositions++;
-                                freedMargin += marginUsed;
-                            } else if ('resting' in s) {
-                                console.warn(`⚠️ Order for ${coin} is resting (not filled immediately) - order ID: ${s.resting.oid}`);
-                                // Cancel the resting order and try with even more aggressive pricing
                             }
                         });
-
-                        // If not filled immediately, try with even MORE aggressive pricing
-                        if (!wasFilledImmediately) {
-                            console.log(`🔄 First attempt didn't fill immediately, trying with 5% slippage...`);
-
-                            // EVEN MORE AGGRESSIVE - 5% slippage
-                            const ultraAggressivePrice = isBuy ?
-                                coinPrice * 1.05 :  // Buy 5% above market
-                                coinPrice * 0.95;   // Sell 5% below market
-
-                            const ultraAggressiveParams = {
-                                coin: `${coin}-PERP`,
-                                is_buy: isBuy,
-                                sz: absSize,
-                                limit_px: ultraAggressivePrice,
-                                order_type: { limit: { tif: 'Ioc' as Tif } },
-                                reduce_only: true
-                            };
-
-                            const secondAttempt = await sdk.exchange.placeOrder(ultraAggressiveParams);
-                            console.log('Second attempt result:', secondAttempt);
-
-                            if (secondAttempt.status === 'ok') {
-                                const secondStatuses = secondAttempt.response.data.statuses ?? [];
-                                secondStatuses.forEach((s: any) => {
-                                    if ('filled' in s && s.filled) {
-                                        const { avgPx, totalSz, oid } = s.filled;
-                                        console.log(`✅ FILLED on second attempt ${coin} position at ${avgPx} (5% slippage)`);
-
-                                        const pnl = isBuy ?
-                                            (latestFill.px - avgPx) * totalSz :
-                                            (avgPx - latestFill.px) * totalSz;
-
-                                        pushTrade({
-                                            id: String(oid),
-                                            pnl,
-                                            side: 'CLOSE',
-                                            size: totalSz,
-                                            avgPrice: avgPx,
-                                            leverage: position.position.leverage.value,
-                                            timestamp: Date.now()
-                                        });
-
-                                        closedPositions++;
-                                        freedMargin += marginUsed;
-                                    }
-                                });
-                            }
-                        }
-
                     } else {
                         console.error(`❌ Failed to close ${coin} position:`, closeResult);
                     }
@@ -1422,9 +1351,7 @@ async function closeOldPositions() {
         }
 
         if (closedPositions > 0) {
-            console.log(`✅ IMMEDIATELY closed ${closedPositions} old positions, freed ${freedMargin.toFixed(2)} margin`);
-        } else {
-            console.log('📊 No positions older than 1 hour found');
+            console.log(`✅ Closed ${closedPositions} old positions, freed ${freedMargin.toFixed(2)} margin`);
         }
 
         return { closedPositions, freedMargin };
@@ -1434,155 +1361,6 @@ async function closeOldPositions() {
         return { closedPositions: 0, freedMargin: 0, error: error };
     }
 }
-// async function closeOldPositions() {
-//     try {
-//         console.log('🕐 Checking for positions older than 1 hour...');
-
-//         // Get current positions
-//         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({
-//                 type: 'clearinghouseState',
-//                 user: USER_WALLET
-//             })
-//         });
-
-//         const perpState = await perpResponse.json();
-//         const positions = perpState?.assetPositions || [];
-
-//         if (positions.length === 0) {
-//             console.log('✅ No open positions to check');
-//             return { closedPositions: 0, freedMargin: 0 };
-//         }
-
-//         console.log(`📊 Found ${positions.length} open positions`);
-
-//         const oneHourAgo = Date.now() - (60 * 60 * 1000); // 1 hour ago
-//         let closedPositions = 0;
-//         let freedMargin = 0;
-
-//         // Get user fills to determine position age
-//         const fillsResponse = await fetch('https://api.hyperliquid.xyz/info', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({
-//                 type: 'userFills',
-//                 user: USER_WALLET
-//             })
-//         });
-
-//         const fills = await fillsResponse.json();
-
-//         for (const position of positions) {
-//             const coin = position.position.coin;
-//             const size = parseFloat(position.position.szi);
-//             const marginUsed = parseFloat(position.position.marginUsed);
-
-//             // Find the most recent fill for this coin to determine position age
-//             const coinFills = fills.filter((fill: any) => fill.coin === coin);
-//             const latestFill = coinFills.sort((a: any, b: any) => b.time - a.time)[0];
-
-//             if (!latestFill) {
-//                 console.log(`⚠️ No fills found for ${coin}, skipping...`);
-//                 continue;
-//             }
-
-//             const positionAge = Date.now() - latestFill.time;
-//             const ageHours = positionAge / (60 * 60 * 1000);
-
-//             console.log(`📊 ${coin} position: ${size} | Age: ${ageHours.toFixed(2)}h | Margin: ${marginUsed}`);
-
-//             // Close positions older than 1 hour
-//             if (positionAge > (60 * 60 * 1000)) {
-//                 console.log(`🔴 Closing ${coin} position (${ageHours.toFixed(2)}h old)`);
-
-//                 try {
-//                     // Determine order side (opposite of position)
-//                     const isBuy = size < 0; // If short position, buy to close
-//                     const absSize = Math.abs(size);
-
-//                     // Get current market price for market order
-//                     const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
-//                         method: 'POST',
-//                         headers: { 'Content-Type': 'application/json' },
-//                         body: JSON.stringify({
-//                             type: 'allMids'
-//                         })
-//                     });
-
-//                     const allMids = await priceResponse.json();
-//                     const coinPrice = allMids[`${coin}`];
-
-//                     if (!coinPrice) {
-//                         console.error(`❌ No price found for ${coin}`);
-//                         continue;
-//                     }
-
-//                     // Place market order to close position
-//                     const closeOrderParams = {
-//                         coin: `${coin}-PERP`,
-//                         is_buy: isBuy,
-//                         sz: absSize,
-//                         limit_px: isBuy ? coinPrice * 1.005 : coinPrice * 0.995, // 0.5% slippage
-//                         order_type: { limit: { tif: 'Ioc' as Tif } }, // Immediate or Cancel (market-like)
-//                         reduce_only: true // Important: only close existing position
-//                     };
-
-//                     console.log(`📤 Closing ${coin} position with params:`, closeOrderParams);
-
-//                     const closeResult = await sdk.exchange.placeOrder(closeOrderParams);
-//                     console.log('Close order result:', closeResult);
-
-//                     if (closeResult.status === 'ok') {
-//                         console.log(`✅ Successfully closed ${coin} position`);
-//                         closedPositions++;
-//                         freedMargin += marginUsed;
-
-//                         // Track the close in day state
-//                         const statuses = closeResult.response.data.statuses ?? [];
-//                         statuses.forEach((s: any) => {
-//                             if ('filled' in s && s.filled) {
-//                                 const { avgPx, totalSz, oid } = s.filled;
-//                                 const pnl = isBuy ?
-//                                     (latestFill.px - avgPx) * totalSz :
-//                                     (avgPx - latestFill.px) * totalSz;
-
-//                                 pushTrade({
-//                                     id: String(oid),
-//                                     pnl,
-//                                     side: 'CLOSE',
-//                                     size: totalSz,
-//                                     avgPrice: avgPx,
-//                                     leverage: position.position.leverage.value,
-//                                     timestamp: Date.now()
-//                                 });
-//                             }
-//                         });
-//                     } else {
-//                         console.error(`❌ Failed to close ${coin} position:`, closeResult);
-//                     }
-
-//                 } catch (closeError) {
-//                     console.error(`❌ Error closing ${coin} position:`, closeError);
-//                 }
-
-//                 // Wait between closes to avoid rate limits
-//                 await new Promise(resolve => setTimeout(resolve, 1000));
-//             }
-//         }
-
-//         if (closedPositions > 0) {
-//             console.log(`✅ Closed ${closedPositions} old positions, freed ${freedMargin.toFixed(2)} margin`);
-//         }
-
-//         return { closedPositions, freedMargin };
-
-//     } catch (error) {
-//         console.error('❌ Error checking/closing old positions:', error);
-//         return { closedPositions: 0, freedMargin: 0, error: error };
-//     }
-// }
 
 function calculateDynamicLeverage(profit: number, loss: number, confidence?: number) {
     // VERY aggressive to maximize profit potential
