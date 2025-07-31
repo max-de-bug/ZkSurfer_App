@@ -461,20 +461,53 @@
 //     }
 // }
 
-// pages/api/hl/cron-order.ts
 import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
 import { getDayState, pushTrade } from '@/lib/dayState';
 
 export const runtime = 'nodejs';  // must be Node.js for the SDK
 
+// ——— Enhanced Logging Function ———————————————————————————————————————
+function logWithTimestamp(level: 'INFO' | 'ERROR' | 'WARN' | 'SUCCESS', message: string, data?: any) {
+    const timestamp = new Date().toISOString();
+    const emoji = {
+        INFO: '🔍',
+        ERROR: '❌',
+        WARN: '⚠️',
+        SUCCESS: '✅'
+    }[level];
+
+    const logMessage = `[${timestamp}] ${emoji} ${message}`;
+
+    if (level === 'ERROR') {
+        console.error(logMessage, data ? JSON.stringify(data, null, 2) : '');
+    } else {
+        console.log(logMessage, data ? JSON.stringify(data, null, 2) : '');
+    }
+
+    // Force flush for Vercel
+    if (typeof process !== 'undefined' && process.stdout) {
+        process.stdout.write('');
+    }
+}
+
 // ——— SDK Configuration ————————————————————————————————————————————————
 const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
 const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
 const USER_WALLET_RAW = process.env.NEXT_PUBLIC_HL_USER_WALLET;
-if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
-if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
-if (!USER_WALLET_RAW) throw new Error('USER_WALLET_RAW missing in env');
+
+if (!PK) {
+    logWithTimestamp('ERROR', 'HL_PRIVATE_KEY missing in env');
+    throw new Error('HL_PRIVATE_KEY missing in env');
+}
+if (!MAIN_WALLET_RAW) {
+    logWithTimestamp('ERROR', 'HL_MAIN_WALLET missing in env');
+    throw new Error('HL_MAIN_WALLET missing in env');
+}
+if (!USER_WALLET_RAW) {
+    logWithTimestamp('ERROR', 'USER_WALLET_RAW missing in env');
+    throw new Error('USER_WALLET_RAW missing in env');
+}
 
 // Create properly typed constants
 const MAIN_WALLET: string = MAIN_WALLET_RAW;
@@ -510,6 +543,8 @@ function roundLot(x: number) {
 // ——— Get Open Orders for BTC ————————————————————————————————————————
 async function getBTCOpenOrders() {
     try {
+        logWithTimestamp('INFO', 'Fetching BTC open orders...');
+
         const response = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -519,16 +554,21 @@ async function getBTCOpenOrders() {
             })
         });
 
+        if (!response.ok) {
+            logWithTimestamp('ERROR', `Open orders API error: ${response.status} ${response.statusText}`);
+            return [];
+        }
+
         const orders = await response.json();
-        console.log('📋 All Open Orders:', JSON.stringify(orders, null, 2));
+        logWithTimestamp('INFO', 'All Open Orders received', orders);
 
         // Filter for BTC orders only
         const btcOrders = orders.filter((order: any) => order.coin === 'BTC');
-        console.log('₿ BTC Open Orders:', JSON.stringify(btcOrders, null, 2));
+        logWithTimestamp('INFO', `Found ${btcOrders.length} BTC open orders`, btcOrders);
 
         return btcOrders;
     } catch (err) {
-        console.error('❌ Error fetching open orders:', err);
+        logWithTimestamp('ERROR', 'Error fetching open orders', err);
         return [];
     }
 }
@@ -536,6 +576,8 @@ async function getBTCOpenOrders() {
 // ——— Cancel Stale Orders (older than 1 hour) ————————————————————————
 async function cancelStaleOrders() {
     try {
+        logWithTimestamp('INFO', 'Starting stale order cancellation check...');
+
         const openOrders = await getBTCOpenOrders();
         const currentTime = Date.now();
         const staleOrders = openOrders.filter((order: any) => {
@@ -543,7 +585,7 @@ async function cancelStaleOrders() {
             return orderAge > ORDER_TIMEOUT_MS;
         });
 
-        console.log(`🕐 Found ${staleOrders.length} stale orders (older than 1 hour)`);
+        logWithTimestamp('INFO', `Found ${staleOrders.length} stale orders (older than 1 hour)`);
 
         if (staleOrders.length === 0) {
             return { success: true, canceledOrders: [] };
@@ -555,17 +597,17 @@ async function cancelStaleOrders() {
             o: order.oid        // order ID
         }));
 
-        console.log('🚫 Canceling stale orders:', JSON.stringify(cancels, null, 2));
+        logWithTimestamp('INFO', 'Canceling stale orders', cancels);
 
         // Cancel orders using SDK
         const cancelResult = await sdk.exchange.cancelOrder(cancels);
-        console.log('📥 Cancel Result:', JSON.stringify(cancelResult, null, 2));
+        logWithTimestamp('INFO', 'Cancel operation result', cancelResult);
 
         if (cancelResult.status === 'ok') {
             const statuses = cancelResult.response.data.statuses;
             const successfulCancels = statuses.filter((status: any) => status === 'success');
 
-            console.log(`✅ Successfully canceled ${successfulCancels.length}/${staleOrders.length} stale orders`);
+            logWithTimestamp('SUCCESS', `Successfully canceled ${successfulCancels.length}/${staleOrders.length} stale orders`);
 
             return {
                 success: successfulCancels.length > 0,
@@ -573,12 +615,12 @@ async function cancelStaleOrders() {
                 cancelResults: statuses
             };
         } else {
-            console.error('❌ Cancel request failed:', cancelResult);
+            logWithTimestamp('ERROR', 'Cancel request failed', cancelResult);
             return { success: false, error: cancelResult };
         }
 
     } catch (err) {
-        console.error('❌ Error canceling stale orders:', err);
+        logWithTimestamp('ERROR', 'Error canceling stale orders', err);
         return { success: false, error: err };
     }
 }
@@ -586,11 +628,11 @@ async function cancelStaleOrders() {
 // ——— Enhanced Position Sizing with Order Timeout Logic ——————————————
 async function placeOrderWithTimeout(orderParams: any, expectedProfit: number) {
     try {
-        console.log('📤 Placing order with timeout protection:', JSON.stringify(orderParams, null, 2));
+        logWithTimestamp('INFO', 'Placing order with timeout protection', orderParams);
 
         // Place the main order
         const result = await sdk.exchange.placeOrder(orderParams);
-        console.log('📥 Order placement result:', JSON.stringify(result, null, 2));
+        logWithTimestamp('INFO', 'Order placement result received', result);
 
         if (result.status !== 'ok') {
             throw new Error(`Order placement failed: ${JSON.stringify(result)}`);
@@ -603,12 +645,20 @@ async function placeOrderWithTimeout(orderParams: any, expectedProfit: number) {
         for (const status of statuses) {
             if ('resting' in status && status.resting) {
                 placedOrderId = status.resting.oid;
+                logWithTimestamp('INFO', `Order ${placedOrderId} placed and resting`);
                 break;
             }
             if ('filled' in status && status.filled) {
                 // Order immediately filled, no need for timeout tracking
                 const { avgPx, totalSz, oid } = status.filled;
                 const pnl = (orderParams.is_buy ? avgPx - orderParams.limit_px : orderParams.limit_px - avgPx) * totalSz;
+
+                logWithTimestamp('SUCCESS', `Order ${oid} immediately filled`, {
+                    avgPrice: avgPx,
+                    size: totalSz,
+                    pnl: pnl
+                });
+
                 pushTrade({
                     id: String(oid),
                     pnl,
@@ -623,11 +673,7 @@ async function placeOrderWithTimeout(orderParams: any, expectedProfit: number) {
         }
 
         if (placedOrderId) {
-            console.log(`⏰ Order ${placedOrderId} placed successfully. Will auto-cancel in 1 hour if not filled.`);
-
-            // Store order info for potential timeout cancellation
-            // In a production environment, you might want to store this in a database
-            // For now, we'll rely on the next cron run to check and cancel stale orders
+            logWithTimestamp('INFO', `Order ${placedOrderId} placed successfully. Will auto-cancel in 1 hour if not filled.`);
 
             return {
                 success: true,
@@ -640,7 +686,7 @@ async function placeOrderWithTimeout(orderParams: any, expectedProfit: number) {
         return { success: true, result };
 
     } catch (err: any) {
-        console.error('❌ Error placing order with timeout:', err);
+        logWithTimestamp('ERROR', 'Error placing order with timeout', err);
         return { success: false, error: err.message };
     }
 }
@@ -648,10 +694,10 @@ async function placeOrderWithTimeout(orderParams: any, expectedProfit: number) {
 // ——— Get Real-Time USDC Balance (2025 CORRECT METHOD) ————————————————
 async function getAvailableUSDC() {
     try {
-        console.log('🔍 Checking wallet:', USER_WALLET);
+        logWithTimestamp('INFO', `Checking wallet: ${USER_WALLET}`);
 
         // Method 1: CORRECT 2025 API - Direct POST request for perpetuals
-        console.log('📊 Checking Perpetuals Account (Direct API)...');
+        logWithTimestamp('INFO', 'Checking Perpetuals Account (Direct API)...');
         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -661,11 +707,16 @@ async function getAvailableUSDC() {
             })
         });
 
+        if (!perpResponse.ok) {
+            logWithTimestamp('ERROR', `Perpetuals API error: ${perpResponse.status}`);
+            return { totalUSDC: 0, availableMargin: 0, error: `Perp API: ${perpResponse.status}` };
+        }
+
         const perpState = await perpResponse.json();
-        console.log('🏦 Perpetuals State:', JSON.stringify(perpState, null, 2));
+        logWithTimestamp('INFO', 'Perpetuals State received', perpState);
 
         // Method 2: CORRECT 2025 API - Direct POST request for spot  
-        console.log('💱 Checking Spot Account (Direct API)...');
+        logWithTimestamp('INFO', 'Checking Spot Account (Direct API)...');
         const spotResponse = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -675,8 +726,12 @@ async function getAvailableUSDC() {
             })
         });
 
-        const spotState = await spotResponse.json();
-        console.log('🏪 Spot State:', JSON.stringify(spotState, null, 2));
+        if (!spotResponse.ok) {
+            logWithTimestamp('WARN', `Spot API error: ${spotResponse.status} (continuing with perp only)`);
+        }
+
+        const spotState = spotResponse.ok ? await spotResponse.json() : { balances: [] };
+        logWithTimestamp('INFO', 'Spot State received', spotState);
 
         // Extract balances from responses
         const perpBalance = parseFloat(perpState?.marginSummary?.accountValue || '0');
@@ -684,13 +739,15 @@ async function getAvailableUSDC() {
         const usdcSpot = spotBalances.find((b: any) => b.coin === 'USDC');
         const spotUSDC = parseFloat(usdcSpot?.total || '0');
 
-        console.log('💰 Balance Breakdown:', {
+        const balanceBreakdown = {
             perpetualsUSDC: perpBalance,
             spotUSDC: spotUSDC,
             totalUSDC: perpBalance + spotUSDC,
             perpWithdrawable: parseFloat(perpState?.withdrawable || '0'),
             spotHold: parseFloat(usdcSpot?.hold || '0')
-        });
+        };
+
+        logWithTimestamp('INFO', 'Balance Breakdown', balanceBreakdown);
 
         // Return valid balances
         if (perpBalance > 0) {
@@ -712,17 +769,19 @@ async function getAvailableUSDC() {
         }
 
         // No funds found
-        console.error('❌ No USDC found in either account!');
+        logWithTimestamp('ERROR', 'No USDC found in either account!');
         return { totalUSDC: 0, availableMargin: 0, noFunds: true };
 
     } catch (err) {
-        console.error('❌ API Error:', err);
+        logWithTimestamp('ERROR', 'API Error in getAvailableUSDC', err);
         return { totalUSDC: 0, availableMargin: 0, error: err };
     }
 }
 
 // ——— Aggressive Dynamic Leverage (HIGHER FOR PROFITS) ————————————————
 function calculateDynamicLeverage(profit: number, loss: number, confidence?: number) {
+    logWithTimestamp('INFO', `Calculating dynamic leverage - Profit: ${profit}, Loss: ${loss}, Confidence: ${confidence}`);
+
     // VERY aggressive to maximize profit potential
     if (loss >= 120) return 3;   // Emergency brake only
     if (loss >= 80) return 6;    // Heavy caution
@@ -742,6 +801,8 @@ function calculateOptimalSize(
     currentLoss: number,
     expectedMovePercent = 2.0 // Slightly higher expected move
 ) {
+    logWithTimestamp('INFO', `Calculating optimal size - Price: ${price}, Available: ${availableUSDC}, Profit: ${currentProfit}, Loss: ${currentLoss}`);
+
     // MINIMUM profit scaling - increases with performance
     let targetProfit = MIN_PROFIT_PER_TRADE;
 
@@ -783,9 +844,17 @@ function calculateOptimalSize(
     // Calculate ACTUAL expected profit (could be higher than minimum)
     const actualExpectedProfit = (notionalValue * expectedMovePercent) / 100;
 
-    console.log(`💰 Capital: $${capitalPerTrade.toFixed(0)}, Leverage: ${finalLeverage}x`);
-    console.log(`📊 Notional: $${notionalValue.toFixed(0)}, Size: ${positionSize.toFixed(5)}`);
-    console.log(`🎯 MIN Target: $${MIN_PROFIT_PER_TRADE}, DYNAMIC Target: $${targetProfit.toFixed(1)}, ACTUAL Expected: $${actualExpectedProfit.toFixed(1)}`);
+    const sizeCalc = {
+        capital: capitalPerTrade,
+        leverage: finalLeverage,
+        notional: notionalValue,
+        size: positionSize,
+        minTarget: MIN_PROFIT_PER_TRADE,
+        dynamicTarget: targetProfit,
+        actualExpected: actualExpectedProfit
+    };
+
+    logWithTimestamp('INFO', 'Size calculation completed', sizeCalc);
 
     return {
         size: roundLot(positionSize),
@@ -800,11 +869,13 @@ function calculateOptimalSize(
 
 // ——— Dynamic Size Calculator (NO UPPER LIMITS) ———————————————————————
 async function calcDynamicSize(price: number, signal: string, confidence?: number) {
+    logWithTimestamp('INFO', `Calculating dynamic size for ${signal} signal at price ${price}`);
+
     const balanceInfo = await getAvailableUSDC();
     const availableMargin = balanceInfo.availableMargin || 0;
     const dayState = getDayState();
 
-    console.log('💰 Balance Info for Calculation:', {
+    logWithTimestamp('INFO', 'Balance Info for Calculation', {
         totalUSDC: balanceInfo.totalUSDC,
         availableMargin: availableMargin,
         needsTransfer: balanceInfo.needsTransfer || false,
@@ -820,6 +891,7 @@ async function calcDynamicSize(price: number, signal: string, confidence?: numbe
 
     // Skip calculation if no funds available
     if (availableMargin <= 0) {
+        logWithTimestamp('WARN', 'No funds available for calculation');
         return {
             size: MIN_ORDER_SIZE.toFixed(5),
             leverage: MIN_LEVERAGE,
@@ -853,7 +925,7 @@ async function calcDynamicSize(price: number, signal: string, confidence?: numbe
     const actualExpectedProfit = (finalNotional * 2.0) / 100; // 2% expected move
     const maxRisk = Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE);
 
-    return {
+    const finalResult = {
         size: roundLot(finalSize).toFixed(5),
         leverage: finalLeverage,
         notional: finalNotional,
@@ -864,43 +936,51 @@ async function calcDynamicSize(price: number, signal: string, confidence?: numbe
         availableUSDC: availableMargin,
         profitPotential: actualExpectedProfit >= MIN_PROFIT_PER_TRADE ? 'TARGET_EXCEEDED' : 'MINIMUM_MET'
     };
+
+    logWithTimestamp('SUCCESS', 'Dynamic size calculation completed', finalResult);
+
+    return finalResult;
 }
 
 // ——— Main Cron Handler ————————————————————————————————————————————————
 export async function GET() {
-    try {
-        console.log('🚀 Starting enhanced trading bot with order management...');
+    const startTime = Date.now();
+    logWithTimestamp('INFO', '🚀 Starting enhanced trading bot with order management...');
 
+    try {
         // 1️⃣ FIRST: Cancel any stale orders (older than 1 hour)
-        console.log('🕐 Step 1: Checking for stale orders...');
+        logWithTimestamp('INFO', '🕐 Step 1: Checking for stale orders...');
         const cancelResult = await cancelStaleOrders();
 
         if (!cancelResult.success && cancelResult.error) {
-            console.error('⚠️ Warning: Failed to cancel some stale orders, but continuing...');
+            logWithTimestamp('WARN', 'Failed to cancel some stale orders, but continuing...', cancelResult.error);
         } else if (cancelResult.canceledOrders && cancelResult.canceledOrders.length > 0) {
-            console.log(`✅ Successfully handled ${cancelResult.canceledOrders.length} stale orders`);
+            logWithTimestamp('SUCCESS', `Successfully handled ${cancelResult.canceledOrders.length} stale orders`);
         }
 
         // 2️⃣ Check if we have any remaining open orders - if so, don't place new ones
         const remainingOrders = await getBTCOpenOrders();
         if (remainingOrders.length > 0) {
-            console.log(`⏳ Still have ${remainingOrders.length} open BTC orders. Skipping new order placement.`);
+            logWithTimestamp('INFO', `⏳ Still have ${remainingOrders.length} open BTC orders. Skipping new order placement.`);
             return NextResponse.json({
                 message: 'Skipped: Still have open orders',
                 openOrders: remainingOrders.length,
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             });
         }
 
         // 3️⃣ Fetch the forecast directly from your Python backend
         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
         if (!apiKey) {
+            logWithTimestamp('ERROR', 'NEXT_PUBLIC_API_KEY not defined');
             return NextResponse.json(
                 { error: 'NEXT_PUBLIC_API_KEY not defined' },
                 { status: 500 }
             );
         }
 
+        logWithTimestamp('INFO', 'Fetching forecast from API...');
         const forecastRes = await fetch('https://zynapse.zkagi.ai/today', {
             method: 'GET',
             cache: 'no-store',
@@ -912,20 +992,22 @@ export async function GET() {
 
         if (!forecastRes.ok) {
             const txt = await forecastRes.text();
-            console.error('Forecast API error:', txt);
+            logWithTimestamp('ERROR', `Forecast API error (${forecastRes.status})`, txt);
             return NextResponse.json(
                 { error: `Forecast API error (${forecastRes.status})` },
                 { status: forecastRes.status }
             );
         }
 
-        const { forecast_today_hourly } = await forecastRes.json();
+        const forecastData = await forecastRes.json();
+        const { forecast_today_hourly } = forecastData;
 
         // 4️⃣ Pick the latest hourly slot
         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
             ? forecast_today_hourly[forecast_today_hourly.length - 1]
             : null;
-        console.log('📊 [Forecast Response]', JSON.stringify(slot, null, 2));
+
+        logWithTimestamp('INFO', 'Forecast Response received', slot);
 
         if (
             !slot ||
@@ -933,55 +1015,61 @@ export async function GET() {
             slot.forecast_price == null ||
             typeof slot.signal !== 'string'
         ) {
-            console.warn('⚠️ No valid trade signal. Skipping.');
+            logWithTimestamp('WARN', '⚠️ No valid trade signal. Skipping.');
             return NextResponse.json({
                 message: 'No trade signal',
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             });
         }
 
         // 5️⃣ Check daily loss limit BEFORE sizing
         const dayState = getDayState();
         if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
-            console.log(`🛑 Daily loss limit reached ($${DAILY_LOSS_LIMIT}). Stopping trades.`);
+            logWithTimestamp('ERROR', `🛑 Daily loss limit reached ($${DAILY_LOSS_LIMIT}). Stopping trades.`);
             return NextResponse.json({
                 message: `Daily loss limit reached: $${dayState.realizedLoss}`,
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             });
         }
 
         // 6️⃣ AGGRESSIVE Dynamic position sizing (NO UPPER LIMITS)
         const price = Math.round(slot.forecast_price);
+        logWithTimestamp('INFO', `Processing signal: ${slot.signal} at price: ${price}`);
+
         const balanceInfo = await getAvailableUSDC();
 
         // Handle special cases
         if (balanceInfo.noFunds) {
-            console.error('❌ No USDC found in any account. Please deposit funds.');
+            logWithTimestamp('ERROR', '❌ No USDC found in any account. Please deposit funds.');
             return NextResponse.json({
                 error: 'No USDC balance found. Please deposit funds to your Hyperliquid account.',
                 balanceInfo,
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             });
         }
 
         if (balanceInfo.needsTransfer && balanceInfo.spotAmount && balanceInfo.spotAmount > 0) {
-            console.log(`💸 Auto-transferring ${balanceInfo.spotAmount} USDC from Spot to Perpetuals...`);
+            logWithTimestamp('INFO', `💸 Auto-transferring ${balanceInfo.spotAmount} USDC from Spot to Perpetuals...`);
             try {
                 const transferResult = await sdk.exchange.transferBetweenSpotAndPerp(
                     balanceInfo.spotAmount,
                     true // true = spot to perp
                 );
-                console.log('✅ Transfer successful:', transferResult);
+                logWithTimestamp('SUCCESS', 'Transfer successful', transferResult);
 
                 // Re-fetch balance after transfer
                 const updatedBalance = await getAvailableUSDC();
-                console.log('🔄 Updated balance after transfer:', updatedBalance);
+                logWithTimestamp('INFO', 'Updated balance after transfer', updatedBalance);
             } catch (transferErr) {
-                console.error('❌ Auto-transfer failed:', transferErr);
+                logWithTimestamp('ERROR', 'Auto-transfer failed', transferErr);
                 return NextResponse.json({
                     error: `Auto-transfer failed: ${transferErr}. Please manually transfer USDC from Spot to Perpetuals.`,
                     spotAmount: balanceInfo.spotAmount,
-                    canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                    canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                    executionTime: Date.now() - startTime
                 });
             }
         }
@@ -991,15 +1079,16 @@ export async function GET() {
 
         // Final check: ensure we have enough funds to trade
         if (positionCalc.availableUSDC < 10) { // Need at least $10 to trade meaningfully
-            console.error('❌ Insufficient funds for trading after all checks.');
+            logWithTimestamp('ERROR', `❌ Insufficient funds for trading: Only ${positionCalc.availableUSDC} available`);
             return NextResponse.json({
                 error: `Insufficient funds: Only ${positionCalc.availableUSDC} available. Need at least $10.`,
                 positionCalc,
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             });
         }
 
-        console.log('🚀 AGGRESSIVE Position Calculation:', {
+        const positionSummary = {
             availableUSDC: positionCalc.availableUSDC.toFixed(0),
             capitalUsed: positionCalc.capitalUsed.toFixed(0),
             usagePercent: positionCalc.availableUSDC > 0 ? (positionCalc.capitalUsed / positionCalc.availableUSDC * 100).toFixed(1) + '%' : 'N/A',
@@ -1012,7 +1101,9 @@ export async function GET() {
             maxRisk: positionCalc.maxRisk.toFixed(2),
             currentDayLoss: dayState.realizedLoss.toFixed(2),
             balanceStatus: balanceInfo.needsTransfer ? 'NEEDS_TRANSFER' : 'OK'
-        });
+        };
+
+        logWithTimestamp('SUCCESS', '🚀 AGGRESSIVE Position Calculation', positionSummary);
 
         // 7️⃣ Build the SDK order params with timeout protection
         const coin = 'BTC-PERP';
@@ -1028,16 +1119,17 @@ export async function GET() {
             ...(slot.stop_loss != null && { sl: Number(slot.stop_loss) })
         };
 
-        console.log('📤 Placing LARGE order with timeout protection:', orderParams);
+        logWithTimestamp('INFO', '📤 Placing LARGE order with timeout protection', orderParams);
 
         // 8️⃣ Place the order with timeout management
         const orderResult = await placeOrderWithTimeout(orderParams, positionCalc.expectedProfit);
 
         if (!orderResult.success) {
-            console.error('❌ Failed to place order:', orderResult.error);
+            logWithTimestamp('ERROR', '❌ Failed to place order', orderResult.error);
             return NextResponse.json({
                 error: `Failed to place order: ${orderResult.error}`,
-                canceledStaleOrders: cancelResult.canceledOrders?.length || 0
+                canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
+                executionTime: Date.now() - startTime
             }, { status: 500 });
         }
 
@@ -1045,6 +1137,7 @@ export async function GET() {
         const payload = {
             success: true,
             timestamp: new Date().toISOString(),
+            executionTime: Date.now() - startTime,
             orderManagement: {
                 canceledStaleOrders: cancelResult.canceledOrders?.length || 0,
                 orderTimeoutEnabled: true,
@@ -1078,11 +1171,33 @@ export async function GET() {
             sdkResponse: orderResult.result
         };
 
-        console.log('📤 [Returning ENHANCED Payload]', JSON.stringify(payload, null, 2));
+        logWithTimestamp('SUCCESS', '📤 Returning ENHANCED Payload', payload);
+
+        // Force final log flush
+        if (typeof process !== 'undefined' && process.stdout) {
+            process.stdout.write('\n');
+        }
+
         return NextResponse.json(payload);
 
     } catch (err: any) {
-        console.error('❌ Enhanced cron order error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        const errorDetails = {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+            executionTime: Date.now() - startTime
+        };
+
+        logWithTimestamp('ERROR', '❌ Enhanced cron order error', errorDetails);
+
+        // Force error log flush
+        if (typeof process !== 'undefined' && process.stderr) {
+            process.stderr.write('\n');
+        }
+
+        return NextResponse.json({
+            error: err.message,
+            details: errorDetails
+        }, { status: 500 });
     }
 }
