@@ -1089,6 +1089,8 @@
 //     }
 // }
 
+// app/api/hl/cron-order/route.ts
+
 import WebSocket from 'ws';
 (global as any).WebSocket = WebSocket;
 
@@ -1096,37 +1098,33 @@ import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
 import { getDayState, pushTrade } from '@/lib/dayState';
 
-export const runtime = 'nodejs';  // must be Node.js for the SDK
+export const runtime = 'nodejs';
 
 // ——— SDK Configuration ————————————————————————————————————————————————
-const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
-const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
-const USER_WALLET_RAW = process.env.NEXT_PUBLIC_HL_USER_WALLET;
+const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY!;
+const MAIN_WALLET = process.env.NEXT_PUBLIC_HL_MAIN_WALLET!;
+const USER_WALLET = process.env.NEXT_PUBLIC_HL_USER_WALLET!;
 
-if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
-if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
-if (!USER_WALLET_RAW) throw new Error('USER_WALLET_RAW missing in env');
-
-const MAIN_WALLET: string = MAIN_WALLET_RAW;
-const USER_WALLET: string = USER_WALLET_RAW;
+if (!PK || !MAIN_WALLET || !USER_WALLET) {
+    throw new Error('Missing HL_PRIVATE_KEY, HL_MAIN_WALLET or USER_WALLET in env');
+}
 
 const sdk = new Hyperliquid({
     privateKey: PK,
     walletAddress: MAIN_WALLET,
-    testnet: false
+    testnet: false,
 });
 
-// ——— Dynamic Position Sizing Constants ———————————————————————————————
+// ——— Risk & Sizing Constants ——————————————————————————————————————————
 const LOT_SIZE = 0.00001;
 const MIN_ORDER_SIZE = 0.0001;
 const MIN_PROFIT_PER_TRADE = 17.5;
 const MAX_LOSS_PER_TRADE = 30;
 const DAILY_LOSS_LIMIT = 150;
-const CAPITAL_USAGE_PERCENT = 0.90;
+const CAPITAL_USAGE_PERCENT = 0.9;
 const MAX_LEVERAGE = 25;
 const MIN_LEVERAGE = 5;
 
-// ——— Helper Functions ————————————————————————————————————————————————
 function roundLot(x: number) {
     const lots = Math.max(
         Math.floor(x / LOT_SIZE),
@@ -1135,179 +1133,79 @@ function roundLot(x: number) {
     return lots * LOT_SIZE;
 }
 
+// ——— Fetch Balances ——————————————————————————————————————————————————
 async function getAvailableUSDC() {
     try {
-        console.log('🔍 Checking wallet:', USER_WALLET);
-        // perp
         const perpRes = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'clearinghouseState', user: USER_WALLET })
         });
-        const perpState = await perpRes.json();
-        console.log('🏦 Perpetuals State:', perpState);
-        // spot
+        const perp = await perpRes.json();
+
         const spotRes = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'spotClearinghouseState', user: USER_WALLET })
         });
-        const spotState = await spotRes.json();
-        console.log('🏪 Spot State:', spotState);
+        const spot = await spotRes.json();
 
-        const perpBalance = parseFloat(perpState.marginSummary.accountValue || '0');
-        const usdcSpot = parseFloat((spotState.balances.find((b: any) => b.coin === 'USDC')?.total) || '0');
+        const perpBal = parseFloat(perp.marginSummary.accountValue || '0');
+        const usdcSpot = parseFloat(
+            (spot.balances.find((b: any) => b.coin === 'USDC')?.total) || '0'
+        );
 
-        const availableMargin = perpBalance > 0
-            ? parseFloat(perpState.withdrawable || perpState.marginSummary.accountValue)
-            : usdcSpot;
+        const availablePerp = perpBal > 0
+            ? parseFloat(perp.withdrawable || perp.marginSummary.accountValue)
+            : 0;
+        const needsTransfer = perpBal === 0 && usdcSpot > 0;
 
         return {
-            totalUSDC: perpBalance + usdcSpot,
-            availableMargin,
-            needsTransfer: perpBalance === 0 && usdcSpot > 0,
+            totalUSDC: perpBal + usdcSpot,
+            availableMargin: availablePerp > 0 ? availablePerp : usdcSpot,
+            needsTransfer,
             spotAmount: usdcSpot,
-            noFunds: perpBalance + usdcSpot === 0
+            noFunds: perpBal + usdcSpot === 0
         };
-    } catch (err) {
-        console.error('❌ API Error:', err);
-        return { totalUSDC: 0, availableMargin: 0, error: err };
+    } catch (e) {
+        console.error('Error fetching balances', e);
+        return { totalUSDC: 0, availableMargin: 0, noFunds: true };
     }
 }
 
-// ——— Wait for margin release after a filled close ——————————————————————
-async function waitForMarginRelease(previousAvailable: number, expectedRelease: number, timeoutMs = 10000) {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        const { availableMargin } = await getAvailableUSDC();
-        if (availableMargin >= previousAvailable + expectedRelease) {
-            return true;
-        }
+// ——— Cancel old BTC orders —————————————————————————————————————————————
+async function cancelOldBTCOrders() {
+    const res = await fetch('https://api.hyperliquid.xyz/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'userOrders', user: USER_WALLET })
+    });
+    if (!res.ok) throw new Error(`userOrders API ${res.status}`);
+    const orders: Array<{ oid: string; time: number; status: string; coin: string }> = await res.json();
+
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    const toCancel = orders.filter(o =>
+        o.coin === 'BTC-PERP' &&
+        o.time < cutoff &&
+        (o.status === 'open' || o.status === 'new')
+    );
+
+    const canceled: Array<{ oid: string; result: any }> = [];
+    for (const o of toCancel) {
+        console.log(`Cancelling BTC order ${o.oid} (placed at ${new Date(o.time).toISOString()})`);
+        const result = await sdk.exchange.cancelOrder({
+            coin: o.coin,         // fix: must pass `coin`
+            o: Number(o.oid),     // fix: use `o`, not `oid`
+        });
+        console.log('Cancel result', result);
+        canceled.push({ oid: o.oid, result });
         await new Promise(r => setTimeout(r, 500));
     }
-    console.warn('⚠️ Margin did not release in time');
-    return false;
+    return canceled;
 }
 
-// ——— Auto-Close Old Positions Function ——————————————————————————————
-async function closeOldPositions() {
-    try {
-        console.log('🕐 Checking for positions older than 1 hour...');
-        let beforeBalance = (await getAvailableUSDC()).availableMargin;
-
-        const perpRes = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'clearinghouseState', user: USER_WALLET })
-        });
-        const perpState = await perpRes.json();
-        const positions = perpState.assetPositions || [];
-
-        if (positions.length === 0) {
-            console.log('✅ No open positions to check');
-            return { closedPositions: 0, freedMargin: 0 };
-        }
-
-        console.log(`📊 Found ${positions.length} open positions`);
-        let closedPositions = 0;
-        let freedMargin = 0;
-
-        const fillsRes = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'userFills', user: USER_WALLET })
-        });
-        const fills = await fillsRes.json();
-
-        for (const pos of positions) {
-            const { coin, szi, marginUsed } = {
-                coin: pos.position.coin,
-                szi: parseFloat(pos.position.szi),
-                marginUsed: parseFloat(pos.position.marginUsed)
-            };
-            const coinFills = fills.filter((f: any) => f.coin === coin);
-            const latestFill = coinFills.sort((a: any, b: any) => b.time - a.time)[0];
-            if (!latestFill) continue;
-
-            const ageMs = Date.now() - latestFill.time;
-            if (ageMs <= 60 * 60 * 1000) continue;
-            console.log(`🔴 Closing ${coin} (${(ageMs / 36e5).toFixed(2)}h old)`);
-
-            // fetch mid price
-            const midsRes = await fetch('https://api.hyperliquid.xyz/info', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'allMids' })
-            });
-            const allMids = await midsRes.json();
-            const price = allMids[`${coin}-PERP`];
-            if (!price) {
-                console.error(`❌ No price for ${coin}`); continue;
-            }
-
-            const isBuy = szi < 0;
-            const absSize = Math.abs(szi);
-            const params = {
-                coin: `${coin}-PERP`,
-                is_buy: isBuy,
-                sz: absSize,
-                limit_px: isBuy ? price * 1.005 : price * 0.995,
-                order_type: { limit: { tif: 'Ioc' as Tif } },
-                reduce_only: true
-            };
-
-            const closeResult = await sdk.exchange.placeOrder(params);
-            if (closeResult.status !== 'ok') {
-                console.error(`❌ Close API error for ${coin}:`, closeResult);
-                continue;
-            }
-
-            const statuses = closeResult.response.data.statuses || [];
-            const filled = statuses.find((s: { filled: any; }) => s.filled);
-            if (!filled) {
-                console.warn(`⚠️ ${coin} IOC never filled`);
-                continue;
-            }
-
-            console.log(`✅ ${coin} closed, waiting for margin release…`);
-            closedPositions++;
-            freedMargin += marginUsed;
-
-            if (await waitForMarginRelease(beforeBalance, marginUsed)) {
-                beforeBalance += marginUsed;
-                console.log(`💸 Margin released for ${coin}`);
-            }
-
-            // track P&L
-            statuses.forEach((s: any) => {
-                if (s.filled) {
-                    const { avgPx, totalSz, oid } = s.filled;
-                    const pnl = isBuy
-                        ? (latestFill.px - avgPx) * totalSz
-                        : (avgPx - latestFill.px) * totalSz;
-                    pushTrade({
-                        id: String(oid),
-                        pnl,
-                        side: 'CLOSE',
-                        size: totalSz,
-                        avgPrice: avgPx,
-                        leverage: pos.position.leverage.value,
-                        timestamp: Date.now()
-                    });
-                }
-            });
-
-            await new Promise(r => setTimeout(r, 1000));
-        }
-
-        if (closedPositions > 0) {
-            console.log(`✅ Closed ${closedPositions}, freed ${freedMargin.toFixed(2)}`);
-        }
-        return { closedPositions, freedMargin };
-
-    } catch (err) {
-        console.error('❌ Error in closeOldPositions:', err);
-        return { closedPositions: 0, freedMargin: 0, error: err };
-    }
-}
-
-// ——— Position Sizing Helpers ——————————————————————————————————————
-function calculateDynamicLeverage(profit: number, loss: number, confidence?: number) {
+// ——— Position Sizing Logic ————————————————————————————————————————————
+function calculateDynamicLeverage(profit: number, loss: number): number {
     if (loss >= 120) return 3;
     if (loss >= 80) return 6;
     if (profit >= 300 && loss <= 30) return 25;
@@ -1318,171 +1216,134 @@ function calculateDynamicLeverage(profit: number, loss: number, confidence?: num
     return 12;
 }
 
-function calculateOptimalSize(price: number, availableUSDC: number, currentProfit: number, currentLoss: number, expectedMovePercent = 2.0) {
-    let targetProfit = MIN_PROFIT_PER_TRADE;
-    if (currentProfit >= 150 && currentLoss <= 30) targetProfit = Math.min(40, targetProfit * 1.8);
-    else if (currentProfit >= 100 && currentLoss <= 50) targetProfit = Math.min(30, targetProfit * 1.5);
-    else if (currentProfit >= 50 && currentLoss <= 60) targetProfit = Math.min(25, targetProfit * 1.3);
+function calculateOptimalSize(
+    price: number,
+    available: number,
+    profit: number,
+    loss: number,
+    expectedMove = 2
+) {
+    let target = MIN_PROFIT_PER_TRADE;
+    if (profit >= 150 && loss <= 30) target = Math.min(40, target * 1.8);
+    else if (profit >= 100 && loss <= 50) target = Math.min(30, target * 1.5);
+    else if (profit >= 50 && loss <= 60) target = Math.min(25, target * 1.3);
 
-    const capitalPerTrade = availableUSDC * CAPITAL_USAGE_PERCENT;
-    const requiredNotional = (targetProfit / expectedMovePercent) * 100;
-    const neededLev = Math.min(requiredNotional / capitalPerTrade, MAX_LEVERAGE);
-    const leverage = Math.max(
-        Math.max(MIN_LEVERAGE, Math.round(neededLev)),
-        Math.round((capitalPerTrade * MAX_LEVERAGE) / requiredNotional * MIN_LEVERAGE)
-    );
-    const finalLev = Math.min(leverage, MAX_LEVERAGE);
-    const notionalValue = capitalPerTrade * finalLev;
-    const positionSize = notionalValue / price;
-    return {
-        size: roundLot(positionSize),
-        leverage: finalLev,
-        notionalValue,
-        capitalUsed: capitalPerTrade,
-        expectedProfit: (notionalValue * expectedMovePercent) / 100,
-        dynamicTarget: targetProfit,
-        maxRisk: Math.min((notionalValue * 2.5) / 100, MAX_LOSS_PER_TRADE)
-    };
+    const cap = available * CAPITAL_USAGE_PERCENT;
+    const notionalForTarget = (target / expectedMove) * 100;
+    const neededLev = Math.min(notionalForTarget / cap, MAX_LEVERAGE);
+    const lev = Math.min(Math.max(MIN_LEVERAGE, Math.round(neededLev)), MAX_LEVERAGE);
+
+    const finalNotional = cap * lev;
+    const size = roundLot(finalNotional / price);
+    const expectedProfit = (finalNotional * expectedMove) / 100;
+    const maxRisk = Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE);
+
+    return { size, leverage: lev, expectedProfit, maxRisk };
 }
 
-async function calcDynamicSize(price: number, signal: string, confidence?: number) {
-    const balanceInfo = await getAvailableUSDC();
-    const available = balanceInfo.availableMargin || 0;
+async function calcDynamicSize(price: number) {
+    const bal = await getAvailableUSDC();
     const day = getDayState();
+    const profit = Math.max(0, day.realizedPnl), loss = day.realizedLoss;
 
-    const baseLev = calculateDynamicLeverage(
-        Math.max(0, day.realizedPnl),
-        day.realizedLoss,
-        confidence
-    );
-    if (available <= 0) {
-        return { size: MIN_ORDER_SIZE.toFixed(5), leverage: MIN_LEVERAGE, availableUSDC: 0, profitPotential: 'NO_FUNDS' };
+    if (bal.availableMargin <= 0) {
+        return { size: MIN_ORDER_SIZE, leverage: MIN_LEVERAGE, availableUSDC: 0 };
     }
 
-    const opt = calculateOptimalSize(price, available, Math.max(0, day.realizedPnl), day.realizedLoss);
-    const finalLev = Math.max(baseLev, opt.leverage);
-    const capitalPerTrade = available * CAPITAL_USAGE_PERCENT;
-    const finalNotional = capitalPerTrade * finalLev;
-    const finalSize = finalNotional / price;
-    return {
-        size: roundLot(finalSize).toFixed(5),
-        leverage: finalLev,
-        notional: finalNotional,
-        expectedProfit: (finalNotional * 2.0) / 100,
-        minTarget: MIN_PROFIT_PER_TRADE,
-        maxRisk: Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE),
-        capitalUsed: capitalPerTrade,
-        availableUSDC: available,
-        profitPotential: ((finalNotional * 2.0) / 100 >= MIN_PROFIT_PER_TRADE ? 'TARGET_EXCEEDED' : 'MINIMUM_MET')
-    };
+    const opt = calculateOptimalSize(price, bal.availableMargin, profit, loss);
+    const baseLev = calculateDynamicLeverage(profit, loss);
+    const lev = Math.max(baseLev, opt.leverage);
+    const cap = bal.availableMargin * CAPITAL_USAGE_PERCENT;
+    const notional = cap * lev;
+    const size = roundLot(notional / price);
+    const expectedProfit = (notional * 2) / 100;
+    const maxRisk = Math.min((notional * 2.5) / 100, MAX_LOSS_PER_TRADE);
+
+    return { size, leverage: lev, expectedProfit, maxRisk, availableUSDC: bal.availableMargin };
 }
 
-// ——— Main Cron Handler ————————————————————————————————————————————————
+// ——— Main Handler ————————————————————————————————————————————————————
 export async function GET() {
     try {
-        // 1️⃣ Close old positions first
-        console.log('🕐 Step 1: Auto-closing positions older than 1 hour...');
-        const closeRes = await closeOldPositions();
-        if (closeRes.error) {
-            console.warn('⚠️ closeOldPositions error:', closeRes.error);
-        } else if (closeRes.closedPositions > 0) {
-            console.log(`✅ Freed ${closeRes.freedMargin.toFixed(2)} by closing ${closeRes.closedPositions}`);
-            console.log('⏳ Waiting 3s for final balance sync...');
-            await new Promise(r => setTimeout(r, 3000));
-        }
+        // 1️⃣ Cancel any stale BTC orders
+        const canceled = await cancelOldBTCOrders();
+        console.log(`Canceled ${canceled.length} old BTC orders`);
 
-        // 2️⃣ Fetch forecast
-        const apiKey = process.env.NEXT_PUBLIC_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'NEXT_PUBLIC_API_KEY not defined' }, { status: 500 });
-        }
-        const fw = await fetch('https://zynapse.zkagi.ai/today', { headers: { 'api-key': apiKey, 'accept': 'application/json' }, cache: 'no-store' });
-        if (!fw.ok) {
-            const txt = await fw.text();
-            console.error('Forecast API error:', txt);
-            return NextResponse.json({ error: `Forecast API ${fw.status}` }, { status: fw.status });
-        }
+        // 2️⃣ Fetch the latest forecast slot
+        const apiKey = process.env.NEXT_PUBLIC_API_KEY!;
+        const fw = await fetch('https://zynapse.zkagi.ai/today', {
+            method: 'GET',
+            cache: 'no-store',
+            headers: { accept: 'application/json', 'api-key': apiKey }
+        });
+        if (!fw.ok) throw new Error(`Forecast API ${fw.status}`);
         const { forecast_today_hourly } = await fw.json();
-        const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length
-            ? forecast_today_hourly[forecast_today_hourly.length - 1]
-            : null;
-        console.log('📊 [Forecast]', slot);
-        if (!slot || slot.signal === 'HOLD' || slot.forecast_price == null) {
-            return NextResponse.json({ message: 'No valid trade signal' });
+        const slot = (forecast_today_hourly || []).slice(-1)[0];
+        if (!slot || slot.signal === 'HOLD') {
+            return NextResponse.json({ message: 'No trade signal' });
         }
 
-        // 3️⃣ Daily loss limit
+        // 3️⃣ Daily loss check
         const day = getDayState();
         if (day.realizedLoss >= DAILY_LOSS_LIMIT) {
-            return NextResponse.json({ message: `Daily loss ${day.realizedLoss} ≥ ${DAILY_LOSS_LIMIT}`, oldPositionsClosed: closeRes.closedPositions, marginFreed: closeRes.freedMargin });
+            return NextResponse.json({ message: `Daily loss limit reached (${day.realizedLoss})` });
         }
 
-        // 4️⃣ Ensure funds
-        const balanceInfo = await getAvailableUSDC();
-        if (balanceInfo.noFunds) {
-            return NextResponse.json({ error: 'No USDC balance. Deposit funds.', balanceInfo });
+        // 4️⃣ Ensure funds & auto-transfer if needed
+        const balInfo = await getAvailableUSDC();
+        if (balInfo.noFunds) {
+            return NextResponse.json({ error: 'No USDC available' });
         }
-        if (balanceInfo.needsTransfer && balanceInfo.spotAmount! > 0) {
-            console.log(`💸 Transferring ${balanceInfo.spotAmount} USDC Spot→Perp`);
-            try {
-                await sdk.exchange.transferBetweenSpotAndPerp(balanceInfo.spotAmount, true);
-                console.log('✅ Transfer complete');
-                await new Promise(r => setTimeout(r, 1000));
-            } catch (e) {
-                console.error('❌ Transfer failed:', e);
-                return NextResponse.json({ error: 'Transfer failed, please move funds manually', spotAmount: balanceInfo.spotAmount });
-            }
+        if (balInfo.needsTransfer && balInfo.spotAmount > 0) {
+            await sdk.exchange.transferBetweenSpotAndPerp(balInfo.spotAmount, true);
         }
 
-        // 5️⃣ Calculate sizing
+        // 5️⃣ Calculate dynamic position size
         const price = Math.round(slot.forecast_price);
-        const positionCalc = await calcDynamicSize(price, slot.signal, slot.confidence_90?.[1]);
-        if (positionCalc.availableUSDC < 10) {
-            return NextResponse.json({ error: `Insufficient funds: ${positionCalc.availableUSDC}`, positionCalc });
+        const position = await calcDynamicSize(price);
+        if (position.availableUSDC < 10) {
+            return NextResponse.json({ error: 'Insufficient funds', position });
         }
 
-        console.log('🚀 Position:', positionCalc);
-
-        // 6️⃣ Place new order
+        // 6️⃣ Place new BTC-PERP order
         const params = {
             coin: 'BTC-PERP',
             is_buy: slot.signal === 'LONG',
-            sz: Number(positionCalc.size),
+            sz: position.size,
             limit_px: price,
             order_type: { limit: { tif: 'Gtc' as Tif } },
             reduce_only: false,
-            ...(slot.take_profit != null && { tp: Number(slot.take_profit) }),
-            ...(slot.stop_loss != null && { sl: Number(slot.stop_loss) })
+            ...(slot.take_profit && { tp: slot.take_profit }),
+            ...(slot.stop_loss && { sl: slot.stop_loss }),
         };
-        console.log('📤 Placing order:', params);
         const result = await sdk.exchange.placeOrder(params);
-        if (result.status === 'err') throw new Error(`SDK order error: ${result.response}`);
 
-        // 7️⃣ Track fills
+        // 7️⃣ Record any fills
         (result.response.data.statuses || []).forEach((s: any) => {
             if (s.filled) {
                 const { avgPx, totalSz, oid } = s.filled;
                 const pnl = (params.is_buy ? avgPx - price : price - avgPx) * totalSz;
-                pushTrade({ id: String(oid), pnl, side: slot.signal, size: totalSz, avgPrice: avgPx, leverage: positionCalc.leverage, timestamp: Date.now() });
+                pushTrade({
+                    id: String(oid),
+                    pnl,
+                    side: slot.signal,
+                    size: totalSz,
+                    avgPrice: avgPx,
+                    leverage: position.leverage,
+                    timestamp: Date.now()
+                });
             }
         });
 
-        // 8️⃣ Return success payload
-        const payload = {
-            success: true,
-            timestamp: new Date().toISOString(),
-            oldPositionsClosed: closeRes.closedPositions,
-            marginFreed: closeRes.freedMargin,
-            forecastSlot: slot,
-            positionDetails: positionCalc,
-            payload: { asset: 0, side: slot.signal, price, size: positionCalc.size, leverage: positionCalc.leverage },
-            sdkResponse: result
-        };
-        console.log('📤 [Returning Payload]', payload);
-        return NextResponse.json(payload);
-
+        // 8️⃣ Return summary
+        return NextResponse.json({
+            canceled,
+            order: result,
+            position,
+            forecast: slot
+        });
     } catch (err: any) {
-        console.error('❌ Cron error:', err);
+        console.error('Cron-order error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
