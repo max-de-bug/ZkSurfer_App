@@ -614,51 +614,114 @@ async function calcDynamicSize(price: number, signal: string) {
 }
 
 // ——— CANCEL STALE ORDERS ————————————————————————————————————————
-async function cancelStaleOrders(): Promise<boolean> {
+// async function cancelStaleOrders(): Promise<boolean> {
+//     try {
+//         console.log('🔍 Checking for stale orders…');
+//         const res = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'frontendOpenOrders', user: USER_WALLET, dex: '' })
+//         });
+//         if (!res.ok) {
+//             console.error('❌ openOrders fetch failed:', res.status);
+//             return false;
+//         }
+//         const openOrders: Array<{ coin: string; oid: number; timestamp: number }> = await res.json();
+//         const now = Date.now();
+//         const stale = openOrders.filter(o => now - o.timestamp > ONE_HOUR_MS);
+//         if (!stale.length) {
+//             console.log('✅ No stale orders.');
+//             return true;
+//         }
+
+//         console.log(`🗑 Cancelling ${stale.length} stale order(s)…`);
+//         for (const o of stale) {
+//             const market = `${o.coin}-PERP`;
+//             try {
+//                 const r = await sdk.exchange.cancelOrder({ coin: market, o: o.oid });
+//                 console.log(`✅ Cancelled ${o.oid}@${market}`, r);
+//             } catch (e) {
+//                 console.error(`❌ Cancel failed for ${o.oid}@${market}`, e);
+//                 return false;
+//             }
+//         }
+//         return true;
+//     } catch (e) {
+//         console.error('❌ cancelStaleOrders error', e);
+//         return false;
+//     }
+// }
+
+
+async function cancelStaleBTCOrders(): Promise<boolean> {
     try {
-        console.log('🔍 Checking for stale orders…');
+        console.log('🔍 Checking for stale BTC orders…');
+
+        // 1️⃣ Fetch your open orders
         const res = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'frontendOpenOrders', user: USER_WALLET, dex: '' })
+            body: JSON.stringify({
+                type: 'frontendOpenOrders',
+                user: USER_WALLET,
+                dex: ''
+            })
         });
         if (!res.ok) {
             console.error('❌ openOrders fetch failed:', res.status);
             return false;
         }
-        const openOrders: Array<{ coin: string; oid: number; timestamp: number }> = await res.json();
+        const orders: Array<{ coin: string; oid: number; timestamp: number }> = await res.json();
+
+        // 2️⃣ Filter ONLY BTC orders older than 1h
         const now = Date.now();
-        const stale = openOrders.filter(o => now - o.timestamp > ONE_HOUR_MS);
-        if (!stale.length) {
-            console.log('✅ No stale orders.');
+        const staleBTC = orders.filter(o =>
+            o.coin === 'BTC' && now - o.timestamp > ONE_HOUR_MS
+        );
+
+        if (staleBTC.length === 0) {
+            console.log('✅ No stale BTC orders to cancel.');
             return true;
         }
 
-        console.log(`🗑 Cancelling ${stale.length} stale order(s)…`);
-        for (const o of stale) {
-            const market = `${o.coin}-PERP`;
+        console.log(`🗑 Cancelling ${staleBTC.length} stale BTC order(s)…`);
+        for (const o of staleBTC) {
             try {
-                const r = await sdk.exchange.cancelOrder({ coin: market, o: o.oid });
-                console.log(`✅ Cancelled ${o.oid}@${market}`, r);
-            } catch (e) {
-                console.error(`❌ Cancel failed for ${o.oid}@${market}`, e);
+                // Cancel as BTC-PERP
+                const result = await sdk.exchange.cancelOrder({
+                    coin: 'BTC-PERP',
+                    o: o.oid
+                });
+                console.log(`✅ Cancelled BTC order ${o.oid}:`, result);
+            } catch (err) {
+                console.error(`❌ Failed to cancel BTC order ${o.oid}:`, err);
                 return false;
             }
         }
         return true;
-    } catch (e) {
-        console.error('❌ cancelStaleOrders error', e);
+
+    } catch (err) {
+        console.error('❌ cancelStaleBTCOrders error:', err);
         return false;
     }
 }
+
 
 // ——— MAIN CRON HANDLER ————————————————————————————————————————————————
 export async function GET() {
     try {
         // 0️⃣ cancel stale orders first
-        if (!(await cancelStaleOrders())) {
-            return NextResponse.json({ error: 'Failed to cancel stale orders, aborting.' }, { status: 500 });
+        // if (!(await cancelStaleOrders())) {
+        //     return NextResponse.json({ error: 'Failed to cancel stale orders, aborting.' }, { status: 500 });
+        // }
+        // 0️⃣ Make sure any BTC limit order >1h old is dead
+        if (!(await cancelStaleBTCOrders())) {
+            return NextResponse.json(
+                { error: 'Failed to cancel stale BTC orders; aborting new trade.' },
+                { status: 500 }
+            );
         }
+
 
         // 1️⃣ fetch forecast
         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
