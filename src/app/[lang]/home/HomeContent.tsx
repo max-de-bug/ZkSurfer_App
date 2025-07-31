@@ -5240,8 +5240,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         className={`
     bg-[#08121f] border rounded-lg flex-shrink-0 z-40
     ${isMobile ?
-                                `fixed top-0 left-0 bottom-0 w-3/4 transition-transform duration-300 ease-in-out ml-0
-         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}` :
+                                `fixed left-0 bottom-0 w-3/4 transition-transform duration-300 ease-in-out ml-0
+         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}   top-[5.2rem]` :
                                 'w-64 relative ml-3'
                             }
     `}
