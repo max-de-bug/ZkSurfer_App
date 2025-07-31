@@ -965,11 +965,14 @@ export const runtime = 'nodejs';  // must be Node.js for the SDK
 // ——— SDK Configuration ————————————————————————————————————————————————
 const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
 const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
+const USER_WALLET_RAW = process.env.NEXT_PUBLIC_HL_USER_WALLET;
 if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
 if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
+if (!USER_WALLET_RAW) throw new Error('USER_WALLET_RAW missing in env');
 
 // Create properly typed constants
 const MAIN_WALLET: string = MAIN_WALLET_RAW;
+const USER_WALLET: string = USER_WALLET_RAW;
 
 const sdk = new Hyperliquid({
     privateKey: PK,
@@ -999,7 +1002,7 @@ function roundLot(x: number) {
 // ——— Get Real-Time USDC Balance (2025 CORRECT METHOD) ————————————————
 async function getAvailableUSDC() {
     try {
-        console.log('🔍 Checking wallet:', MAIN_WALLET);
+        console.log('🔍 Checking wallet:', USER_WALLET);
 
         // Method 1: CORRECT 2025 API - Direct POST request for perpetuals
         console.log('📊 Checking Perpetuals Account (Direct API)...');
@@ -1008,7 +1011,7 @@ async function getAvailableUSDC() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 type: 'clearinghouseState',
-                user: MAIN_WALLET
+                user: USER_WALLET
             })
         });
 
@@ -1022,7 +1025,7 @@ async function getAvailableUSDC() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 type: 'spotClearinghouseState',
-                user: MAIN_WALLET
+                user: USER_WALLET
             })
         });
 

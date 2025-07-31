@@ -395,7 +395,8 @@ const nextConfig = {
     NEXT_PUBLIC_HL_CHAIN: process.env.NEXT_PUBLIC_HL_CHAIN,
     NEXT_PUBLIC_HL_SIGNATURE_CHAIN_ID:
       process.env.NEXT_PUBLIC_HL_SIGNATURE_CHAIN_ID,
-    NEXT_PUBLIC_HL_MAIN_WALLET:process.env.NEXT_PUBLIC_HL_MAIN_WALLET,
+    NEXT_PUBLIC_HL_MAIN_WALLET: process.env.NEXT_PUBLIC_HL_MAIN_WALLET,
+    NEXT_PUBLIC_HL_USER_WALLET: process.env.NEXT_PUBLIC_HL_USER_WALLET,
   },
   experimental: {
     esmExternals: "loose",
