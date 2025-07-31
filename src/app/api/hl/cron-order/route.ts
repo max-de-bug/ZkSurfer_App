@@ -1290,7 +1290,7 @@ async function closeOldPositions() {
                     });
 
                     const allMids = await priceResponse.json();
-                    const coinPrice = allMids[`${coin}-PERP`];
+                    const coinPrice = allMids[`${coin}`];
 
                     if (!coinPrice) {
                         console.error(`❌ No price found for ${coin}`);
