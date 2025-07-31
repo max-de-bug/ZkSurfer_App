@@ -1000,7 +1000,7 @@ function roundLot(x: number) {
 async function getAvailableUSDC() {
     try {
         console.log('🔍 Checking wallet:', MAIN_WALLET);
-        
+
         // Method 1: CORRECT 2025 API - Direct POST request for perpetuals
         console.log('📊 Checking Perpetuals Account (Direct API)...');
         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
@@ -1011,10 +1011,10 @@ async function getAvailableUSDC() {
                 user: MAIN_WALLET
             })
         });
-        
+
         const perpState = await perpResponse.json();
         console.log('🏦 Perpetuals State:', JSON.stringify(perpState, null, 2));
-        
+
         // Method 2: CORRECT 2025 API - Direct POST request for spot  
         console.log('💱 Checking Spot Account (Direct API)...');
         const spotResponse = await fetch('https://api.hyperliquid.xyz/info', {
@@ -1025,16 +1025,16 @@ async function getAvailableUSDC() {
                 user: MAIN_WALLET
             })
         });
-        
+
         const spotState = await spotResponse.json();
         console.log('🏪 Spot State:', JSON.stringify(spotState, null, 2));
-        
+
         // Extract balances from responses
         const perpBalance = parseFloat(perpState?.marginSummary?.accountValue || '0');
         const spotBalances = spotState?.balances || [];
         const usdcSpot = spotBalances.find((b: any) => b.coin === 'USDC');
         const spotUSDC = parseFloat(usdcSpot?.total || '0');
-        
+
         console.log('💰 Balance Breakdown:', {
             perpetualsUSDC: perpBalance,
             spotUSDC: spotUSDC,
@@ -1042,7 +1042,7 @@ async function getAvailableUSDC() {
             perpWithdrawable: parseFloat(perpState?.withdrawable || '0'),
             spotHold: parseFloat(usdcSpot?.hold || '0')
         });
-        
+
         // Return valid balances
         if (perpBalance > 0) {
             return {
@@ -1051,7 +1051,7 @@ async function getAvailableUSDC() {
                 source: 'perpetuals'
             };
         }
-        
+
         if (spotUSDC > 0) {
             return {
                 totalUSDC: spotUSDC,
@@ -1061,14 +1061,14 @@ async function getAvailableUSDC() {
                 source: 'spot'
             };
         }
-        
+
         // No funds found
         console.error('❌ No USDC found in either account!');
         return { totalUSDC: 0, availableMargin: 0, noFunds: true };
-        
+
     } catch (err) {
         console.error('❌ API Error:', err);
-        return { totalUSDC: 0, availableMargin: 0, error: err.message };
+        return { totalUSDC: 0, availableMargin: 0, error: err };
     }
 }
 
@@ -1095,7 +1095,7 @@ function calculateOptimalSize(
 ) {
     // MINIMUM profit scaling - increases with performance
     let targetProfit = MIN_PROFIT_PER_TRADE;
-    
+
     // DYNAMIC UPWARD SCALING based on performance
     if (currentProfit >= 150 && currentLoss <= 30) {
         targetProfit = Math.min(40, targetProfit * 1.8); // Up to $40 on hot streak
@@ -1104,40 +1104,40 @@ function calculateOptimalSize(
     } else if (currentProfit >= 50 && currentLoss <= 60) {
         targetProfit = Math.min(25, targetProfit * 1.3); // Scale up moderately
     }
-    
+
     // Use HIGH percentage of available capital (90%)
     const capitalPerTrade = availableUSDC * CAPITAL_USAGE_PERCENT;
-    
+
     // Calculate required notional for DYNAMIC profit target
     const requiredNotional = (targetProfit / expectedMovePercent) * 100;
-    
+
     // Calculate needed leverage for target
     const neededLeverage = Math.min(
         requiredNotional / capitalPerTrade,
         MAX_LEVERAGE
     );
-    
+
     // But also check what leverage gives us maximum safe size
     const maxSafeLeverage = MAX_LEVERAGE;
     const maxSafeNotional = capitalPerTrade * maxSafeLeverage;
-    
+
     // Use the HIGHER of: target-based or maximum safe leverage
     const leverage = Math.max(
         Math.max(MIN_LEVERAGE, Math.round(neededLeverage)),
         Math.round(maxSafeNotional / requiredNotional * MIN_LEVERAGE)
     );
-    
+
     const finalLeverage = Math.min(leverage, MAX_LEVERAGE);
     const notionalValue = capitalPerTrade * finalLeverage;
     const positionSize = notionalValue / price;
-    
+
     // Calculate ACTUAL expected profit (could be higher than minimum)
     const actualExpectedProfit = (notionalValue * expectedMovePercent) / 100;
-    
+
     console.log(`💰 Capital: $${capitalPerTrade.toFixed(0)}, Leverage: ${finalLeverage}x`);
     console.log(`📊 Notional: $${notionalValue.toFixed(0)}, Size: ${positionSize.toFixed(5)}`);
     console.log(`🎯 MIN Target: $${MIN_PROFIT_PER_TRADE}, DYNAMIC Target: $${targetProfit.toFixed(1)}, ACTUAL Expected: $${actualExpectedProfit.toFixed(1)}`);
-    
+
     return {
         size: roundLot(positionSize),
         leverage: finalLeverage,
@@ -1154,21 +1154,21 @@ async function calcDynamicSize(price: number, signal: string, confidence?: numbe
     const balanceInfo = await getAvailableUSDC();
     const availableMargin = balanceInfo.availableMargin || 0;
     const dayState = getDayState();
-    
+
     console.log('💰 Balance Info for Calculation:', {
         totalUSDC: balanceInfo.totalUSDC,
         availableMargin: availableMargin,
         needsTransfer: balanceInfo.needsTransfer || false,
         spotAmount: balanceInfo.spotAmount || 0
     });
-    
+
     // Calculate base leverage from performance
     const baseLeverage = calculateDynamicLeverage(
         Math.max(0, dayState.realizedPnl),
         dayState.realizedLoss,
         confidence
     );
-    
+
     // Skip calculation if no funds available
     if (availableMargin <= 0) {
         return {
@@ -1183,27 +1183,27 @@ async function calcDynamicSize(price: number, signal: string, confidence?: numbe
             profitPotential: 'NO_FUNDS'
         };
     }
-    
+
     // Calculate optimal position for MINIMUM profit target (can go higher)
     const optimal = calculateOptimalSize(
-        price, 
+        price,
         availableMargin,
         Math.max(0, dayState.realizedPnl),
         dayState.realizedLoss
     );
-    
+
     // Use the HIGHER leverage for maximum profit potential
     const finalLeverage = Math.max(baseLeverage, optimal.leverage);
-    
+
     // Recalculate with MAXIMUM leverage between the two
     const capitalPerTrade = availableMargin * CAPITAL_USAGE_PERCENT;
     const finalNotional = capitalPerTrade * finalLeverage;
     const finalSize = finalNotional / price;
-    
+
     // ACTUAL expected profit (will likely exceed minimum)
     const actualExpectedProfit = (finalNotional * 2.0) / 100; // 2% expected move
     const maxRisk = Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE);
-    
+
     return {
         size: roundLot(finalSize).toFixed(5),
         leverage: finalLeverage,
@@ -1237,7 +1237,7 @@ export async function GET() {
                 'api-key': apiKey
             }
         });
-        
+
         if (!forecastRes.ok) {
             const txt = await forecastRes.text();
             console.error('Forecast API error:', txt);
@@ -1269,57 +1269,57 @@ export async function GET() {
         const dayState = getDayState();
         if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
             console.log(`🛑 Daily loss limit reached ($${DAILY_LOSS_LIMIT}). Stopping trades.`);
-            return NextResponse.json({ 
-                message: `Daily loss limit reached: $${dayState.realizedLoss}` 
+            return NextResponse.json({
+                message: `Daily loss limit reached: $${dayState.realizedLoss}`
             });
         }
 
         // 4️⃣ AGGRESSIVE Dynamic position sizing (NO UPPER LIMITS)
         const price = Math.round(slot.forecast_price);
         const balanceInfo = await getAvailableUSDC();
-        
+
         // Handle special cases
         if (balanceInfo.noFunds) {
             console.error('❌ No USDC found in any account. Please deposit funds.');
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: 'No USDC balance found. Please deposit funds to your Hyperliquid account.',
-                balanceInfo 
+                balanceInfo
             });
         }
-        
+
         if (balanceInfo.needsTransfer && balanceInfo.spotAmount && balanceInfo.spotAmount > 0) {
             console.log(`💸 Auto-transferring ${balanceInfo.spotAmount} USDC from Spot to Perpetuals...`);
             try {
                 const transferResult = await sdk.exchange.transferBetweenSpotAndPerp(
-                    balanceInfo.spotAmount, 
+                    balanceInfo.spotAmount,
                     true // true = spot to perp
                 );
                 console.log('✅ Transfer successful:', transferResult);
-                
+
                 // Re-fetch balance after transfer
                 const updatedBalance = await getAvailableUSDC();
                 console.log('🔄 Updated balance after transfer:', updatedBalance);
             } catch (transferErr) {
                 console.error('❌ Auto-transfer failed:', transferErr);
-                return NextResponse.json({ 
-                    error: `Auto-transfer failed: ${transferErr.message}. Please manually transfer USDC from Spot to Perpetuals.`,
-                    spotAmount: balanceInfo.spotAmount 
+                return NextResponse.json({
+                    error: `Auto-transfer failed: ${transferErr}. Please manually transfer USDC from Spot to Perpetuals.`,
+                    spotAmount: balanceInfo.spotAmount
                 });
             }
         }
-        
+
         // Recalculate position after any transfers
         const positionCalc = await calcDynamicSize(price, slot.signal, slot.confidence_90?.[1]);
-        
+
         // Final check: ensure we have enough funds to trade
         if (positionCalc.availableUSDC < 10) { // Need at least $10 to trade meaningfully
             console.error('❌ Insufficient funds for trading after all checks.');
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: `Insufficient funds: Only ${positionCalc.availableUSDC} available. Need at least $10.`,
-                positionCalc 
+                positionCalc
             });
         }
-        
+
         console.log('🚀 AGGRESSIVE Position Calculation:', {
             availableUSDC: positionCalc.availableUSDC.toFixed(0),
             capitalUsed: positionCalc.capitalUsed.toFixed(0),
@@ -1354,7 +1354,7 @@ export async function GET() {
         // 6️⃣ Place the order via the Hyperliquid SDK
         const result = await sdk.exchange.placeOrder(orderParams);
         console.log('📥 [SDK Response]', JSON.stringify(result, null, 2));
-        
+
         if (result.status === 'err') {
             throw new Error(`SDK order error: ${result.response}`);
         }
@@ -1394,12 +1394,12 @@ export async function GET() {
                 availableUSDC: positionCalc.availableUSDC,
                 capitalUsagePercent: (positionCalc.capitalUsed / positionCalc.availableUSDC * 100)
             },
-            payload: { 
-                asset: 0, 
-                side: slot.signal, 
-                price, 
-                size: positionCalc.size, 
-                leverage: positionCalc.leverage 
+            payload: {
+                asset: 0,
+                side: slot.signal,
+                price,
+                size: positionCalc.size,
+                leverage: positionCalc.leverage
             },
             sdkResponse: result
         };
