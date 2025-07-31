@@ -1310,6 +1310,7 @@ async function closeOldPositions() {
                     console.log(`📤 Closing ${coin} position with params:`, closeOrderParams);
 
                     const closeResult = await sdk.exchange.placeOrder(closeOrderParams);
+                    console.log('Close order result:', closeResult);
 
                     if (closeResult.status === 'ok') {
                         console.log(`✅ Successfully closed ${coin} position`);
