@@ -1091,9 +1091,6 @@
 
 // app/api/hl/cron-order/route.ts
 
-import WebSocket from 'ws';
-(global as any).WebSocket = WebSocket;
-
 import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
 import { getDayState, pushTrade } from '@/lib/dayState';
@@ -1121,7 +1118,7 @@ const MIN_ORDER_SIZE = 0.0001;
 const MIN_PROFIT_PER_TRADE = 17.5;
 const MAX_LOSS_PER_TRADE = 30;
 const DAILY_LOSS_LIMIT = 150;
-const CAPITAL_USAGE_PERCENT = 0.9;
+const CAPITAL_USAGE_FACTOR = 0.9;
 const MAX_LEVERAGE = 25;
 const MIN_LEVERAGE = 5;
 
@@ -1151,21 +1148,21 @@ async function getAvailableUSDC() {
         const spot = await spotRes.json();
 
         const perpBal = parseFloat(perp.marginSummary.accountValue || '0');
-        const usdcSpot = parseFloat(
+        const spotTotal = parseFloat(
             (spot.balances.find((b: any) => b.coin === 'USDC')?.total) || '0'
         );
 
-        const availablePerp = perpBal > 0
+        const withdrawable = perpBal > 0
             ? parseFloat(perp.withdrawable || perp.marginSummary.accountValue)
             : 0;
-        const needsTransfer = perpBal === 0 && usdcSpot > 0;
+        const needsTransfer = perpBal === 0 && spotTotal > 0;
 
         return {
-            totalUSDC: perpBal + usdcSpot,
-            availableMargin: availablePerp > 0 ? availablePerp : usdcSpot,
+            totalUSDC: perpBal + spotTotal,
+            availableMargin: withdrawable > 0 ? withdrawable : spotTotal,
             needsTransfer,
-            spotAmount: usdcSpot,
-            noFunds: perpBal + usdcSpot === 0
+            spotAmount: spotTotal,
+            noFunds: perpBal + spotTotal === 0
         };
     } catch (e) {
         console.error('Error fetching balances', e);
@@ -1180,7 +1177,7 @@ async function cancelOldBTCOrders() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'userOrders', user: USER_WALLET })
     });
-    if (!res.ok) throw new Error(`userOrders API ${res.status}`);
+    if (!res.ok) throw new Error(`userOrders API returned ${res.status}`);
     const orders: Array<{ oid: string; time: number; status: string; coin: string }> = await res.json();
 
     const cutoff = Date.now() - 60 * 60 * 1000;
@@ -1192,13 +1189,14 @@ async function cancelOldBTCOrders() {
 
     const canceled: Array<{ oid: string; result: any }> = [];
     for (const o of toCancel) {
-        console.log(`Cancelling BTC order ${o.oid} (placed at ${new Date(o.time).toISOString()})`);
+        console.log(`🔄 Cancelling BTC order ${o.oid} (placed ${new Date(o.time).toISOString()})`);
         const result = await sdk.exchange.cancelOrder({
-            coin: o.coin,         // fix: must pass `coin`
-            o: Number(o.oid),     // fix: use `o`, not `oid`
+            coin: o.coin,
+            o: Number(o.oid),
         });
-        console.log('Cancel result', result);
+        console.log('📤 Cancel result:', result);
         canceled.push({ oid: o.oid, result });
+        // throttle to avoid rate limits
         await new Promise(r => setTimeout(r, 500));
     }
     return canceled;
@@ -1228,12 +1226,16 @@ function calculateOptimalSize(
     else if (profit >= 100 && loss <= 50) target = Math.min(30, target * 1.5);
     else if (profit >= 50 && loss <= 60) target = Math.min(25, target * 1.3);
 
-    const cap = available * CAPITAL_USAGE_PERCENT;
-    const notionalForTarget = (target / expectedMove) * 100;
-    const neededLev = Math.min(notionalForTarget / cap, MAX_LEVERAGE);
-    const lev = Math.min(Math.max(MIN_LEVERAGE, Math.round(neededLev)), MAX_LEVERAGE);
+    const capital = available * CAPITAL_USAGE_FACTOR;
+    const reqNotional = (target / expectedMove) * 100;
+    const neededLev = Math.min(reqNotional / capital, MAX_LEVERAGE);
 
-    const finalNotional = cap * lev;
+    const lev = Math.min(
+        Math.max(MIN_LEVERAGE, Math.round(neededLev)),
+        MAX_LEVERAGE
+    );
+
+    const finalNotional = capital * lev;
     const size = roundLot(finalNotional / price);
     const expectedProfit = (finalNotional * expectedMove) / 100;
     const maxRisk = Math.min((finalNotional * 2.5) / 100, MAX_LOSS_PER_TRADE);
@@ -1244,7 +1246,8 @@ function calculateOptimalSize(
 async function calcDynamicSize(price: number) {
     const bal = await getAvailableUSDC();
     const day = getDayState();
-    const profit = Math.max(0, day.realizedPnl), loss = day.realizedLoss;
+    const profit = Math.max(0, day.realizedPnl);
+    const loss = day.realizedLoss;
 
     if (bal.availableMargin <= 0) {
         return { size: MIN_ORDER_SIZE, leverage: MIN_LEVERAGE, availableUSDC: 0 };
@@ -1253,23 +1256,29 @@ async function calcDynamicSize(price: number) {
     const opt = calculateOptimalSize(price, bal.availableMargin, profit, loss);
     const baseLev = calculateDynamicLeverage(profit, loss);
     const lev = Math.max(baseLev, opt.leverage);
-    const cap = bal.availableMargin * CAPITAL_USAGE_PERCENT;
-    const notional = cap * lev;
+    const capital = bal.availableMargin * CAPITAL_USAGE_FACTOR;
+    const notional = capital * lev;
     const size = roundLot(notional / price);
-    const expectedProfit = (notional * 2) / 100;
+    const expProfit = (notional * 2) / 100;
     const maxRisk = Math.min((notional * 2.5) / 100, MAX_LOSS_PER_TRADE);
 
-    return { size, leverage: lev, expectedProfit, maxRisk, availableUSDC: bal.availableMargin };
+    return {
+        size,
+        leverage: lev,
+        expectedProfit: expProfit,
+        maxRisk,
+        availableUSDC: bal.availableMargin
+    };
 }
 
-// ——— Main Handler ————————————————————————————————————————————————————
+// ——— Main Cron Handler ————————————————————————————————————————————————
 export async function GET() {
     try {
-        // 1️⃣ Cancel any stale BTC orders
+        // 1️⃣ Cancel stale BTC orders
         const canceled = await cancelOldBTCOrders();
         console.log(`Canceled ${canceled.length} old BTC orders`);
 
-        // 2️⃣ Fetch the latest forecast slot
+        // 2️⃣ Fetch latest forecast
         const apiKey = process.env.NEXT_PUBLIC_API_KEY!;
         const fw = await fetch('https://zynapse.zkagi.ai/today', {
             method: 'GET',
@@ -1283,10 +1292,12 @@ export async function GET() {
             return NextResponse.json({ message: 'No trade signal' });
         }
 
-        // 3️⃣ Daily loss check
+        // 3️⃣ Daily loss guard
         const day = getDayState();
         if (day.realizedLoss >= DAILY_LOSS_LIMIT) {
-            return NextResponse.json({ message: `Daily loss limit reached (${day.realizedLoss})` });
+            return NextResponse.json({
+                message: `Daily loss limit reached (${day.realizedLoss})`
+            });
         }
 
         // 4️⃣ Ensure funds & auto-transfer if needed
@@ -1298,14 +1309,14 @@ export async function GET() {
             await sdk.exchange.transferBetweenSpotAndPerp(balInfo.spotAmount, true);
         }
 
-        // 5️⃣ Calculate dynamic position size
+        // 5️⃣ Compute dynamic position
         const price = Math.round(slot.forecast_price);
         const position = await calcDynamicSize(price);
         if (position.availableUSDC < 10) {
             return NextResponse.json({ error: 'Insufficient funds', position });
         }
 
-        // 6️⃣ Place new BTC-PERP order
+        // 6️⃣ Place the new BTC-PERP order
         const params = {
             coin: 'BTC-PERP',
             is_buy: slot.signal === 'LONG',
@@ -1316,6 +1327,7 @@ export async function GET() {
             ...(slot.take_profit && { tp: slot.take_profit }),
             ...(slot.stop_loss && { sl: slot.stop_loss }),
         };
+        console.log('🚀 Placing new order:', params);
         const result = await sdk.exchange.placeOrder(params);
 
         // 7️⃣ Record any fills
@@ -1335,7 +1347,7 @@ export async function GET() {
             }
         });
 
-        // 8️⃣ Return summary
+        // 8️⃣ Return everything
         return NextResponse.json({
             canceled,
             order: result,
