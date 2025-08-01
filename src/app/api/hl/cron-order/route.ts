@@ -3864,7 +3864,7 @@ const DAILY_TOTAL_STOP_LOSS = 150;
 
 // ——— DYNAMIC PERCENTAGE-BASED PROFIT/LOSS CONSTANTS ————————————————————————————————————————
 const BASE_TAKE_PROFIT_PERCENT = 2.0;     // 2% base take profit
-const MIN_STOP_LOSS_PERCENT = 0.5;        // 0.5% minimum stop loss
+const MIN_STOP_LOSS_PERCENT = 0.25;        // 0.5% minimum stop loss
 const EMERGENCY_STOP_LOSS_PERCENT = 1.5;  // 1.5% emergency stop loss
 const MAX_POSITION_AGE_MINUTES = 30;      // Close profitable positions after 30 minutes
 
