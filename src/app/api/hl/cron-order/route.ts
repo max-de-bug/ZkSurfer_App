@@ -3857,22 +3857,26 @@ const MIN_ORDER_SIZE = 0.0001;
 const MIN_PROFIT_PER_TRADE = 17.5; // MINIMUM profit target (not fixed)
 const MAX_LOSS_PER_TRADE = 30;
 const DAILY_LOSS_LIMIT = 150;
-const CAPITAL_USAGE_PERCENT = 0.90; // Use 90% of available USDC per trade
+const CAPITAL_USAGE_PERCENT = 0.30; // Use 90% of available USDC per trade
 const MAX_LEVERAGE = 25; // Increased for higher profits
 const MIN_LEVERAGE = 5;  // Higher minimum for aggressive targets
-const DAILY_TOTAL_STOP_LOSS = 150;
 
 // ——— DYNAMIC PERCENTAGE-BASED PROFIT/LOSS CONSTANTS ————————————————————————————————————————
 const BASE_TAKE_PROFIT_PERCENT = 2.0;     // 2% base take profit
 const MIN_STOP_LOSS_PERCENT = 0.25;        // 0.5% minimum stop loss
-const EMERGENCY_STOP_LOSS_PERCENT = 1.5;  // 1.5% emergency stop loss
+const EMERGENCY_STOP_LOSS_PERCENT = 1.0;  // 1.5% emergency stop loss
 const MAX_POSITION_AGE_MINUTES = 30;      // Close profitable positions after 30 minutes
+
+// ——— FIXED DOLLAR PROFIT TARGETS (LEVERAGE-INDEPENDENT) ————————————————————————————————————————
+const MAX_PROFIT_TARGET = 100;            // Close at $100 profit (maximum target)
+const MIN_PROFIT_TARGET = 50;             // Close at $50 profit (minimum target)
 
 // ——— DYNAMIC PROFIT SCALING FACTORS ————————————————————————————————————————
 const QUICK_PROFIT_MULTIPLIER = 1.5;      // 3% take profit for high confidence
 const EXTENDED_PROFIT_MULTIPLIER = 2.0;   // 4% take profit for very high confidence  
 const CONFIDENCE_THRESHOLD_HIGH = 95;     // Above 95% confidence = extended profits
 const CONFIDENCE_THRESHOLD_QUICK = 90;    // Above 90% confidence = quick profits
+const DAILY_TOTAL_STOP_LOSS = 150;
 
 // ——— Helper Functions ————————————————————————————————————————————————
 function roundLot(x: number) {
