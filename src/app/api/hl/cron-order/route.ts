@@ -1086,10 +1086,246 @@ import { getDayState, pushTrade } from '@/lib/dayState';
 
 export const runtime = 'nodejs';
 
-// ——— SDK Configuration ————————————————————————————————————————————————
-const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
-const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
-const USER_WALLET_RAW = process.env.NEXT_PUBLIC_HL_USER_WALLET;
+// ——— TYPESCRIPT INTERFACES & TYPES ————————————————————————————————————————
+
+interface EnvironmentVariables {
+    NEXT_PUBLIC_HL_PRIVATE_KEY: string;
+    NEXT_PUBLIC_HL_MAIN_WALLET: string;
+    NEXT_PUBLIC_HL_USER_WALLET: string;
+    NEXT_PUBLIC_API_KEY: string;
+}
+
+interface TradingSignal {
+    signal: 'LONG' | 'SHORT' | 'HOLD';
+    forecast_price: number;
+    take_profit?: number;
+    stop_loss?: number;
+    confidence_90?: [number, number];
+}
+
+interface ForecastAPIResponse {
+    forecast_today_hourly: TradingSignal[];
+}
+
+interface BalanceInfo {
+    totalUSDC: number;
+    availableMargin: number;
+    source: 'perpetuals' | 'spot';
+    error?: Error;
+}
+
+interface PositionCalculation {
+    size: number;
+    leverage: number;
+    capitalUsed: number;
+    positionValue: number;
+    maxRisk: number;
+    expectedProfit1Percent: number;
+    expectedProfit2Percent: number;
+    accountUsagePercent: number;
+    riskRewardRatio: number;
+}
+
+interface OrderResult {
+    success: boolean;
+    result?: any;
+    pricing?: {
+        marketPrice: number;
+        orderPrice: number;
+    };
+    error?: any;
+}
+
+interface HyperliquidOrderParams {
+    coin: string;
+    is_buy: boolean;
+    sz: number;
+    limit_px: number;
+    order_type: { limit: { tif: Tif } };
+    reduce_only: boolean;
+}
+
+interface HyperliquidFillStatus {
+    filled?: {
+        avgPx: number;
+        totalSz: number;
+        oid: string;
+    };
+}
+
+interface HyperliquidOrderResponse {
+    status: 'ok' | 'err';
+    response?: {
+        data?: {
+            statuses?: HyperliquidFillStatus[];
+        };
+    };
+}
+
+interface TradeAction {
+    action: 'HOLD' | 'AI_TAKE_PROFIT' | 'AI_STOP_LOSS' | 'EMERGENCY_ZONE4_STOP' |
+    'ZONE3_PARTIAL_CLOSE' | 'ZONE2_PARTIAL_CLOSE' | 'ZONE1_TIME_STOP' |
+    'RECOVERY_PROFIT_SECURE' | 'RECOVERY_PROTECTION' | 'HOLD_RECOVERY' |
+    'RECOVERY_TIMEOUT' | 'BIG_WIN_PARTIAL' | 'START_TRAILING' | 'PARTIAL_PROFIT' |
+    'SECURE_PROFIT' | 'TIME_PROFIT_EXIT' | 'TIME_SMALL_LOSS_EXIT' | 'DRAWDOWN_PROTECTION';
+    percentage?: number;
+    reason: string;
+    priority?: 'IMMEDIATE' | 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+interface PartialClose {
+    percentage: number;
+    reason: string;
+    zone: number;
+    timestamp: number;
+}
+
+interface TradeActionRecord {
+    action: string;
+    reason: string;
+    percentage: number;
+    pnl: number;
+    timestamp: number;
+    zone: number;
+}
+
+interface Trade {
+    tradeId: string;
+    entryPrice: number;
+    originalSize: number;
+    currentSize: number;
+    leverage: number;
+    entryTime: number;
+
+    // AI targets
+    aiTakeProfit?: number;
+    aiStopLoss?: number;
+    confidence: number;
+
+    // Current state
+    currentPrice: number;
+    unrealizedPnl: number;
+    maxProfit: number;
+    maxLoss: number;
+
+    // Recovery zone tracking
+    currentZone: 1 | 2 | 3 | 4;
+    zoneChangeTime: number;
+    partialCloses: PartialClose[];
+
+    // Quick recovery tracking
+    recoveryMode: boolean;
+    recoveryStartPrice: number | null;
+    recoveryStartTime: number | null;
+    rapidRecoveryDetected: boolean;
+    recoveryAttempts: number;
+
+    // Micro-management flags
+    profitSecured: boolean;
+    partialTaken: boolean;
+    trailingActive: boolean;
+
+    // Actions log
+    actions: TradeActionRecord[];
+
+    // Trade metadata
+    isLong: boolean;
+    originalSignal: 'LONG' | 'SHORT';
+}
+
+interface DailyStats {
+    tradesPlaced: number;
+    profitableTrades: number;
+    totalProfit: number;
+    totalLoss: number;
+    bigWins: number;
+    microProfitsSecured: number;
+    aiTPHits: number;
+    aiSLHits: number;
+    quickRecoveries: number;
+    avgTradeTime: number;
+    recoverySuccesses: number;
+    emergencyStops: number;
+    netPnl: string;
+    winRate: string;
+    activeTrades: number;
+    avgPnlPerTrade: string;
+    recoveryAttempts: number;
+    recoverySuccessRate: string;
+}
+
+interface RecoveryHistoryEntry {
+    tradeId: string;
+    initialLoss: number;
+    finalPnl: number;
+    recoveryAttempts: number;
+    rapidRecovery: boolean;
+    success: boolean;
+}
+
+interface ExecutionResult {
+    success: boolean;
+    pnl?: number;
+    error?: string;
+}
+
+interface CloseResult {
+    success: boolean;
+    result?: HyperliquidOrderResponse;
+    method: string;
+    error?: any;
+}
+
+interface APIErrorResponse {
+    error: string;
+    timestamp?: string;
+    dailyStats?: DailyStats;
+}
+
+interface APISuccessResponse {
+    success: boolean;
+    timestamp: string;
+    newTrade?: {
+        tradeId: string | null;
+        signal: string;
+        confidence: number;
+        entryPrice?: number;
+        size: number;
+        leverage: number;
+        capitalUsed: number;
+        positionValue: number;
+        expectedProfit1Percent: number;
+        expectedProfit2Percent: number;
+        maxRisk: number;
+        riskRewardRatio: number;
+        aiTakeProfit?: number;
+        aiStopLoss?: number;
+    };
+    systemStatus: {
+        activeTrades: number;
+        maxConcurrentTrades: number;
+        totalAccountUsed: string;
+        availableForNextTrade: boolean;
+        dailyLossUsed: number;
+        dailyLossLimit: number;
+        remainingCapacity: number;
+    };
+    dailyStats: DailyStats;
+    orderExecution: {
+        success: boolean;
+        marketPrice?: number;
+        orderPrice?: number;
+        microManagementActive: boolean;
+        recoverySystemActive: boolean;
+    };
+}
+
+// ——— SDK Configuration with Type Safety ————————————————————————————————————————————————
+const env = process.env as unknown as EnvironmentVariables;
+
+const PK: string = env.NEXT_PUBLIC_HL_PRIVATE_KEY;
+const MAIN_WALLET_RAW: string = env.NEXT_PUBLIC_HL_MAIN_WALLET;
+const USER_WALLET_RAW: string = env.NEXT_PUBLIC_HL_USER_WALLET;
 
 if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
 if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
@@ -1104,52 +1340,621 @@ const sdk = new Hyperliquid({
     testnet: false
 });
 
-// ——— ENHANCED RISK MANAGEMENT CONSTANTS (SAFE & PROFITABLE) ————————————————————————————————————————
-const LOT_SIZE = 0.00001;
-const MIN_ORDER_SIZE = 0.0001;
+// ——— TYPED CONSTANTS ————————————————————————————————————————
+const AGGRESSIVE_CONSTANTS = {
+    // Risk limits per trade
+    MAX_LOSS_PER_TRADE: 10 as const,
+    MIN_PROFIT_TARGET: 10 as const,
+    OPTIMAL_PROFIT_TARGET: 25 as const,
+    BIG_WIN_TARGET: 100 as const,
+    DAILY_LOSS_LIMIT: 100 as const,
 
-// ——— STRICT RISK LIMITS (OPTIMIZED FOR CONSISTENT PROFITS) ————————————————————————————————————
-const MAX_LOSS_PER_TRADE = 15;           // STRICT $15 max loss (including fees)
-const DAILY_LOSS_LIMIT = 60;             // STRICT $60 daily limit  
-const CAPITAL_USAGE_PERCENT = 0.20;      // CONSERVATIVE 12% of capital per trade
-const MAX_LEVERAGE = 8;                  // SAFE maximum leverage
-const MIN_LEVERAGE = 3;                  // Conservative minimum
+    // Position sizing
+    CAPITAL_PER_TRADE_PERCENT: 0.30 as const,
 
-// ——— FEE OPTIMIZATION & PROFIT TARGETS ————————————————————————————————————————
-const EXPECTED_FEE_PER_TRADE = 6;        // Account for fees in all calculations
-const MIN_PROFIT_TARGET = 15;            // $15 minimum profit (covers fees + profit)
-const OPTIMAL_PROFIT_TARGET = 25;        // $25 optimal target
-const QUICK_SCALP_TARGET = 12;           // $12 quick scalp
-const EXTENDED_PROFIT_TARGET = 40;       // $40 for high confidence trades
+    // Leverage system
+    MIN_LEVERAGE: 5 as const,
+    MAX_LEVERAGE: 20 as const,
 
-// ——— TIGHT STOP LOSSES (PERCENTAGE-BASED) ————————————————————————————————————————
-const ULTRA_TIGHT_STOP = 0.12;           // 0.12% ultra-tight stop
-const TIGHT_STOP_LOSS = 0.18;            // 0.18% tight stop loss
-const EMERGENCY_STOP = 0.35;             // 0.35% emergency stop
-const PROFIT_TAKE_QUICK = 0.20;          // 0.20% quick profit take
-const PROFIT_TAKE_STANDARD = 0.35;       // 0.35% standard profit take
+    // Recovery detection
+    RECOVERY_WATCH_LOSS: 7 as const,
+    QUICK_RECOVERY_SECONDS: 180 as const,
+    RAPID_RECOVERY_PERCENT: 0.15 as const,
+    RECOVERY_HOLD_TIME: 300 as const,
 
-// ——— TIME-BASED RISK MANAGEMENT ————————————————————————————————————————————
-const SCALP_TIME_MINUTES = 8;            // Quick scalp in 8 minutes
-const PROFIT_PROTECTION_MINUTES = 15;    // Protect profits after 15 minutes
-const SAFETY_EXIT_MINUTES = 25;          // Safety exit after 25 minutes
-const FORCE_CLOSE_MINUTES = 45;          // Force close after 45 minutes
+    // Profit management
+    SECURE_PROFIT_AT: 12 as const,
+    PARTIAL_PROFIT_AT: 20 as const,
+    TRAIL_FROM: 40 as const,
 
-// ——— Helper Functions ————————————————————————————————————————————————
-function roundLot(x: number) {
-    const lots = Math.max(
+    // Time management
+    PROFIT_PROTECTION_START: 5 as const,
+    FINAL_EXIT_MINUTES: 55 as const,
+    CHECK_INTERVAL: 30 as const,
+
+    // Concurrent trades
+    MAX_CONCURRENT_TRADES: 2 as const
+} as const;
+
+const RECOVERY_ZONES = {
+    ZONE_1_LOSS_THRESHOLD: 8 as const,
+    ZONE_1_TIME_LIMIT: 15 as const,
+
+    ZONE_2_LOSS_THRESHOLD: 15 as const,
+    ZONE_2_TIME_LIMIT: 30 as const,
+    ZONE_2_PARTIAL_CLOSE: 0.4 as const,
+
+    ZONE_3_LOSS_THRESHOLD: 25 as const,
+    ZONE_3_TIME_LIMIT: 45 as const,
+    ZONE_3_PARTIAL_CLOSE: 0.7 as const,
+
+    ZONE_4_LOSS_THRESHOLD: 35 as const,
+    ZONE_4_IMMEDIATE_CLOSE: true as const
+} as const;
+
+// ——— TYPED TRADE MANAGER CLASS ————————————————————————————————————————
+class AggressiveTradeManager {
+    private activeTrades: Map<string, Trade>;
+    private dailyStats: Omit<DailyStats, 'netPnl' | 'winRate' | 'activeTrades' | 'avgPnlPerTrade' | 'recoveryAttempts' | 'recoverySuccessRate'>;
+    private recoveryHistory: RecoveryHistoryEntry[];
+
+    constructor() {
+        this.activeTrades = new Map<string, Trade>();
+        this.dailyStats = this.initDailyStats();
+        this.recoveryHistory = [];
+    }
+
+    private initDailyStats(): Omit<DailyStats, 'netPnl' | 'winRate' | 'activeTrades' | 'avgPnlPerTrade' | 'recoveryAttempts' | 'recoverySuccessRate'> {
+        return {
+            tradesPlaced: 0,
+            profitableTrades: 0,
+            totalProfit: 0,
+            totalLoss: 0,
+            bigWins: 0,
+            microProfitsSecured: 0,
+            aiTPHits: 0,
+            aiSLHits: 0,
+            quickRecoveries: 0,
+            avgTradeTime: 0,
+            recoverySuccesses: 0,
+            emergencyStops: 0
+        };
+    }
+
+    public startTrade(signal: TradingSignal, entryPrice: number, size: number, leverage: number): string {
+        const tradeId: string = `AGG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        const trade: Trade = {
+            tradeId,
+            entryPrice,
+            originalSize: size,
+            currentSize: size,
+            leverage,
+            entryTime: Date.now(),
+
+            // AI's original targets
+            aiTakeProfit: signal.take_profit,
+            aiStopLoss: signal.stop_loss,
+            confidence: signal.confidence_90?.[1] || 85,
+
+            // Current state
+            currentPrice: entryPrice,
+            unrealizedPnl: 0,
+            maxProfit: 0,
+            maxLoss: 0,
+
+            // Recovery zone tracking
+            currentZone: 1,
+            zoneChangeTime: Date.now(),
+            partialCloses: [],
+
+            // Quick recovery tracking
+            recoveryMode: false,
+            recoveryStartPrice: null,
+            recoveryStartTime: null,
+            rapidRecoveryDetected: false,
+            recoveryAttempts: 0,
+
+            // Micro-management flags
+            profitSecured: false,
+            partialTaken: false,
+            trailingActive: false,
+
+            // Actions log
+            actions: [],
+
+            // Trade metadata
+            isLong: size > 0,
+            originalSignal: signal.signal as 'LONG' | 'SHORT'
+        };
+
+        this.activeTrades.set(tradeId, trade);
+        this.dailyStats.tradesPlaced++;
+
+        console.log(`🚀 NEW AGGRESSIVE TRADE: ${tradeId}`);
+        console.log(`   Signal: ${signal.signal}, Entry: $${entryPrice}`);
+        console.log(`   AI TP: $${signal.take_profit || 'N/A'}, AI SL: $${signal.stop_loss || 'N/A'}`);
+        console.log(`   Size: ${size}, Leverage: ${leverage}x, Confidence: ${trade.confidence}%`);
+
+        return tradeId;
+    }
+
+    public updateTrade(tradeId: string, currentPrice: number): TradeAction | null {
+        const trade = this.activeTrades.get(tradeId);
+        if (!trade) return null;
+
+        // Update price and PnL
+        trade.currentPrice = currentPrice;
+        const priceChange: number = currentPrice - trade.entryPrice;
+        const pnlPercent: number = (priceChange / trade.entryPrice) * 100;
+        const adjustedPnlPercent: number = trade.isLong ? pnlPercent : -pnlPercent;
+        trade.unrealizedPnl = (adjustedPnlPercent * Math.abs(trade.currentSize) * trade.entryPrice * trade.leverage) / 100;
+
+        // Update max profit/loss
+        trade.maxProfit = Math.max(trade.maxProfit, trade.unrealizedPnl);
+        trade.maxLoss = Math.min(trade.maxLoss, trade.unrealizedPnl);
+
+        // Update recovery zone
+        this.updateRecoveryZone(trade);
+
+        // Quick recovery detection
+        this.detectQuickRecovery(trade);
+
+        // Get management action
+        return this.getTradeAction(trade);
+    }
+
+    private updateRecoveryZone(trade: Trade): void {
+        const absLoss: number = Math.abs(trade.unrealizedPnl);
+        let newZone: 1 | 2 | 3 | 4 = 1;
+
+        if (absLoss >= RECOVERY_ZONES.ZONE_4_LOSS_THRESHOLD) newZone = 4;
+        else if (absLoss >= RECOVERY_ZONES.ZONE_3_LOSS_THRESHOLD) newZone = 3;
+        else if (absLoss >= RECOVERY_ZONES.ZONE_2_LOSS_THRESHOLD) newZone = 2;
+
+        if (newZone !== trade.currentZone) {
+            console.log(`🔄 ${trade.tradeId}: Zone change ${trade.currentZone} → ${newZone}`);
+            trade.currentZone = newZone;
+            trade.zoneChangeTime = Date.now();
+        }
+    }
+
+    private detectQuickRecovery(trade: Trade): void {
+        const pnl: number = trade.unrealizedPnl;
+
+        // Enter recovery mode if loss exceeds threshold
+        if (!trade.recoveryMode && Math.abs(pnl) >= AGGRESSIVE_CONSTANTS.RECOVERY_WATCH_LOSS) {
+            trade.recoveryMode = true;
+            trade.recoveryStartPrice = trade.currentPrice;
+            trade.recoveryStartTime = Date.now();
+            trade.recoveryAttempts++;
+
+            console.log(`🔍 ${trade.tradeId}: RECOVERY MODE at $${pnl.toFixed(2)} loss (Attempt ${trade.recoveryAttempts})`);
+        }
+
+        // Detect rapid recovery if in recovery mode
+        if (trade.recoveryMode && trade.recoveryStartPrice !== null && trade.recoveryStartTime !== null) {
+            const recoveryPercent: number = Math.abs((trade.currentPrice - trade.recoveryStartPrice) / trade.recoveryStartPrice) * 100;
+            const timeInRecovery: number = Date.now() - trade.recoveryStartTime;
+
+            // Rapid recovery detection
+            if (recoveryPercent >= AGGRESSIVE_CONSTANTS.RAPID_RECOVERY_PERCENT &&
+                timeInRecovery <= AGGRESSIVE_CONSTANTS.QUICK_RECOVERY_SECONDS * 1000) {
+                trade.rapidRecoveryDetected = true;
+                this.dailyStats.quickRecoveries++;
+
+                console.log(`⚡ ${trade.tradeId}: RAPID RECOVERY! ${recoveryPercent.toFixed(2)}% in ${(timeInRecovery / 1000).toFixed(0)}s`);
+            }
+        }
+    }
+
+    private getTradeAction(trade: Trade): TradeAction {
+        const pnl: number = trade.unrealizedPnl;
+        const ageMinutes: number = (Date.now() - trade.entryTime) / (60 * 1000);
+        const currentPrice: number = trade.currentPrice;
+        const absLoss: number = Math.abs(pnl);
+
+        // AI's take profit / stop loss
+        if (trade.aiTakeProfit &&
+            ((trade.isLong && currentPrice >= trade.aiTakeProfit) ||
+                (!trade.isLong && currentPrice <= trade.aiTakeProfit))) {
+            this.dailyStats.aiTPHits++;
+            return {
+                action: 'AI_TAKE_PROFIT',
+                percentage: 1.0,
+                reason: `AI_TP_HIT_$${pnl.toFixed(2)}`,
+                priority: 'IMMEDIATE'
+            };
+        }
+
+        if (trade.aiStopLoss &&
+            ((trade.isLong && currentPrice <= trade.aiStopLoss) ||
+                (!trade.isLong && currentPrice >= trade.aiStopLoss))) {
+            this.dailyStats.aiSLHits++;
+            return {
+                action: 'AI_STOP_LOSS',
+                percentage: 1.0,
+                reason: `AI_SL_HIT_$${pnl.toFixed(2)}`,
+                priority: 'IMMEDIATE'
+            };
+        }
+
+        // Recovery zone management for losing trades
+        if (pnl < 0) {
+            const zoneAction: TradeAction = this.getRecoveryZoneAction(trade, ageMinutes);
+            if (zoneAction.action !== 'HOLD') {
+                return zoneAction;
+            }
+        }
+
+        // Quick recovery handling
+        if (trade.rapidRecoveryDetected && trade.recoveryStartTime !== null) {
+            const timeInRecovery: number = Date.now() - trade.recoveryStartTime;
+
+            if (timeInRecovery <= AGGRESSIVE_CONSTANTS.RECOVERY_HOLD_TIME * 1000) {
+                if (pnl >= AGGRESSIVE_CONSTANTS.MIN_PROFIT_TARGET) {
+                    return {
+                        action: 'RECOVERY_PROFIT_SECURE',
+                        percentage: 0.6,
+                        reason: `RECOVERY_SUCCESS_$${pnl.toFixed(2)}`,
+                        priority: 'HIGH'
+                    };
+                }
+
+                if (absLoss >= 8 && !trade.partialCloses.some(pc => pc.reason.includes('RECOVERY'))) {
+                    return {
+                        action: 'RECOVERY_PROTECTION',
+                        percentage: 0.5,
+                        reason: `RECOVERY_PROTECTION_$${pnl.toFixed(2)}`,
+                        priority: 'HIGH'
+                    };
+                }
+
+                return {
+                    action: 'HOLD_RECOVERY',
+                    reason: `RAPID_RECOVERY_HOLD_${(timeInRecovery / 1000).toFixed(0)}s`,
+                    priority: 'MEDIUM'
+                };
+            } else {
+                return {
+                    action: 'RECOVERY_TIMEOUT',
+                    percentage: 1.0,
+                    reason: `RECOVERY_TIMEOUT_$${pnl.toFixed(2)}`,
+                    priority: 'HIGH'
+                };
+            }
+        }
+
+        // Aggressive profit management
+        if (pnl >= AGGRESSIVE_CONSTANTS.BIG_WIN_TARGET && !trade.partialTaken) {
+            return {
+                action: 'BIG_WIN_PARTIAL',
+                percentage: 0.7,
+                reason: `BIG_WIN_$${pnl.toFixed(2)}`,
+                priority: 'HIGH'
+            };
+        }
+
+        if (pnl >= AGGRESSIVE_CONSTANTS.TRAIL_FROM && !trade.trailingActive) {
+            trade.trailingActive = true;
+            return {
+                action: 'START_TRAILING',
+                reason: `TRAIL_FROM_$${pnl.toFixed(2)}`,
+                priority: 'LOW'
+            };
+        }
+
+        if (pnl >= AGGRESSIVE_CONSTANTS.PARTIAL_PROFIT_AT && !trade.partialTaken) {
+            return {
+                action: 'PARTIAL_PROFIT',
+                percentage: 0.5,
+                reason: `PARTIAL_$${pnl.toFixed(2)}`,
+                priority: 'MEDIUM'
+            };
+        }
+
+        if (pnl >= AGGRESSIVE_CONSTANTS.SECURE_PROFIT_AT && !trade.profitSecured) {
+            return {
+                action: 'SECURE_PROFIT',
+                percentage: 0.3,
+                reason: `SECURE_$${pnl.toFixed(2)}`,
+                priority: 'MEDIUM'
+            };
+        }
+
+        // Time-based management
+        if (ageMinutes >= AGGRESSIVE_CONSTANTS.FINAL_EXIT_MINUTES) {
+            if (pnl >= AGGRESSIVE_CONSTANTS.MIN_PROFIT_TARGET) {
+                return {
+                    action: 'TIME_PROFIT_EXIT',
+                    percentage: 1.0,
+                    reason: `TIME_EXIT_PROFIT_$${pnl.toFixed(2)}`,
+                    priority: 'HIGH'
+                };
+            } else if (pnl >= -5) {
+                return {
+                    action: 'TIME_SMALL_LOSS_EXIT',
+                    percentage: 1.0,
+                    reason: `TIME_EXIT_SMALL_LOSS_$${pnl.toFixed(2)}`,
+                    priority: 'HIGH'
+                };
+            }
+        }
+
+        // Profit protection after time
+        if (ageMinutes >= AGGRESSIVE_CONSTANTS.PROFIT_PROTECTION_START &&
+            pnl >= AGGRESSIVE_CONSTANTS.MIN_PROFIT_TARGET) {
+            const drawdownFromMax: number = trade.maxProfit - pnl;
+            if (drawdownFromMax >= 8) {
+                return {
+                    action: 'DRAWDOWN_PROTECTION',
+                    percentage: 0.6,
+                    reason: `PROTECT_$${pnl.toFixed(2)}_FROM_MAX_$${trade.maxProfit.toFixed(2)}`,
+                    priority: 'MEDIUM'
+                };
+            }
+        }
+
+        return { action: 'HOLD', reason: 'MONITORING' };
+    }
+
+    private getRecoveryZoneAction(trade: Trade, ageMinutes: number): TradeAction {
+        const pnl: number = trade.unrealizedPnl;
+        const absLoss: number = Math.abs(pnl);
+        const zone: number = trade.currentZone;
+
+        // Zone 4: Emergency stop
+        if (zone === 4 || absLoss >= AGGRESSIVE_CONSTANTS.MAX_LOSS_PER_TRADE) {
+            this.dailyStats.emergencyStops++;
+            return {
+                action: 'EMERGENCY_ZONE4_STOP',
+                percentage: 1.0,
+                reason: `ZONE4_EMERGENCY_$${absLoss.toFixed(2)}`,
+                priority: 'IMMEDIATE'
+            };
+        }
+
+        // Zone 3: Deep recovery
+        if (zone === 3) {
+            const hasZone3Close: boolean = trade.partialCloses.some(pc => pc.zone === 3);
+
+            if (ageMinutes >= RECOVERY_ZONES.ZONE_3_TIME_LIMIT) {
+                return {
+                    action: 'ZONE3_PARTIAL_CLOSE',
+                    percentage: 1.0,
+                    reason: `ZONE3_TIME_LIMIT_${ageMinutes.toFixed(1)}min`,
+                    priority: 'HIGH'
+                };
+            }
+
+            if (!hasZone3Close) {
+                return {
+                    action: 'ZONE3_PARTIAL_CLOSE',
+                    percentage: RECOVERY_ZONES.ZONE_3_PARTIAL_CLOSE,
+                    reason: `ZONE3_RISK_REDUCTION_$${absLoss.toFixed(2)}`,
+                    priority: 'HIGH'
+                };
+            }
+        }
+
+        // Zone 2: Recovery watch
+        if (zone === 2) {
+            const hasZone2Close: boolean = trade.partialCloses.some(pc => pc.zone === 2);
+
+            if (ageMinutes >= RECOVERY_ZONES.ZONE_2_TIME_LIMIT) {
+                return {
+                    action: 'ZONE2_PARTIAL_CLOSE',
+                    percentage: 1.0,
+                    reason: `ZONE2_TIME_LIMIT_${ageMinutes.toFixed(1)}min`,
+                    priority: 'HIGH'
+                };
+            }
+
+            if (!hasZone2Close) {
+                return {
+                    action: 'ZONE2_PARTIAL_CLOSE',
+                    percentage: RECOVERY_ZONES.ZONE_2_PARTIAL_CLOSE,
+                    reason: `ZONE2_RISK_REDUCTION_$${absLoss.toFixed(2)}`,
+                    priority: 'MEDIUM'
+                };
+            }
+        }
+
+        // Zone 1: Normal operations
+        if (zone === 1 && ageMinutes >= RECOVERY_ZONES.ZONE_1_TIME_LIMIT && pnl < -5) {
+            return {
+                action: 'ZONE1_TIME_STOP',
+                percentage: 1.0,
+                reason: `ZONE1_TIME_STOP_${ageMinutes.toFixed(1)}min`,
+                priority: 'MEDIUM'
+            };
+        }
+
+        return { action: 'HOLD', reason: `ZONE${zone}_MONITORING` };
+    }
+
+    public async executeAction(tradeId: string, action: TradeAction): Promise<ExecutionResult> {
+        const trade = this.activeTrades.get(tradeId);
+        if (!trade) return { success: false, error: 'Trade not found' };
+
+        try {
+            const coin = 'BTC';
+            const isBuy: boolean = !trade.isLong;
+            let sizeToClose: number = Math.abs(trade.currentSize);
+
+            if (action.percentage && action.percentage < 1.0) {
+                sizeToClose = sizeToClose * action.percentage;
+            }
+
+            const closeResult: CloseResult = await guaranteedInstantClose(
+                coin,
+                sizeToClose,
+                isBuy,
+                action.reason
+            );
+
+            if (closeResult.success) {
+                const actualPnl: number = trade.unrealizedPnl * (action.percentage || 1.0);
+
+                // Record action
+                const actionRecord: TradeActionRecord = {
+                    action: action.action,
+                    reason: action.reason,
+                    percentage: action.percentage || 1.0,
+                    pnl: actualPnl,
+                    timestamp: Date.now(),
+                    zone: trade.currentZone
+                };
+                trade.actions.push(actionRecord);
+
+                // Record partial close for zone tracking
+                if (action.percentage && action.percentage < 1.0) {
+                    const partialClose: PartialClose = {
+                        percentage: action.percentage,
+                        reason: action.reason,
+                        zone: trade.currentZone,
+                        timestamp: Date.now()
+                    };
+                    trade.partialCloses.push(partialClose);
+                }
+
+                // Update flags
+                if (action.action.includes('SECURE')) {
+                    trade.profitSecured = true;
+                    this.dailyStats.microProfitsSecured++;
+                }
+                if (action.action.includes('PARTIAL')) {
+                    trade.partialTaken = true;
+                }
+                if (action.action.includes('RECOVERY_SUCCESS')) {
+                    this.dailyStats.recoverySuccesses++;
+                }
+
+                // If full close, complete trade
+                if ((action.percentage || 1.0) >= 1.0) {
+                    this.completeTrade(tradeId, trade.unrealizedPnl, action.reason);
+                } else {
+                    // Update position size for partial close
+                    trade.currentSize *= (1 - (action.percentage || 1.0));
+                }
+
+                console.log(`✅ ${trade.tradeId}: ${action.action} - $${actualPnl.toFixed(2)}`);
+                return { success: true, pnl: actualPnl };
+            }
+
+            return { success: false, error: closeResult.error };
+
+        } catch (error) {
+            console.error('❌ Action execution error:', error);
+            return { success: false, error: String(error) };
+        }
+    }
+
+    private completeTrade(tradeId: string, finalPnl: number, reason: string): void {
+        const trade = this.activeTrades.get(tradeId);
+        if (!trade) return;
+
+        const tradeDuration: number = (Date.now() - trade.entryTime) / (60 * 1000);
+
+        // Update daily stats
+        if (finalPnl > 0) {
+            this.dailyStats.profitableTrades++;
+            this.dailyStats.totalProfit += finalPnl;
+            if (finalPnl >= AGGRESSIVE_CONSTANTS.BIG_WIN_TARGET) {
+                this.dailyStats.bigWins++;
+            }
+        } else {
+            this.dailyStats.totalLoss += Math.abs(finalPnl);
+        }
+
+        // Track recovery if applicable
+        if (trade.recoveryMode) {
+            const recoveryEntry: RecoveryHistoryEntry = {
+                tradeId,
+                initialLoss: trade.maxLoss,
+                finalPnl,
+                recoveryAttempts: trade.recoveryAttempts,
+                rapidRecovery: trade.rapidRecoveryDetected,
+                success: finalPnl > trade.maxLoss * 0.5
+            };
+            this.recoveryHistory.push(recoveryEntry);
+        }
+
+        // Update average trade time
+        this.dailyStats.avgTradeTime = (this.dailyStats.avgTradeTime * (this.dailyStats.tradesPlaced - 1) + tradeDuration) / this.dailyStats.tradesPlaced;
+
+        console.log(`🏁 TRADE COMPLETE: ${tradeId}`);
+        console.log(`   Duration: ${tradeDuration.toFixed(1)} min`);
+        console.log(`   Final PnL: $${finalPnl.toFixed(2)}`);
+        console.log(`   Max Profit: $${trade.maxProfit.toFixed(2)}`);
+        console.log(`   Max Loss: $${trade.maxLoss.toFixed(2)}`);
+        console.log(`   Actions: ${trade.actions.length}`);
+        console.log(`   Recovery: ${trade.recoveryMode ? (trade.rapidRecoveryDetected ? 'RAPID' : 'ATTEMPTED') : 'NONE'}`);
+        console.log(`   Reason: ${reason}`);
+
+        this.activeTrades.delete(tradeId);
+
+        // Push to day state
+        pushTrade({
+            id: tradeId,
+            pnl: finalPnl,
+            side: reason,
+            size: Math.abs(trade.originalSize),
+            avgPrice: trade.entryPrice,
+            leverage: trade.leverage,
+            timestamp: Date.now()
+        });
+    }
+
+    public getDailyStats(): DailyStats {
+        const netPnl: number = this.dailyStats.totalProfit - this.dailyStats.totalLoss;
+        const winRate: number = this.dailyStats.tradesPlaced > 0
+            ? (this.dailyStats.profitableTrades / this.dailyStats.tradesPlaced * 100)
+            : 0;
+
+        const recoverySuccessRate: number = this.recoveryHistory.length > 0
+            ? (this.recoveryHistory.filter(r => r.success).length / this.recoveryHistory.length * 100)
+            : 0;
+
+        return {
+            ...this.dailyStats,
+            netPnl: netPnl.toFixed(2),
+            winRate: winRate.toFixed(1),
+            activeTrades: this.activeTrades.size,
+            avgPnlPerTrade: this.dailyStats.tradesPlaced > 0
+                ? (netPnl / this.dailyStats.tradesPlaced).toFixed(2)
+                : '0',
+            recoveryAttempts: this.recoveryHistory.length,
+            recoverySuccessRate: recoverySuccessRate.toFixed(1)
+        };
+    }
+
+    public get activeTradesCount(): number {
+        return this.activeTrades.size;
+    }
+
+    public getActiveTrades(): Map<string, Trade> {
+        return this.activeTrades;
+    }
+}
+
+// ——— GLOBAL TYPED INSTANCE ————————————————————————————————————————————————
+const aggressiveManager = new AggressiveTradeManager();
+
+// ——— TYPED HELPER FUNCTIONS ————————————————————————————————————————————————
+
+function roundLot(x: number): number {
+    const LOT_SIZE = 0.00001;
+    const MIN_ORDER_SIZE = 0.0001;
+    const lots: number = Math.max(
         Math.floor(x / LOT_SIZE),
         Math.ceil(MIN_ORDER_SIZE / LOT_SIZE)
     );
     return lots * LOT_SIZE;
 }
 
-// ——— ENHANCED BALANCE CHECKING ————————————————————————————————————————
-async function getAvailableUSDC() {
+async function getAvailableUSDC(): Promise<BalanceInfo> {
     try {
-        console.log('🔍 Checking wallet balance:', USER_WALLET);
-
-        // Get perpetuals account state
         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1159,223 +1964,152 @@ async function getAvailableUSDC() {
             })
         });
 
-        const perpState = await perpResponse.json();
+        const perpState: any = await perpResponse.json();
+        const accountValue: number = parseFloat(perpState?.marginSummary?.accountValue || '0');
+        const withdrawable: number = parseFloat(perpState?.withdrawable || '0');
 
-        // Get spot account state
-        const spotResponse = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'spotClearinghouseState',
-                user: USER_WALLET
-            })
-        });
+        console.log(`💰 Account Balance: $${accountValue.toFixed(0)}, Available: $${withdrawable.toFixed(0)}`);
 
-        const spotState = await spotResponse.json();
-
-        // Extract balances
-        const perpBalance = parseFloat(perpState?.marginSummary?.accountValue || '0');
-        const withdrawable = parseFloat(perpState?.withdrawable || '0');
-        const spotBalances = spotState?.balances || [];
-        const usdcSpot = spotBalances.find((b: any) => b.coin === 'USDC');
-        const spotUSDC = parseFloat(usdcSpot?.total || '0');
-
-        console.log('💰 Balance Summary:', {
-            perpetualsBalance: perpBalance,
-            withdrawableMargin: withdrawable,
-            spotUSDC: spotUSDC,
-            totalAvailable: perpBalance + spotUSDC
-        });
-
-        // Return appropriate balance info
-        if (withdrawable > 10) {
-            return {
-                totalUSDC: perpBalance,
-                availableMargin: withdrawable,
-                source: 'perpetuals'
-            };
-        }
-
-        if (spotUSDC > 10) {
-            return {
-                totalUSDC: spotUSDC,
-                availableMargin: spotUSDC,
-                needsTransfer: true,
-                spotAmount: spotUSDC,
-                source: 'spot'
-            };
-        }
-
-        return { totalUSDC: 0, availableMargin: 0, noFunds: true };
+        return {
+            totalUSDC: accountValue,
+            availableMargin: withdrawable,
+            source: 'perpetuals'
+        };
 
     } catch (err) {
         console.error('❌ Balance check error:', err);
-        return { totalUSDC: 0, availableMargin: 0, error: err };
+        return {
+            totalUSDC: 0,
+            availableMargin: 0,
+            source: 'perpetuals',
+            error: err as Error
+        };
     }
 }
 
-// ——— OPTIMIZED POSITION SIZING (SAFE & PROFITABLE) ————————————————————————————————————————
-function calculateOptimalPosition(
-    price: number,
-    availableUSDC: number,
-    signal: string,
-    confidence: number = 85,
-    currentProfit: number = 0,
-    currentLoss: number = 0
-) {
-    // Determine profit target based on confidence
-    let targetProfit = MIN_PROFIT_TARGET;
-    let targetStopPercent = TIGHT_STOP_LOSS;
+function calculateAggressivePosition(price: number, totalAccountBalance: number, confidence: number = 85): PositionCalculation {
+    const capitalPerTrade: number = totalAccountBalance * AGGRESSIVE_CONSTANTS.CAPITAL_PER_TRADE_PERCENT;
+    const dynamicLeverage: number = calculateDynamicLeverage(confidence, totalAccountBalance);
 
-    if (confidence >= 95) {
-        targetProfit = EXTENDED_PROFIT_TARGET;
-        targetStopPercent = ULTRA_TIGHT_STOP;
-        console.log('🚀 HIGH CONFIDENCE MODE: Extended targets');
-    } else if (confidence >= 88) {
-        targetProfit = OPTIMAL_PROFIT_TARGET;
-        targetStopPercent = TIGHT_STOP_LOSS;
-        console.log('⚡ OPTIMAL MODE: Standard targets');
-    } else {
-        targetProfit = MIN_PROFIT_TARGET;
-        targetStopPercent = TIGHT_STOP_LOSS;
-        console.log('📊 CONSERVATIVE MODE: Safe targets');
-    }
+    const positionValue: number = capitalPerTrade * dynamicLeverage;
+    const positionSize: number = positionValue / price;
 
-    // Adjust for current performance
-    if (currentLoss > 40) {
-        targetProfit = MIN_PROFIT_TARGET;
-        targetStopPercent = ULTRA_TIGHT_STOP;
-        console.log('🛑 DEFENSIVE MODE: Tighter controls due to losses');
-    } else if (currentProfit > 100 && currentLoss < 20) {
-        targetProfit = Math.min(targetProfit * 1.3, EXTENDED_PROFIT_TARGET);
-        console.log('💰 AGGRESSIVE MODE: Increased targets due to success');
-    }
+    const expectedProfitAt1Percent: number = positionValue * 0.01;
+    const expectedProfitAt2Percent: number = positionValue * 0.02;
+    const maxRiskAt015Percent: number = Math.min(positionValue * 0.015, AGGRESSIVE_CONSTANTS.MAX_LOSS_PER_TRADE);
 
-    // Calculate safe position size based on STOP LOSS (not profit target)
-    const stopLossPercent = targetStopPercent / 100;
-    const maxLossAmount = MAX_LOSS_PER_TRADE - EXPECTED_FEE_PER_TRADE; // $9 max loss after fees
-    const maxPositionValue = maxLossAmount / stopLossPercent;
-
-    // Conservative capital usage
-    const maxCapitalUsage = Math.min(
-        availableUSDC * CAPITAL_USAGE_PERCENT,
-        availableUSDC * 0.15  // Never exceed 15% of total capital
-    );
-
-    // Calculate leverage needed
-    const requiredLeverage = Math.min(
-        maxPositionValue / maxCapitalUsage,
-        MAX_LEVERAGE
-    );
-
-    // Final calculations
-    const leverage = Math.max(MIN_LEVERAGE, Math.min(Math.round(requiredLeverage), MAX_LEVERAGE));
-    const capitalUsed = Math.min(maxCapitalUsage, maxPositionValue / leverage);
-    const positionValue = capitalUsed * leverage;
-    const positionSize = positionValue / price;
-
-    // Calculate expected outcomes
-    const profitAtTarget = (positionValue * PROFIT_TAKE_STANDARD) / 100;
-    const lossAtStop = (positionValue * targetStopPercent) / 100;
-
-    console.log(`🎯 POSITION CALCULATION:`);
-    console.log(`   Available: $${availableUSDC.toFixed(0)}`);
-    console.log(`   Capital Used: $${capitalUsed.toFixed(0)} (${(capitalUsed / availableUSDC * 100).toFixed(1)}%)`);
-    console.log(`   Leverage: ${leverage}x`);
+    console.log(`🎯 AGGRESSIVE POSITION CALC (30% per trade):`);
+    console.log(`   Total Account: $${totalAccountBalance.toFixed(0)}`);
+    console.log(`   Capital This Trade: $${capitalPerTrade.toFixed(0)} (30% of total)`);
+    console.log(`   Dynamic Leverage: ${dynamicLeverage}x (Confidence: ${confidence}%)`);
     console.log(`   Position Value: $${positionValue.toFixed(0)}`);
-    console.log(`   Size: ${positionSize.toFixed(5)} BTC`);
-    console.log(`   Target Profit: $${targetProfit} (Expected: $${profitAtTarget.toFixed(2)})`);
-    console.log(`   Max Loss: $${(lossAtStop + EXPECTED_FEE_PER_TRADE).toFixed(2)} (${targetStopPercent}% + fees)`);
-    console.log(`   Risk/Reward: 1:${(profitAtTarget / lossAtStop).toFixed(2)}`);
+    console.log(`   Position Size: ${positionSize.toFixed(5)} BTC`);
+    console.log(`   Expected Profit @ 1%: $${expectedProfitAt1Percent.toFixed(2)}`);
+    console.log(`   Expected Profit @ 2%: $${expectedProfitAt2Percent.toFixed(2)}`);
+    console.log(`   Max Risk: $${maxRiskAt015Percent.toFixed(2)}`);
+    console.log(`   Risk/Reward @ 1%: 1:${(expectedProfitAt1Percent / maxRiskAt015Percent).toFixed(1)}`);
 
     return {
         size: roundLot(positionSize),
-        leverage: leverage,
-        capitalUsed: capitalUsed,
+        leverage: dynamicLeverage,
+        capitalUsed: capitalPerTrade,
         positionValue: positionValue,
-        targetProfit: targetProfit,
-        expectedProfit: profitAtTarget,
-        maxLoss: lossAtStop,
-        totalMaxCost: lossAtStop + EXPECTED_FEE_PER_TRADE,
-        stopLossPercent: targetStopPercent,
-        riskRewardRatio: profitAtTarget / lossAtStop,
-        confidence: confidence,
-        mode: confidence >= 95 ? 'EXTENDED' : confidence >= 88 ? 'OPTIMAL' : 'CONSERVATIVE'
+        maxRisk: maxRiskAt015Percent,
+        expectedProfit1Percent: expectedProfitAt1Percent,
+        expectedProfit2Percent: expectedProfitAt2Percent,
+        accountUsagePercent: 30,
+        riskRewardRatio: expectedProfitAt1Percent / maxRiskAt015Percent
     };
 }
 
-// ——— SMART ORDER PLACEMENT (FEE OPTIMIZED) ————————————————————————————————————————
-async function placeOptimizedOrder(coin: string, side: string, size: number, confidence: number = 85) {
-    try {
-        console.log(`📊 Placing optimized order: ${coin} ${side} ${size}`);
+function calculateDynamicLeverage(confidence: number, totalAccountBalance: number): number {
+    const dayState = getDayState();
+    const currentProfit: number = Math.max(0, dayState.realizedPnl);
+    const currentLoss: number = Math.abs(dayState.realizedLoss);
 
-        // Get current market data
+    let baseLeverage: number = AGGRESSIVE_CONSTANTS.MIN_LEVERAGE;
+
+    // Confidence-based leverage
+    if (confidence >= 95) {
+        baseLeverage = AGGRESSIVE_CONSTANTS.MAX_LEVERAGE;
+    } else if (confidence >= 90) {
+        baseLeverage = Math.round(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE * 0.85);
+    } else if (confidence >= 85) {
+        baseLeverage = Math.round(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE * 0.7);
+    } else if (confidence >= 80) {
+        baseLeverage = Math.round(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE * 0.55);
+    } else if (confidence >= 75) {
+        baseLeverage = Math.round(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE * 0.4);
+    } else {
+        baseLeverage = AGGRESSIVE_CONSTANTS.MIN_LEVERAGE;
+    }
+
+    // Performance-based adjustments
+    if (currentLoss > 60) {
+        baseLeverage = Math.max(AGGRESSIVE_CONSTANTS.MIN_LEVERAGE, Math.round(baseLeverage * 0.5));
+    } else if (currentLoss > 40) {
+        baseLeverage = Math.max(AGGRESSIVE_CONSTANTS.MIN_LEVERAGE, Math.round(baseLeverage * 0.7));
+    } else if (currentLoss > 20) {
+        baseLeverage = Math.max(AGGRESSIVE_CONSTANTS.MIN_LEVERAGE, Math.round(baseLeverage * 0.85));
+    }
+
+    // Winning streak adjustments
+    if (currentProfit > 300 && currentLoss < 20) {
+        baseLeverage = Math.min(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE, Math.round(baseLeverage * 1.25));
+    } else if (currentProfit > 150 && currentLoss < 30) {
+        baseLeverage = Math.min(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE, Math.round(baseLeverage * 1.15));
+    } else if (currentProfit > 75 && currentLoss < 40) {
+        baseLeverage = Math.min(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE, Math.round(baseLeverage * 1.1));
+    }
+
+    // Account size adjustments
+    if (totalAccountBalance < 1000) {
+        baseLeverage = Math.min(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE, Math.round(baseLeverage * 1.2));
+    } else if (totalAccountBalance > 10000) {
+        baseLeverage = Math.max(AGGRESSIVE_CONSTANTS.MIN_LEVERAGE, Math.round(baseLeverage * 0.9));
+    }
+
+    const finalLeverage: number = Math.max(AGGRESSIVE_CONSTANTS.MIN_LEVERAGE, Math.min(AGGRESSIVE_CONSTANTS.MAX_LEVERAGE, baseLeverage));
+
+    console.log(`⚡ DYNAMIC LEVERAGE CALC:`);
+    console.log(`   Confidence: ${confidence}% → Base: ${baseLeverage}x`);
+    console.log(`   Performance: P:$${currentProfit} L:$${currentLoss}`);
+    console.log(`   Account Size: $${totalAccountBalance.toFixed(0)}`);
+    console.log(`   Final Leverage: ${finalLeverage}x`);
+
+    return finalLeverage;
+}
+
+async function placeOptimizedOrder(coin: string, side: 'BUY' | 'SELL', size: number, confidence: number = 85): Promise<OrderResult> {
+    try {
         const midResponse = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'allMids' })
         });
-        const allMids = await midResponse.json();
-        const marketPrice = allMids[coin.replace('-PERP', '')];
+        const allMids: Record<string, number> = await midResponse.json();
+        const marketPrice: number = allMids[coin.replace('-PERP', '')];
 
-        // Get order book for smart pricing
-        const l2Response = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'l2Book',
-                coin: coin.replace('-PERP', ''),
-                nSigFigs: 5
-            })
-        });
-        const l2Book = await l2Response.json();
+        const slippage: number = confidence >= 90 ? 1.008 : 1.005;
+        const orderPrice: number = Math.round(marketPrice * (side === 'BUY' ? slippage : (2 - slippage)));
 
-        let orderPrice;
-        let orderType;
-
-        // Smart pricing based on confidence and market conditions
-        if (confidence >= 92) {
-            // High confidence: Use aggressive pricing for instant fill
-            const slippage = side === 'BUY' ? 1.008 : 0.992; // 0.8% slippage
-            orderPrice = Math.round(marketPrice * slippage);
-            orderType = { limit: { tif: 'Ioc' as Tif } };
-            console.log('🚀 HIGH CONFIDENCE: Using aggressive pricing');
-        } else if (confidence >= 85) {
-            // Medium confidence: Use limit order near market
-            const offset = side === 'BUY' ? 1.003 : 0.997; // 0.3% offset
-            orderPrice = Math.round(marketPrice * offset);
-            orderType = { limit: { tif: 'Gtc' as Tif } };
-            console.log('📊 MEDIUM CONFIDENCE: Using limit order');
-        } else {
-            // Lower confidence: Use conservative limit order
-            const offset = side === 'BUY' ? 0.998 : 1.002; // Opposite direction for better fills
-            orderPrice = Math.round(marketPrice * offset);
-            orderType = { limit: { tif: 'Gtc' as Tif } };
-            console.log('🛡️ CONSERVATIVE: Using patient limit order');
-        }
-
-        const orderParams = {
+        const orderParams: HyperliquidOrderParams = {
             coin: coin,
             is_buy: side === 'BUY',
             sz: size,
             limit_px: orderPrice,
-            order_type: orderType,
+            order_type: { limit: { tif: 'Ioc' as Tif } },
             reduce_only: false
         };
 
-        console.log('📤 Order params:', orderParams);
+        console.log(`📤 Aggressive Order: ${side} ${size} ${coin} @ $${orderPrice} (${confidence}% confidence)`);
 
-        const result = await sdk.exchange.placeOrder(orderParams);
-        console.log('📥 Order result:', JSON.stringify(result, null, 2));
+        const result: HyperliquidOrderResponse = await sdk.exchange.placeOrder(orderParams);
 
         return {
             success: result.status === 'ok',
             result: result,
-            pricing: {
-                marketPrice: marketPrice,
-                orderPrice: orderPrice,
-                method: confidence >= 92 ? 'AGGRESSIVE' : confidence >= 85 ? 'STANDARD' : 'CONSERVATIVE'
-            }
+            pricing: { marketPrice, orderPrice }
         };
 
     } catch (error) {
@@ -1384,51 +2118,22 @@ async function placeOptimizedOrder(coin: string, side: string, size: number, con
     }
 }
 
-// ——— GUARANTEED INSTANT CLOSE (IMPROVED) ————————————————————————————————————————
-async function guaranteedInstantClose(coin: string, size: number, isBuy: boolean, reason: string = 'AUTO') {
-    console.log(`🎯 INSTANT CLOSE: ${coin} | ${size} | ${isBuy ? 'BUY' : 'SELL'} | ${reason}`);
-
+async function guaranteedInstantClose(coin: string, size: number, isBuy: boolean, reason: string = 'AUTO'): Promise<CloseResult> {
     try {
-        // Get current market price with order book data
-        const [midResponse, l2Response] = await Promise.all([
-            fetch('https://api.hyperliquid.xyz/info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'allMids' })
-            }),
-            fetch('https://api.hyperliquid.xyz/info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'l2Book',
-                    coin: coin,
-                    nSigFigs: 5
-                })
-            })
-        ]);
+        console.log(`🎯 INSTANT CLOSE: ${coin} ${size} ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
 
-        const allMids = await midResponse.json();
-        const l2Book = await l2Response.json();
-        const marketPrice = allMids[coin];
+        const midResponse = await fetch('https://api.hyperliquid.xyz/info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'allMids' })
+        });
 
-        if (!marketPrice) {
-            throw new Error(`No price data for ${coin}`);
-        }
+        const allMids: Record<string, number> = await midResponse.json();
+        const marketPrice: number = allMids[coin];
 
-        // Use aggressive pricing for guaranteed fill
-        let aggressivePrice;
-        if (l2Book?.levels?.[0]?.[0] && l2Book?.levels?.[1]?.[0]) {
-            const bestAsk = parseFloat(l2Book.levels[0][0].px);
-            const bestBid = parseFloat(l2Book.levels[1][0].px);
+        const aggressivePrice: number = Math.round(marketPrice * (isBuy ? 1.025 : 0.975));
 
-            aggressivePrice = isBuy ?
-                Math.round(bestAsk * 1.02) :  // 2% above best ask for buys
-                Math.round(bestBid * 0.98);   // 2% below best bid for sells
-        } else {
-            aggressivePrice = Math.round(marketPrice * (isBuy ? 1.025 : 0.975)); // 2.5% slippage fallback
-        }
-
-        const closeParams = {
+        const closeParams: HyperliquidOrderParams = {
             coin: `${coin}-PERP`,
             is_buy: isBuy,
             sz: Math.abs(size),
@@ -1437,301 +2142,80 @@ async function guaranteedInstantClose(coin: string, size: number, isBuy: boolean
             reduce_only: true
         };
 
-        console.log('🎯 Close order params:', closeParams);
-
-        const result = await sdk.exchange.placeOrder(closeParams);
-
-        if (result.status === 'ok') {
-            const statuses = result.response?.data?.statuses || [];
-            const filled = statuses.some((s: any) => 'filled' in s);
-
-            if (filled) {
-                console.log('✅ Position closed successfully');
-                return { success: true, result: result, method: 'AGGRESSIVE_CLOSE' };
-            }
-        }
-
-        // If not filled, try nuclear option
-        console.log('⚠️ Aggressive close failed, trying nuclear option...');
-        return await nuclearClose(coin, size, isBuy);
-
-    } catch (error) {
-        console.error('❌ Close error:', error);
-        return await nuclearClose(coin, size, isBuy);
-    }
-}
-
-// ——— NUCLEAR CLOSE (LAST RESORT) ————————————————————————————————————————
-async function nuclearClose(coin: string, size: number, isBuy: boolean) {
-    console.log('💥 NUCLEAR CLOSE: Using extreme 5% slippage');
-
-    try {
-        const midResponse = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'allMids' })
-        });
-
-        const allMids = await midResponse.json();
-        const marketPrice = allMids[coin];
-        const nuclearPrice = Math.round(marketPrice * (isBuy ? 1.05 : 0.95)); // 5% slippage
-
-        const nuclearParams = {
-            coin: `${coin}-PERP`,
-            is_buy: isBuy,
-            sz: Math.abs(size),
-            limit_px: nuclearPrice,
-            order_type: { limit: { tif: 'Ioc' as Tif } },
-            reduce_only: true
-        };
-
-        const result = await sdk.exchange.placeOrder(nuclearParams);
+        const result: HyperliquidOrderResponse = await sdk.exchange.placeOrder(closeParams);
 
         return {
             success: result.status === 'ok',
             result: result,
-            method: 'NUCLEAR_CLOSE',
-            warning: 'Used 5% slippage for guaranteed execution'
+            method: 'AGGRESSIVE_INSTANT_CLOSE'
         };
 
     } catch (error) {
-        console.error('💥 Nuclear close failed:', error);
-        return { success: false, error: error, method: 'NUCLEAR_FAILED' };
+        console.error('❌ Close error:', error);
+        return { success: false, error: error, method: 'FAILED' };
     }
 }
 
-// ——— ENHANCED PROFIT TAKING & STOP LOSS MANAGEMENT ————————————————————————————————————————
-async function enhancedRiskManagement() {
+// ——— TYPED MAIN ENDPOINT ————————————————————————————————————————
+export async function GET(): Promise<NextResponse<APISuccessResponse | APIErrorResponse>> {
     try {
-        console.log('🎯 Enhanced Risk Management - Profit Taking & Stop Losses');
+        console.log('🚀 AGGRESSIVE TRADING BOT - 30% per trade, 5-20x leverage');
 
-        // Get current positions
-        const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'clearinghouseState',
-                user: USER_WALLET
-            })
-        });
+        // Step 1: Manage existing trades
+        if (aggressiveManager.activeTradesCount > 0) {
+            console.log(`📊 Managing ${aggressiveManager.activeTradesCount} active trades...`);
 
-        const perpState = await perpResponse.json();
-        const positions = perpState?.assetPositions || [];
-
-        if (positions.length === 0) {
-            console.log('✅ No positions to manage');
-            return { message: 'No positions', actions: 0, totalPnl: 0 };
-        }
-
-        // Get current prices and fills
-        const [priceResponse, fillsResponse] = await Promise.all([
-            fetch('https://api.hyperliquid.xyz/info', {
+            const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'allMids' })
-            }),
-            fetch('https://api.hyperliquid.xyz/info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'userFills',
-                    user: USER_WALLET
-                })
-            })
-        ]);
+            });
+            const allMids: Record<string, number> = await priceResponse.json();
+            const currentBTCPrice: number = allMids['BTC'];
 
-        const allMids = await priceResponse.json();
-        const fills = await fillsResponse.json();
+            if (currentBTCPrice) {
+                const managementActions: Array<{ tradeId: string, action: string, pnl: number, zone: number }> = [];
 
-        let totalActions = 0;
-        let totalPnl = 0;
-        const dayState = getDayState();
+                for (const [tradeId, trade] of aggressiveManager.getActiveTrades()) {
+                    const action: TradeAction | null = aggressiveManager.updateTrade(tradeId, currentBTCPrice);
 
-        // Check daily loss limit first
-        if (Math.abs(dayState.realizedLoss) >= DAILY_LOSS_LIMIT) {
-            console.log('🛑 DAILY LIMIT REACHED - CLOSING ALL POSITIONS');
+                    if (action && action.action !== 'HOLD' && action.action !== 'HOLD_RECOVERY') {
+                        const executionResult: ExecutionResult = await aggressiveManager.executeAction(tradeId, action);
+                        if (executionResult.success && executionResult.pnl !== undefined) {
+                            managementActions.push({
+                                tradeId,
+                                action: action.action,
+                                pnl: executionResult.pnl,
+                                zone: trade.currentZone
+                            });
+                        }
 
-            for (const position of positions) {
-                const coin = position.position.coin;
-                const size = parseFloat(position.position.szi);
-                const isBuy = size < 0;
-
-                await guaranteedInstantClose(coin, size, isBuy, 'DAILY_LIMIT_EMERGENCY');
-                totalActions++;
-
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            return {
-                emergency: true,
-                reason: 'DAILY_LOSS_LIMIT',
-                actions: totalActions,
-                dailyLoss: dayState.realizedLoss
-            };
-        }
-
-        // Process each position
-        for (const position of positions) {
-            const coin = position.position.coin;
-            const size = parseFloat(position.position.szi);
-            const currentPrice = allMids[coin];
-
-            if (!currentPrice) {
-                console.log(`⚠️ No price data for ${coin}`);
-                continue;
-            }
-
-            // Find entry data
-            const coinFills = fills.filter((fill: any) => fill.coin === coin);
-            if (coinFills.length === 0) continue;
-
-            const latestFill = coinFills.sort((a: any, b: any) => b.time - a.time)[0];
-            const entryPrice = latestFill.px;
-            const positionAge = Date.now() - latestFill.time;
-            const ageMinutes = positionAge / (60 * 1000);
-
-            // Calculate PnL
-            const isLong = size > 0;
-            const priceChange = currentPrice - entryPrice;
-            const priceChangePercent = (priceChange / entryPrice) * 100;
-            const adjustedChangePercent = isLong ? priceChangePercent : -priceChangePercent;
-            const unrealizedPnl = isLong ?
-                priceChange * Math.abs(size) :
-                -priceChange * Math.abs(size);
-
-            console.log(`📊 ${coin} Analysis:`);
-            console.log(`   Size: ${size}, Entry: $${entryPrice}, Current: $${currentPrice}`);
-            console.log(`   Age: ${ageMinutes.toFixed(1)}min, PnL: $${unrealizedPnl.toFixed(2)} (${adjustedChangePercent.toFixed(3)}%)`);
-
-            let shouldClose = false;
-            let reason = '';
-
-            // ——— DECISION MATRIX ————————————————————————————————————————
-
-            // 1. EMERGENCY STOPS (Immediate)
-            if (Math.abs(adjustedChangePercent) >= EMERGENCY_STOP && unrealizedPnl < -8) {
-                shouldClose = true;
-                reason = `EMERGENCY_STOP_${EMERGENCY_STOP}%_$${unrealizedPnl.toFixed(2)}`;
-            }
-            // 2. TIGHT STOP LOSSES
-            else if (Math.abs(adjustedChangePercent) >= TIGHT_STOP_LOSS && unrealizedPnl < -5) {
-                shouldClose = true;
-                reason = `TIGHT_STOP_${TIGHT_STOP_LOSS}%_$${unrealizedPnl.toFixed(2)}`;
-            }
-            // 3. ULTRA TIGHT STOPS (for protection)
-            else if (Math.abs(adjustedChangePercent) >= ULTRA_TIGHT_STOP && unrealizedPnl < -3) {
-                shouldClose = true;
-                reason = `ULTRA_STOP_${ULTRA_TIGHT_STOP}%_$${unrealizedPnl.toFixed(2)}`;
-            }
-            // 4. QUICK PROFIT TAKING
-            else if (adjustedChangePercent >= PROFIT_TAKE_QUICK && unrealizedPnl >= QUICK_SCALP_TARGET) {
-                shouldClose = true;
-                reason = `QUICK_PROFIT_${PROFIT_TAKE_QUICK}%_$${unrealizedPnl.toFixed(2)}`;
-            }
-            // 5. STANDARD PROFIT TAKING
-            else if (adjustedChangePercent >= PROFIT_TAKE_STANDARD && unrealizedPnl >= MIN_PROFIT_TARGET) {
-                shouldClose = true;
-                reason = `STANDARD_PROFIT_${PROFIT_TAKE_STANDARD}%_$${unrealizedPnl.toFixed(2)}`;
-            }
-            // 6. TIME-BASED EXITS
-            else if (ageMinutes >= FORCE_CLOSE_MINUTES) {
-                shouldClose = true;
-                reason = `FORCE_CLOSE_${ageMinutes.toFixed(1)}min_$${unrealizedPnl.toFixed(2)}`;
-            }
-            else if (ageMinutes >= SAFETY_EXIT_MINUTES && unrealizedPnl < -3) {
-                shouldClose = true;
-                reason = `SAFETY_EXIT_${ageMinutes.toFixed(1)}min_$${unrealizedPnl.toFixed(2)}`;
-            }
-            else if (ageMinutes >= PROFIT_PROTECTION_MINUTES && unrealizedPnl > 5) {
-                shouldClose = true;
-                reason = `PROFIT_PROTECTION_${ageMinutes.toFixed(1)}min_$${unrealizedPnl.toFixed(2)}`;
-            }
-            else if (ageMinutes >= SCALP_TIME_MINUTES && unrealizedPnl >= QUICK_SCALP_TARGET) {
-                shouldClose = true;
-                reason = `SCALP_${ageMinutes.toFixed(1)}min_$${unrealizedPnl.toFixed(2)}`;
-            }
-
-            if (shouldClose) {
-                const actionType = unrealizedPnl > 0 ? '💰 PROFIT' : '🛑 STOP LOSS';
-                console.log(`${actionType}: ${coin} - ${reason}`);
-
-                const isBuy = size < 0; // If short, buy to close
-                const closeResult = await guaranteedInstantClose(coin, size, isBuy, reason);
-
-                if (closeResult.success) {
-                    console.log(`✅ ${actionType} SUCCESS: ${coin}`);
-                    totalActions++;
-                    totalPnl += unrealizedPnl;
-
-                    // Track the trade
-                    if (closeResult.result?.response?.data?.statuses) {
-                        const statuses = closeResult.result.response.data.statuses;
-                        statuses.forEach((s: any) => {
-                            if ('filled' in s && s.filled) {
-                                const { avgPx, totalSz, oid } = s.filled;
-                                const actualPnl = isLong ?
-                                    (avgPx - entryPrice) * totalSz :
-                                    (entryPrice - avgPx) * totalSz;
-
-                                pushTrade({
-                                    id: String(oid),
-                                    pnl: actualPnl,
-                                    side: reason,
-                                    size: totalSz,
-                                    avgPrice: avgPx,
-                                    leverage: position.position.leverage?.value || 1,
-                                    timestamp: Date.now()
-                                });
-                            }
-                        });
+                        await new Promise(resolve => setTimeout(resolve, 1200));
                     }
-                } else {
-                    console.error(`❌ Failed to close ${coin}: ${closeResult}`);
                 }
 
-                // Brief pause between closes
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                if (managementActions.length > 0) {
+                    console.log(`✅ Performed ${managementActions.length} management actions`);
+                }
             }
         }
 
-        console.log(`🏁 RISK MANAGEMENT SUMMARY: ${totalActions} actions, $${totalPnl.toFixed(2)} total PnL`);
+        // Step 2: Check daily limits
+        const dayState = getDayState();
+        const currentDailyLoss: number = Math.abs(dayState.realizedLoss);
 
-        return {
-            actions: totalActions,
-            totalPnl: totalPnl,
-            positionsChecked: positions.length,
-            success: true
-        };
-
-    } catch (error) {
-        console.error('❌ Risk management error:', error);
-        return { error: error, actions: 0, totalPnl: 0 };
-    }
-}
-
-// ——— MAIN CRON JOB HANDLER (ENHANCED) ————————————————————————————————————————
-export async function GET() {
-    try {
-        console.log('🚀 ENHANCED TRADING BOT - Starting execution...');
-
-        // ——— STEP 1: RISK MANAGEMENT FIRST (PROFITS & STOPS) ————————————————————————————————————————
-        console.log('🎯 Step 1: Enhanced Risk Management...');
-        const riskManagementResult = await enhancedRiskManagement();
-
-        if (riskManagementResult.emergency) {
+        if (currentDailyLoss >= AGGRESSIVE_CONSTANTS.DAILY_LOSS_LIMIT) {
+            console.log(`🛑 Daily loss limit reached: $${currentDailyLoss}`);
             return NextResponse.json({
-                emergency: true,
-                message: `Emergency stop: ${riskManagementResult.reason}`,
-                result: riskManagementResult
+                error: `Daily loss limit reached: $${currentDailyLoss}`,
+                dailyStats: aggressiveManager.getDailyStats()
             });
         }
 
-        // ——— STEP 2: GET FORECAST SIGNAL ————————————————————————————————————————
-        console.log('📊 Step 2: Fetching trading signal...');
-
-        const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+        // Step 3: Get trading signal
+        const apiKey: string = env.NEXT_PUBLIC_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ error: 'API key missing' }, { status: 500 });
+            return NextResponse.json({ error: 'API key missing' });
         }
 
         const forecastRes = await fetch('https://zynapse.zkagi.ai/today', {
@@ -1744,198 +2228,199 @@ export async function GET() {
         });
 
         if (!forecastRes.ok) {
-            const errorText = await forecastRes.text();
-            console.error('Forecast API error:', errorText);
-            return NextResponse.json(
-                { error: `Forecast API error: ${errorText}` },
-                { status: forecastRes.status }
-            );
+            return NextResponse.json({ error: 'Forecast API error' });
         }
 
-        const { forecast_today_hourly } = await forecastRes.json();
-        const signal = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
-            ? forecast_today_hourly[forecast_today_hourly.length - 1]
+        const forecastData: ForecastAPIResponse = await forecastRes.json();
+        const signal: TradingSignal | null = Array.isArray(forecastData.forecast_today_hourly) && forecastData.forecast_today_hourly.length > 0
+            ? forecastData.forecast_today_hourly[forecastData.forecast_today_hourly.length - 1]
             : null;
 
-        console.log('📊 Signal received:', JSON.stringify(signal, null, 2));
-
         if (!signal || signal.signal === 'HOLD' || !signal.forecast_price) {
-            console.log('⚠️ No valid trading signal');
             return NextResponse.json({
-                message: 'No trading signal',
-                riskManagement: riskManagementResult
+                error: 'No trading signal',
+                dailyStats: aggressiveManager.getDailyStats()
             });
         }
 
-        // ——— STEP 3: CHECK DAILY LIMITS ————————————————————————————————————————
-        const dayState = getDayState();
-        if (Math.abs(dayState.realizedLoss) >= DAILY_LOSS_LIMIT) {
-            console.log(`🛑 Daily loss limit reached: ${dayState.realizedLoss}`);
+        // Step 4: Check concurrent limits
+        if (aggressiveManager.activeTradesCount >= AGGRESSIVE_CONSTANTS.MAX_CONCURRENT_TRADES) {
             return NextResponse.json({
-                message: `Daily loss limit reached: $${dayState.realizedLoss}`,
-                riskManagement: riskManagementResult
+                error: `Maximum concurrent trades reached (${AGGRESSIVE_CONSTANTS.MAX_CONCURRENT_TRADES})`,
+                dailyStats: aggressiveManager.getDailyStats()
             });
         }
 
-        // ——— STEP 4: CHECK BALANCE & HANDLE TRANSFERS ————————————————————————————————————————
-        console.log('💰 Step 4: Checking balance...');
-        let balanceInfo = await getAvailableUSDC();
-
-        if (balanceInfo.noFunds) {
+        // Step 5: Calculate position
+        const balanceInfo: BalanceInfo = await getAvailableUSDC();
+        if (balanceInfo.totalUSDC < 300) {
             return NextResponse.json({
-                error: 'No USDC found. Please deposit funds.',
-                riskManagement: riskManagementResult
+                error: 'Insufficient balance for aggressive trading',
+                dailyStats: aggressiveManager.getDailyStats()
             });
         }
 
-        // Handle spot to perp transfer if needed
-        if (balanceInfo.needsTransfer && balanceInfo.spotAmount > 10) {
-            console.log(`💸 Transferring ${balanceInfo.spotAmount} USDC from Spot to Perpetuals...`);
-            try {
-                const transferResult = await sdk.exchange.transferBetweenSpotAndPerp(
-                    balanceInfo.spotAmount,
-                    true // spot to perp
-                );
-                console.log('✅ Transfer successful:', transferResult);
-
-                // Wait and re-fetch balance
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                balanceInfo = await getAvailableUSDC();
-            } catch (transferError) {
-                console.error('❌ Transfer failed:', transferError);
-                return NextResponse.json({
-                    error: `Transfer failed: ${transferError}`,
-                    riskManagement: riskManagementResult
-                });
-            }
-        }
-
-        // ——— STEP 5: CALCULATE OPTIMAL POSITION ————————————————————————————————————————
-        console.log('🎯 Step 5: Calculating optimal position...');
-
-        const confidence = signal.confidence_90?.[1] || 85;
-        const currentProfit = Math.max(0, dayState.realizedPnl);
-        const currentLoss = Math.abs(dayState.realizedLoss);
-
-        const positionCalc = calculateOptimalPosition(
+        const confidence: number = signal.confidence_90?.[1] || 85;
+        const positionCalc: PositionCalculation = calculateAggressivePosition(
             signal.forecast_price,
-            balanceInfo.availableMargin,
-            signal.signal,
-            confidence,
-            currentProfit,
-            currentLoss
+            balanceInfo.totalUSDC,
+            confidence
         );
 
-        // Check if position is viable
-        if (positionCalc.capitalUsed < 50) {
-            return NextResponse.json({
-                error: 'Insufficient capital for safe position sizing',
-                minRequired: 50,
-                available: balanceInfo.availableMargin,
-                riskManagement: riskManagementResult
-            });
-        }
-
-        // ——— STEP 6: PLACE OPTIMIZED ORDER ————————————————————————————————————————
-        console.log('📤 Step 6: Placing optimized order...');
-
-        const orderResult = await placeOptimizedOrder(
+        // Step 6: Place trade
+        const orderResult: OrderResult = await placeOptimizedOrder(
             'BTC-PERP',
             signal.signal === 'LONG' ? 'BUY' : 'SELL',
             positionCalc.size,
             confidence
         );
 
-        // ——— STEP 7: TRACK FILLS ————————————————————————————————————————————
+        // Step 7: Track new trade
+        let newTradeId: string | null = null;
         if (orderResult.success && orderResult.result?.response?.data?.statuses) {
-            const statuses = orderResult.result.response.data.statuses;
-            statuses.forEach((s: any) => {
-                if ('filled' in s && s.filled) {
-                    const { avgPx, totalSz, oid } = s.filled;
-                    pushTrade({
-                        id: String(oid),
-                        pnl: 0, // Will be calculated on close
-                        side: signal.signal,
-                        size: totalSz,
-                        avgPrice: avgPx,
-                        leverage: positionCalc.leverage,
-                        timestamp: Date.now()
-                    });
-                    console.log(`✅ Trade filled: ${totalSz} BTC at $${avgPx}`);
+            const statuses: HyperliquidFillStatus[] = orderResult.result.response.data.statuses;
+
+            for (const status of statuses) {
+                if (status.filled) {
+                    const { avgPx, totalSz } = status.filled;
+
+                    newTradeId = aggressiveManager.startTrade(
+                        signal,
+                        avgPx,
+                        signal.signal === 'LONG' ? totalSz : -totalSz,
+                        positionCalc.leverage
+                    );
+                    break;
                 }
-            });
+            }
         }
 
-        // ——— STEP 8: RETURN COMPREHENSIVE RESULT ————————————————————————————————————————
-        const result = {
+        // Step 8: Return typed response
+        const response: APISuccessResponse = {
             success: orderResult.success,
             timestamp: new Date().toISOString(),
 
-            // Risk Management Summary
-            riskManagement: {
-                actionsPerformed: riskManagementResult.actions,
-                totalPnlFromActions: riskManagementResult.totalPnl,
-                positionsManaged: riskManagementResult.positionsChecked
-            },
-
-            // Signal Information
-            signal: {
-                direction: signal.signal,
+            newTrade: {
+                tradeId: newTradeId,
+                signal: signal.signal,
                 confidence: confidence,
-                forecastPrice: signal.forecast_price,
-                currentPrice: orderResult.pricing?.marketPrice
-            },
-
-            // Position Details
-            position: {
+                entryPrice: orderResult.pricing?.orderPrice,
                 size: positionCalc.size,
                 leverage: positionCalc.leverage,
                 capitalUsed: positionCalc.capitalUsed,
                 positionValue: positionCalc.positionValue,
-                mode: positionCalc.mode
-            },
-
-            // Risk Metrics
-            riskMetrics: {
-                targetProfit: positionCalc.targetProfit,
-                expectedProfit: positionCalc.expectedProfit,
-                maxLoss: positionCalc.totalMaxCost,
+                expectedProfit1Percent: positionCalc.expectedProfit1Percent,
+                expectedProfit2Percent: positionCalc.expectedProfit2Percent,
+                maxRisk: positionCalc.maxRisk,
                 riskRewardRatio: positionCalc.riskRewardRatio,
-                stopLossPercent: positionCalc.stopLossPercent,
-                dailyLossUsed: currentLoss,
-                dailyLossLimit: DAILY_LOSS_LIMIT
+                aiTakeProfit: signal.take_profit,
+                aiStopLoss: signal.stop_loss
             },
 
-            // Order Execution
-            execution: {
-                orderSuccess: orderResult.success,
-                pricingMethod: orderResult.pricing?.method,
+            systemStatus: {
+                activeTrades: aggressiveManager.activeTradesCount,
+                maxConcurrentTrades: AGGRESSIVE_CONSTANTS.MAX_CONCURRENT_TRADES,
+                totalAccountUsed: `${aggressiveManager.activeTradesCount * 30}% (${aggressiveManager.activeTradesCount} × 30%)`,
+                availableForNextTrade: aggressiveManager.activeTradesCount < AGGRESSIVE_CONSTANTS.MAX_CONCURRENT_TRADES,
+                dailyLossUsed: currentDailyLoss,
+                dailyLossLimit: AGGRESSIVE_CONSTANTS.DAILY_LOSS_LIMIT,
+                remainingCapacity: AGGRESSIVE_CONSTANTS.DAILY_LOSS_LIMIT - currentDailyLoss
+            },
+
+            dailyStats: aggressiveManager.getDailyStats(),
+
+            orderExecution: {
+                success: orderResult.success,
                 marketPrice: orderResult.pricing?.marketPrice,
-                orderPrice: orderResult.pricing?.orderPrice
-            },
-
-            // Account Status
-            account: {
-                availableMargin: balanceInfo.availableMargin,
-                capitalUsagePercent: (positionCalc.capitalUsed / balanceInfo.availableMargin * 100).toFixed(1),
-                source: balanceInfo.source
-            },
-
-            // Raw Results
-            orderResult: orderResult.success ? orderResult.result : orderResult.error
+                orderPrice: orderResult.pricing?.orderPrice,
+                microManagementActive: newTradeId !== null,
+                recoverySystemActive: true
+            }
         };
 
-        console.log('🎉 ENHANCED TRADING BOT - Execution completed successfully');
-        console.log(`📊 Summary: ${riskManagementResult.actions} risk actions, New position: ${positionCalc.size} BTC`);
-
-        return NextResponse.json(result);
+        return NextResponse.json(response);
 
     } catch (error: any) {
-        console.error('❌ Enhanced trading bot error:', error);
-        return NextResponse.json({
-            error: error.message,
+        console.error('❌ Aggressive trading bot error:', error);
+        const errorResponse: APIErrorResponse = {
+            error: String(error.message || error),
             timestamp: new Date().toISOString(),
-            type: 'SYSTEM_ERROR'
-        }, { status: 500 });
+            dailyStats: aggressiveManager.getDailyStats()
+        };
+        return NextResponse.json(errorResponse);
+    }
+}
+
+// ——— TYPED POST ENDPOINT ————————————————————————————————————————
+export async function POST(): Promise<NextResponse> {
+    try {
+        if (aggressiveManager.activeTradesCount === 0) {
+            return NextResponse.json({
+                message: 'No active trades to manage',
+                dailyStats: aggressiveManager.getDailyStats()
+            });
+        }
+
+        const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'allMids' })
+        });
+        const allMids: Record<string, number> = await priceResponse.json();
+        const currentBTCPrice: number = allMids['BTC'];
+
+        if (!currentBTCPrice) {
+            return NextResponse.json({ error: 'Could not get current price' });
+        }
+
+        const actions: Array<{
+            tradeId: string;
+            action: string;
+            reason: string;
+            pnl: number;
+            zone: number;
+            recoveryMode: boolean;
+            rapidRecovery: boolean;
+        }> = [];
+
+        for (const [tradeId, trade] of aggressiveManager.getActiveTrades()) {
+            const action: TradeAction | null = aggressiveManager.updateTrade(tradeId, currentBTCPrice);
+
+            if (action && action.action !== 'HOLD' && action.action !== 'HOLD_RECOVERY') {
+                const executionResult: ExecutionResult = await aggressiveManager.executeAction(tradeId, action);
+                if (executionResult.success && executionResult.pnl !== undefined) {
+                    actions.push({
+                        tradeId,
+                        action: action.action,
+                        reason: action.reason,
+                        pnl: executionResult.pnl,
+                        zone: trade.currentZone,
+                        recoveryMode: trade.recoveryMode,
+                        rapidRecovery: trade.rapidRecoveryDetected
+                    });
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1200));
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            activeTrades: aggressiveManager.activeTradesCount,
+            actionsPerformed: actions.length,
+            actions,
+            dailyStats: aggressiveManager.getDailyStats(),
+            currentPrice: currentBTCPrice,
+            systemStatus: {
+                totalAccountUsage: `${aggressiveManager.activeTradesCount * 30}%`,
+                recoverySystemActive: true,
+                aggressiveModeActive: true
+            }
+        });
+
+    } catch (error: any) {
+        console.error('❌ Aggressive micro-management error:', error);
+        return NextResponse.json({ error: String(error.message || error) });
     }
 }
