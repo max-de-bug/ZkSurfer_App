@@ -2425,52 +2425,827 @@
 //     }
 // }
 
+// import { NextResponse } from 'next/server';
+// import { Hyperliquid, Tif } from 'hyperliquid';
+// import { getDayState, pushTrade } from '@/lib/dayState';
+
+// export const runtime = 'nodejs';
+
+// // ——— ULTRA-PROFITABLE CONSTANTS ————————————————————————————————————————
+// const PROFIT_MAXIMIZER = {
+//     // TARGET: $500/day with $2000 account
+//     DAILY_PROFIT_TARGET: 500,
+//     ACCOUNT_SIZE: 2000,
+
+//     // HIGH FREQUENCY STRATEGY
+//     CAPITAL_PER_TRADE: 0.25,           // 25% per trade (5 concurrent max)
+//     MAX_CONCURRENT_TRADES: 5,          // Multiple simultaneous positions
+
+//     // ULTRA TIGHT RISK MANAGEMENT  
+//     MAX_LOSS_PER_TRADE: 6,            // $6 max loss per trade
+//     TIGHT_STOP_PERCENT: 0.08,         // 0.08% ultra tight stop
+
+//     // SCALPING TARGETS
+//     QUICK_SCALP_TARGET: 0.15,         // 0.15% = $15-20 profit
+//     MEDIUM_TARGET: 0.25,              // 0.25% = $25-35 profit  
+//     BIG_TARGET: 0.40,                 // 0.40% = $40-60 profit
+
+//     // MOMENTUM STRATEGY
+//     MOMENTUM_CONFIRMATION: true,       // Only trade with momentum
+//     VOLATILITY_SCALING: true,          // Scale size with volatility
+
+//     // TIME-BASED OPTIMIZATION
+//     SCALP_TIME_LIMIT: 3,              // 3 min scalps
+//     QUICK_TIME_LIMIT: 8,              // 8 min quick trades
+//     MAX_TRADE_TIME: 20,               // 20 min max (was 30)
+
+//     // DAILY LIMITS
+//     MAX_TRADES_PER_DAY: 25,           // High frequency
+//     PROFIT_LOCK_AT: 450,              // Lock trading at $450 profit
+
+//     // ADVANCED FEATURES
+//     GRID_TRADING: true,               // Multiple small positions
+//     MEAN_REVERSION: true,             // Counter-trend trades
+//     BREAKOUT_TRADING: true            // Momentum trades
+// } as const;
+
+// // ——— INTERFACES ————————————————————————————————————————
+// interface Trade {
+//     tradeId: string;
+//     entryPrice: number;
+//     size: number;
+//     leverage: number;
+//     entryTime: number;
+//     isLong: boolean;
+//     strategy: 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID';
+
+//     // PROFIT TARGETS
+//     scalpTarget: number;      // 0.15% quick target
+//     mediumTarget: number;     // 0.25% medium target  
+//     bigTarget: number;        // 0.40% big target
+
+//     // RISK MANAGEMENT
+//     ultraTightStop: number;   // 0.08% immediate stop
+
+//     // STATE
+//     currentPrice: number;
+//     unrealizedPnl: number;
+//     maxProfit: number;
+
+//     // FLAGS
+//     profitSecured: boolean;
+//     scalpHit: boolean;
+// }
+
+// interface MarketCondition {
+//     volatility: number;
+//     momentum: 'STRONG_UP' | 'UP' | 'SIDEWAYS' | 'DOWN' | 'STRONG_DOWN';
+//     support: number;
+//     resistance: number;
+//     rsi: number;
+//     movingAverage: number;
+// }
+
+// // ——— SDK SETUP ————————————————————————————————————————
+// const env = process.env as unknown as {
+//     NEXT_PUBLIC_HL_PRIVATE_KEY: string;
+//     NEXT_PUBLIC_HL_MAIN_WALLET: string;
+//     NEXT_PUBLIC_HL_USER_WALLET: string;
+//     NEXT_PUBLIC_API_KEY: string;
+// };
+
+// const sdk = new Hyperliquid({
+//     privateKey: env.NEXT_PUBLIC_HL_PRIVATE_KEY,
+//     walletAddress: env.NEXT_PUBLIC_HL_MAIN_WALLET,
+//     testnet: false
+// });
+
+// // ——— ULTRA-PROFITABLE TRADER CLASS ————————————————————————————————————————
+// class ProfitMaximizer {
+//     private trades = new Map<string, Trade>();
+//     private stats = {
+//         tradesPerformed: 0,
+//         totalProfit: 0,
+//         scalpWins: 0,
+//         momentumWins: 0,
+//         meanReversionWins: 0,
+//         breakoutWins: 0,
+//         gridWins: 0,
+//         stopLosses: 0,
+//         currentDayProfit: 0
+//     };
+//     private marketCondition: MarketCondition | null = null;
+
+//     // ——— MARKET ANALYSIS ————————————————————————————————————————
+//     public async analyzeMarket(currentPrice: number): Promise<MarketCondition> {
+//         try {
+//             // Get recent price history for analysis
+//             const priceHistory = await this.getPriceHistory(100); // 100 data points
+
+//             const volatility = this.calculateVolatility(priceHistory);
+//             const momentum = this.calculateMomentum(priceHistory);
+//             const rsi = this.calculateRSI(priceHistory);
+//             const ma = this.calculateMovingAverage(priceHistory, 20);
+
+//             // Calculate support/resistance
+//             const { support, resistance } = this.calculateSupportResistance(priceHistory);
+
+//             return {
+//                 volatility,
+//                 momentum,
+//                 support,
+//                 resistance,
+//                 rsi,
+//                 movingAverage: ma
+//             };
+//         } catch (error) {
+//             console.error('❌ Market analysis error:', error);
+//             return {
+//                 volatility: 0.5,
+//                 momentum: 'SIDEWAYS',
+//                 support: currentPrice * 0.998,
+//                 resistance: currentPrice * 1.002,
+//                 rsi: 50,
+//                 movingAverage: currentPrice
+//             };
+//         }
+//     }
+
+//     private async getPriceHistory(periods: number): Promise<number[]> {
+//         // Simplified - in real implementation, get actual historical data
+//         const response = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'allMids' })
+//         });
+//         const allMids: Record<string, number> = await response.json();
+//         const currentPrice = allMids['BTC'];
+
+//         // Generate mock historical data (replace with real data)
+//         const prices: number[] = [];
+//         for (let i = 0; i < periods; i++) {
+//             prices.push(currentPrice + (Math.random() - 0.5) * 100);
+//         }
+//         return prices;
+//     }
+
+//     private calculateVolatility(prices: number[]): number {
+//         if (prices.length < 2) return 0.5;
+
+//         const returns = prices.slice(1).map((price, i) =>
+//             Math.log(price / prices[i])
+//         );
+
+//         const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+//         const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+
+//         return Math.sqrt(variance);
+//     }
+
+//     private calculateMomentum(prices: number[]): 'STRONG_UP' | 'UP' | 'SIDEWAYS' | 'DOWN' | 'STRONG_DOWN' {
+//         if (prices.length < 10) return 'SIDEWAYS';
+
+//         const recent = prices.slice(-10);
+//         const change = (recent[recent.length - 1] - recent[0]) / recent[0] * 100;
+
+//         if (change > 0.5) return 'STRONG_UP';
+//         if (change > 0.2) return 'UP';
+//         if (change < -0.5) return 'STRONG_DOWN';
+//         if (change < -0.2) return 'DOWN';
+//         return 'SIDEWAYS';
+//     }
+
+//     private calculateRSI(prices: number[], period: number = 14): number {
+//         if (prices.length < period + 1) return 50;
+
+//         const changes = prices.slice(1).map((price, i) => price - prices[i]);
+//         const gains = changes.map(c => c > 0 ? c : 0);
+//         const losses = changes.map(c => c < 0 ? -c : 0);
+
+//         const avgGain = gains.slice(-period).reduce((sum, g) => sum + g, 0) / period;
+//         const avgLoss = losses.slice(-period).reduce((sum, l) => sum + l, 0) / period;
+
+//         if (avgLoss === 0) return 100;
+//         const rs = avgGain / avgLoss;
+//         return 100 - (100 / (1 + rs));
+//     }
+
+//     private calculateMovingAverage(prices: number[], period: number): number {
+//         if (prices.length < period) return prices[prices.length - 1];
+//         return prices.slice(-period).reduce((sum, p) => sum + p, 0) / period;
+//     }
+
+//     private calculateSupportResistance(prices: number[]): { support: number; resistance: number } {
+//         const sorted = [...prices].sort((a, b) => a - b);
+//         const support = sorted[Math.floor(sorted.length * 0.2)];
+//         const resistance = sorted[Math.floor(sorted.length * 0.8)];
+//         return { support, resistance };
+//     }
+
+//     // ——— STRATEGY SELECTION ————————————————————————————————————————
+//     public selectStrategy(signal: any, market: MarketCondition): 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID' {
+//         const currentPrice = signal.forecast_price;
+
+//         // HIGH VOLATILITY = SCALPING
+//         if (market.volatility > 0.8) {
+//             return 'SCALP';
+//         }
+
+//         // STRONG MOMENTUM = BREAKOUT
+//         if (market.momentum === 'STRONG_UP' || market.momentum === 'STRONG_DOWN') {
+//             return 'BREAKOUT';
+//         }
+
+//         // NEAR SUPPORT/RESISTANCE = MEAN REVERSION
+//         if (Math.abs(currentPrice - market.support) / currentPrice < 0.002 ||
+//             Math.abs(currentPrice - market.resistance) / currentPrice < 0.002) {
+//             return 'MEAN_REVERSION';
+//         }
+
+//         // MODERATE MOMENTUM = MOMENTUM TRADE
+//         if (market.momentum === 'UP' || market.momentum === 'DOWN') {
+//             return 'MOMENTUM';
+//         }
+
+//         // DEFAULT = GRID TRADING
+//         return 'GRID';
+//     }
+
+//     // ——— DYNAMIC POSITION SIZING ————————————————————————————————————————
+//     public calculateDynamicPosition(price: number, confidence: number, market: MarketCondition, strategy: string): {
+//         size: number;
+//         leverage: number;
+//         expectedProfit: number;
+//     } {
+//         let baseCapital = PROFIT_MAXIMIZER.ACCOUNT_SIZE * PROFIT_MAXIMIZER.CAPITAL_PER_TRADE;
+
+//         // STRATEGY-BASED SIZING
+//         switch (strategy) {
+//             case 'SCALP':
+//                 baseCapital *= 0.8; // Smaller size for quick scalps
+//                 break;
+//             case 'BREAKOUT':
+//                 baseCapital *= 1.2; // Larger size for breakouts
+//                 break;
+//             case 'MEAN_REVERSION':
+//                 baseCapital *= 0.9; // Conservative for counter-trend
+//                 break;
+//         }
+
+//         // VOLATILITY SCALING
+//         if (market.volatility > 1.0) {
+//             baseCapital *= 0.7; // Reduce size in high volatility
+//         } else if (market.volatility < 0.3) {
+//             baseCapital *= 1.3; // Increase size in low volatility
+//         }
+
+//         // CONFIDENCE SCALING
+//         const confidenceMultiplier = Math.min(confidence / 100, 1.2);
+//         baseCapital *= confidenceMultiplier;
+
+//         // DYNAMIC LEVERAGE (8-18x based on conditions)
+//         let leverage = 10; // Base leverage
+//         if (confidence >= 95) leverage = 18;
+//         else if (confidence >= 90) leverage = 15;
+//         else if (confidence >= 85) leverage = 12;
+//         else leverage = 8;
+
+//         // Reduce leverage in high volatility
+//         if (market.volatility > 0.8) leverage = Math.max(8, leverage - 3);
+
+//         const positionValue = baseCapital * leverage;
+//         const positionSize = this.roundToLotSize(positionValue / price);
+//         const expectedProfit = positionValue * (PROFIT_MAXIMIZER.MEDIUM_TARGET / 100);
+
+//         return {
+//             size: positionSize,
+//             leverage,
+//             expectedProfit
+//         };
+//     }
+
+//     // ——— TRADE CREATION ————————————————————————————————————————
+//     public createTrade(signal: any, entryPrice: number, size: number, leverage: number, strategy: string): string {
+//         const tradeId = `PROFIT_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+//         const isLong = size > 0;
+
+//         // CALCULATE TARGETS BASED ON STRATEGY
+//         let scalpPercent: number = PROFIT_MAXIMIZER.QUICK_SCALP_TARGET;
+//         let mediumPercent: number = PROFIT_MAXIMIZER.MEDIUM_TARGET;
+//         let bigPercent: number = PROFIT_MAXIMIZER.BIG_TARGET;
+
+//         if (strategy === 'SCALP') {
+//             scalpPercent = 0.12; // Tighter scalp targets
+//             mediumPercent = 0.20;
+//         } else if (strategy === 'BREAKOUT') {
+//             scalpPercent = 0.20; // Larger breakout targets
+//             mediumPercent = 0.35;
+//             bigPercent = 0.50;
+//         }
+
+//         const scalpDistance = entryPrice * (scalpPercent / 100);
+//         const mediumDistance = entryPrice * (mediumPercent / 100);
+//         const bigDistance = entryPrice * (bigPercent / 100);
+
+//         const scalpTarget = isLong ? entryPrice + scalpDistance : entryPrice - scalpDistance;
+//         const mediumTarget = isLong ? entryPrice + mediumDistance : entryPrice - mediumDistance;
+//         const bigTarget = isLong ? entryPrice + bigDistance : entryPrice - bigDistance;
+
+//         // ULTRA TIGHT STOP
+//         const stopDistance = entryPrice * (PROFIT_MAXIMIZER.TIGHT_STOP_PERCENT / 100);
+//         const ultraTightStop = isLong ? entryPrice - stopDistance : entryPrice + stopDistance;
+
+//         const trade: Trade = {
+//             tradeId,
+//             entryPrice,
+//             size,
+//             leverage,
+//             entryTime: Date.now(),
+//             isLong,
+//             strategy: strategy as 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID',
+
+//             scalpTarget,
+//             mediumTarget,
+//             bigTarget,
+//             ultraTightStop,
+
+//             currentPrice: entryPrice,
+//             unrealizedPnl: 0,
+//             maxProfit: 0,
+
+//             profitSecured: false,
+//             scalpHit: false
+//         };
+
+//         this.trades.set(tradeId, trade);
+//         this.stats.tradesPerformed++;
+
+//         console.log(`🚀 ${strategy} TRADE: ${tradeId}`);
+//         console.log(`   Entry: $${entryPrice}, Size: ${size}, Leverage: ${leverage}x`);
+//         console.log(`   Scalp: $${scalpTarget.toFixed(2)} (${scalpPercent}%)`);
+//         console.log(`   Medium: $${mediumTarget.toFixed(2)} (${mediumPercent}%)`);
+//         console.log(`   Stop: $${ultraTightStop.toFixed(2)} (${PROFIT_MAXIMIZER.TIGHT_STOP_PERCENT}%)`);
+
+//         return tradeId;
+//     }
+
+//     // ——— TRADE MANAGEMENT ————————————————————————————————————————
+//     public checkTrade(tradeId: string, currentPrice: number): string | null {
+//         const trade = this.trades.get(tradeId);
+//         if (!trade) return null;
+
+//         // Update state
+//         trade.currentPrice = currentPrice;
+//         const priceChange = currentPrice - trade.entryPrice;
+//         const pnlPercent = (priceChange / trade.entryPrice) * 100;
+//         const adjustedPnl = trade.isLong ? pnlPercent : -pnlPercent;
+//         trade.unrealizedPnl = (adjustedPnl * Math.abs(trade.size) * trade.entryPrice * trade.leverage) / 100;
+//         trade.maxProfit = Math.max(trade.maxProfit, trade.unrealizedPnl);
+
+//         const ageMinutes = (Date.now() - trade.entryTime) / (60 * 1000);
+
+//         // 🚨 ULTRA TIGHT STOP - IMMEDIATE
+//         if ((trade.isLong && currentPrice <= trade.ultraTightStop) ||
+//             (!trade.isLong && currentPrice >= trade.ultraTightStop)) {
+//             this.stats.stopLosses++;
+//             return `ULTRA_STOP_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         // 💰 BIG TARGET HIT
+//         if ((trade.isLong && currentPrice >= trade.bigTarget) ||
+//             (!trade.isLong && currentPrice <= trade.bigTarget)) {
+//             // Update strategy-specific wins
+//             switch (trade.strategy) {
+//                 case 'MOMENTUM': this.stats.momentumWins++; break;
+//                 case 'MEAN_REVERSION': this.stats.meanReversionWins++; break;
+//                 case 'BREAKOUT': this.stats.breakoutWins++; break;
+//                 case 'GRID': this.stats.gridWins++; break;
+//                 default: this.stats.scalpWins++; break;
+//             }
+//             return `BIG_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         // 💰 MEDIUM TARGET HIT
+//         if ((trade.isLong && currentPrice >= trade.mediumTarget) ||
+//             (!trade.isLong && currentPrice <= trade.mediumTarget)) {
+//             // Update strategy-specific wins
+//             switch (trade.strategy) {
+//                 case 'MOMENTUM': this.stats.momentumWins++; break;
+//                 case 'MEAN_REVERSION': this.stats.meanReversionWins++; break;
+//                 case 'BREAKOUT': this.stats.breakoutWins++; break;
+//                 case 'GRID': this.stats.gridWins++; break;
+//                 default: this.stats.scalpWins++; break;
+//             }
+//             return `MEDIUM_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         // 💰 SCALP TARGET HIT
+//         if ((trade.isLong && currentPrice >= trade.scalpTarget) ||
+//             (!trade.isLong && currentPrice <= trade.scalpTarget)) {
+//             this.stats.scalpWins++;
+//             return `SCALP_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         // ⏰ TIME-BASED EXITS (Strategy specific)
+//         const timeLimit = trade.strategy === 'SCALP' ? PROFIT_MAXIMIZER.SCALP_TIME_LIMIT :
+//             trade.strategy === 'BREAKOUT' ? PROFIT_MAXIMIZER.QUICK_TIME_LIMIT :
+//                 PROFIT_MAXIMIZER.MAX_TRADE_TIME;
+
+//         if (ageMinutes >= timeLimit) {
+//             return `TIME_EXIT_${trade.strategy}_${ageMinutes.toFixed(1)}min_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         // ⏰ QUICK PROFIT SECURE (if in profit after time)
+//         if (ageMinutes >= 2 && trade.unrealizedPnl >= 5) {
+//             return `QUICK_SECURE_${ageMinutes.toFixed(1)}min_${trade.unrealizedPnl.toFixed(2)}`;
+//         }
+
+//         return null; // HOLD
+//     }
+
+//     // ——— HELPER FUNCTIONS ————————————————————————————————————————
+//     public roundToLotSize(size: number): number {
+//         const LOT_SIZE = 0.00001;
+//         const MIN_SIZE = 0.0001;
+//         return Math.max(
+//             Math.round(size / LOT_SIZE) * LOT_SIZE,
+//             MIN_SIZE
+//         );
+//     }
+
+//     public async closeTrade(tradeId: string, reason: string): Promise<boolean> {
+//         const trade = this.trades.get(tradeId);
+//         if (!trade) return false;
+
+//         try {
+//             const success = await this.instantClose(trade, reason);
+
+//             if (success) {
+//                 this.stats.totalProfit += trade.unrealizedPnl;
+//                 this.stats.currentDayProfit += trade.unrealizedPnl;
+
+//                 console.log(`✅ CLOSED: ${tradeId} | ${reason} | PnL: $${trade.unrealizedPnl.toFixed(2)}`);
+//                 console.log(`📊 Day Profit: $${this.stats.currentDayProfit.toFixed(2)}/${PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET}`);
+
+//                 // Push to day state
+//                 pushTrade({
+//                     id: tradeId,
+//                     pnl: trade.unrealizedPnl,
+//                     side: reason,
+//                     size: Math.abs(trade.size),
+//                     avgPrice: trade.entryPrice,
+//                     leverage: trade.leverage,
+//                     timestamp: Date.now()
+//                 });
+
+//                 this.trades.delete(tradeId);
+//                 return true;
+//             }
+
+//             return false;
+//         } catch (error) {
+//             console.error(`❌ Close error for ${tradeId}:`, error);
+//             return false;
+//         }
+//     }
+
+//     private async instantClose(trade: Trade, reason: string): Promise<boolean> {
+//         try {
+//             const response = await fetch('https://api.hyperliquid.xyz/info', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({ type: 'allMids' })
+//             });
+//             const allMids: Record<string, number> = await response.json();
+//             const marketPrice = allMids['BTC'];
+
+//             const slippage = 0.012; // 1.2% aggressive slippage
+//             const closePrice = Math.round(marketPrice * (trade.isLong ? (1 - slippage) : (1 + slippage)));
+
+//             const orderParams = {
+//                 coin: 'BTC-PERP',
+//                 is_buy: !trade.isLong,
+//                 sz: Math.abs(trade.size),
+//                 limit_px: closePrice,
+//                 order_type: { limit: { tif: 'Ioc' as Tif } },
+//                 reduce_only: true
+//             };
+
+//             const result = await sdk.exchange.placeOrder(orderParams);
+//             return result.status === 'ok';
+
+//         } catch (error) {
+//             console.error('❌ Instant close error:', error);
+//             return false;
+//         }
+//     }
+
+//     public getActiveCount(): number {
+//         return this.trades.size;
+//     }
+
+//     public getStats() {
+//         const winRate = this.stats.tradesPerformed > 0
+//             ? (((this.stats.scalpWins + this.stats.momentumWins + this.stats.meanReversionWins +
+//                 this.stats.breakoutWins + this.stats.gridWins) / this.stats.tradesPerformed) * 100).toFixed(1)
+//             : '0';
+
+//         return {
+//             ...this.stats,
+//             activeTrades: this.trades.size,
+//             winRate,
+//             profitProgress: `${this.stats.currentDayProfit.toFixed(2)}/${PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET}`,
+//             profitPercentage: ((this.stats.currentDayProfit / PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET) * 100).toFixed(1)
+//         };
+//     }
+
+//     public shouldStopTrading(): boolean {
+//         return this.stats.currentDayProfit >= PROFIT_MAXIMIZER.PROFIT_LOCK_AT;
+//     }
+
+//     public getActiveTrades(): Map<string, Trade> {
+//         return this.trades;
+//     }
+// }
+
+// // ——— GLOBAL INSTANCE ————————————————————————————————————————
+// const profitMaximizer = new ProfitMaximizer();
+
+// // ——— HELPER FUNCTIONS ————————————————————————————————————————
+// async function placeAggressiveOrder(coin: string, side: 'BUY' | 'SELL', size: number): Promise<{
+//     success: boolean;
+//     result?: any;
+//     pricing?: { marketPrice: number; orderPrice: number };
+//     error?: any;
+// }> {
+//     try {
+//         const response = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'allMids' })
+//         });
+//         const allMids: Record<string, number> = await response.json();
+//         const marketPrice = allMids[coin.replace('-PERP', '')];
+
+//         // Aggressive pricing for instant fill
+//         const slippage = 0.008; // 0.8% slippage
+//         const orderPrice = Math.round(marketPrice * (side === 'BUY' ? (1 + slippage) : (1 - slippage)));
+
+//         const orderParams = {
+//             coin: coin,
+//             is_buy: side === 'BUY',
+//             sz: size,
+//             limit_px: orderPrice,
+//             order_type: { limit: { tif: 'Ioc' as Tif } },
+//             reduce_only: false
+//         };
+
+//         console.log(`🚀 ORDER: ${side} ${size} ${coin} @ ${orderPrice}`);
+
+//         const result = await sdk.exchange.placeOrder(orderParams);
+
+//         return {
+//             success: result.status === 'ok',
+//             result: result,
+//             pricing: { marketPrice, orderPrice }
+//         };
+
+//     } catch (error) {
+//         console.error('❌ Order error:', error);
+//         return { success: false, error: error };
+//     }
+// }
+
+// // ——— MAIN ENDPOINT ————————————————————————————————————————
+// export async function GET(): Promise<NextResponse> {
+//     try {
+//         console.log('💰 PROFIT MAXIMIZER - Target: $500/day');
+
+//         // Check if we should stop trading (profit target nearly reached)
+//         if (profitMaximizer.shouldStopTrading()) {
+//             return NextResponse.json({
+//                 success: true,
+//                 message: 'Daily profit target nearly reached - trading paused',
+//                 stats: profitMaximizer.getStats()
+//             });
+//         }
+
+//         // Manage existing trades first
+//         if (profitMaximizer.getActiveCount() > 0) {
+//             const response = await fetch('https://api.hyperliquid.xyz/info', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({ type: 'allMids' })
+//             });
+//             const allMids: Record<string, number> = await response.json();
+//             const currentPrice = allMids['BTC'];
+
+//             if (currentPrice) {
+//                 for (const [tradeId] of profitMaximizer.getActiveTrades()) {
+//                     const action = profitMaximizer.checkTrade(tradeId, currentPrice);
+//                     if (action) {
+//                         await profitMaximizer.closeTrade(tradeId, action);
+//                         await new Promise(resolve => setTimeout(resolve, 600));
+//                     }
+//                 }
+//             }
+//         }
+
+//         // Check concurrent trade limit
+//         if (profitMaximizer.getActiveCount() >= PROFIT_MAXIMIZER.MAX_CONCURRENT_TRADES) {
+//             return NextResponse.json({
+//                 error: `Max concurrent trades reached (${PROFIT_MAXIMIZER.MAX_CONCURRENT_TRADES})`,
+//                 stats: profitMaximizer.getStats()
+//             });
+//         }
+
+//         // Get trading signal
+//         const forecastRes = await fetch('https://zynapse.zkagi.ai/today', {
+//             method: 'GET',
+//             cache: 'no-store',
+//             headers: {
+//                 accept: 'application/json',
+//                 'api-key': env.NEXT_PUBLIC_API_KEY
+//             }
+//         });
+
+//         if (!forecastRes.ok) {
+//             return NextResponse.json({ error: 'Forecast API failed' });
+//         }
+
+//         const forecastData = await forecastRes.json();
+//         const signal = Array.isArray(forecastData.forecast_today_hourly) && forecastData.forecast_today_hourly.length > 0
+//             ? forecastData.forecast_today_hourly[forecastData.forecast_today_hourly.length - 1]
+//             : null;
+
+//         if (!signal || signal.signal === 'HOLD' || !signal.forecast_price) {
+//             return NextResponse.json({
+//                 error: 'No trading signal',
+//                 stats: profitMaximizer.getStats()
+//             });
+//         }
+
+//         // Analyze market conditions
+//         const marketCondition = await profitMaximizer.analyzeMarket(signal.forecast_price);
+
+//         // Select strategy based on market conditions
+//         const strategy = profitMaximizer.selectStrategy(signal, marketCondition);
+
+//         // Calculate dynamic position
+//         const confidence = signal.confidence_90?.[1] || 80;
+//         const position = profitMaximizer.calculateDynamicPosition(
+//             signal.forecast_price,
+//             confidence,
+//             marketCondition,
+//             strategy
+//         );
+
+//         // Place trade
+//         const orderResult = await placeAggressiveOrder(
+//             'BTC-PERP',
+//             signal.signal === 'LONG' ? 'BUY' : 'SELL',
+//             position.size
+//         );
+
+//         // Track new trade
+//         let newTradeId: string | null = null;
+//         if (orderResult.success && orderResult.result?.response?.data?.statuses) {
+//             const statuses = orderResult.result.response.data.statuses;
+
+//             for (const status of statuses) {
+//                 if (status.filled) {
+//                     const { avgPx, totalSz } = status.filled;
+//                     newTradeId = profitMaximizer.createTrade(
+//                         signal,
+//                         avgPx,
+//                         signal.signal === 'LONG' ? totalSz : -totalSz,
+//                         position.leverage,
+//                         strategy
+//                     );
+//                     break;
+//                 }
+//             }
+//         }
+
+//         return NextResponse.json({
+//             success: orderResult.success,
+//             timestamp: new Date().toISOString(),
+//             newTrade: {
+//                 tradeId: newTradeId,
+//                 strategy: strategy,
+//                 signal: signal.signal,
+//                 confidence: confidence,
+//                 entryPrice: orderResult.pricing?.orderPrice,
+//                 size: position.size,
+//                 leverage: position.leverage,
+//                 expectedProfit: position.expectedProfit
+//             },
+//             marketCondition,
+//             stats: profitMaximizer.getStats()
+//         });
+
+//     } catch (error: any) {
+//         console.error('❌ Profit maximizer error:', error);
+//         return NextResponse.json({
+//             error: String(error.message || error),
+//             stats: profitMaximizer.getStats()
+//         });
+//     }
+// }
+
+// export async function POST(): Promise<NextResponse> {
+//     try {
+//         if (profitMaximizer.getActiveCount() === 0) {
+//             return NextResponse.json({
+//                 message: 'No active trades',
+//                 stats: profitMaximizer.getStats()
+//             });
+//         }
+
+//         const response = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'allMids' })
+//         });
+//         const allMids: Record<string, number> = await response.json();
+//         const currentPrice = allMids['BTC'];
+
+//         if (!currentPrice) {
+//             return NextResponse.json({ error: 'Price fetch failed' });
+//         }
+
+//         const actions: Array<{ tradeId: string; action: string; success: boolean }> = [];
+
+//         for (const [tradeId] of profitMaximizer.getActiveTrades()) {
+//             const action = profitMaximizer.checkTrade(tradeId, currentPrice);
+//             if (action) {
+//                 const success = await profitMaximizer.closeTrade(tradeId, action);
+//                 actions.push({ tradeId, action, success });
+//                 await new Promise(resolve => setTimeout(resolve, 600));
+//             }
+//         }
+
+//         return NextResponse.json({
+//             success: true,
+//             timestamp: new Date().toISOString(),
+//             activeTrades: profitMaximizer.getActiveCount(),
+//             actionsPerformed: actions.length,
+//             actions,
+//             stats: profitMaximizer.getStats(),
+//             currentPrice
+//         });
+
+//     } catch (error: any) {
+//         console.error('❌ Management error:', error);
+//         return NextResponse.json({ error: String(error.message || error) });
+//     }
+// }
+
+
+//dual stop loss isolate dmargin
 import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
 import { getDayState, pushTrade } from '@/lib/dayState';
 
 export const runtime = 'nodejs';
 
-// ——— ULTRA-PROFITABLE CONSTANTS ————————————————————————————————————————
-const PROFIT_MAXIMIZER = {
+// ——— ENHANCED CONSTANTS WITH NATIVE STOP LOSS ————————————————————————————————————————
+const ENHANCED_PROFIT_MAXIMIZER = {
     // TARGET: $500/day with $2000 account
     DAILY_PROFIT_TARGET: 500,
     ACCOUNT_SIZE: 2000,
 
-    // HIGH FREQUENCY STRATEGY
-    CAPITAL_PER_TRADE: 0.25,           // 25% per trade (5 concurrent max)
-    MAX_CONCURRENT_TRADES: 5,          // Multiple simultaneous positions
+    // ISOLATED MARGIN STRUCTURE
+    MARGIN_PER_POSITION: 400,          // $400 isolated margin per position
+    MAX_CONCURRENT_POSITIONS: 4,       // 4 positions max
+    RESERVE_MARGIN: 400,               // $400 reserve
 
-    // ULTRA TIGHT RISK MANAGEMENT  
-    MAX_LOSS_PER_TRADE: 6,            // $6 max loss per trade
-    TIGHT_STOP_PERCENT: 0.08,         // 0.08% ultra tight stop
+    // NATIVE STOP LOSS SYSTEM (Exchange-level execution)
+    HARD_STOP_PERCENT: 0.08,           // 0.08% hard stop placed with order
+    EMERGENCY_STOP_PERCENT: 0.15,      // 0.15% dynamic emergency backup
+    MAX_LOSS_PER_POSITION: 400,        // Absolute maximum per position
 
-    // SCALPING TARGETS
-    QUICK_SCALP_TARGET: 0.15,         // 0.15% = $15-20 profit
-    MEDIUM_TARGET: 0.25,              // 0.25% = $25-35 profit  
-    BIG_TARGET: 0.40,                 // 0.40% = $40-60 profit
-
-    // MOMENTUM STRATEGY
-    MOMENTUM_CONFIRMATION: true,       // Only trade with momentum
-    VOLATILITY_SCALING: true,          // Scale size with volatility
+    // PROFIT TARGETS
+    QUICK_SCALP_TARGET: 0.20,          // 0.20% quick profit
+    MEDIUM_TARGET: 0.35,               // 0.35% medium profit  
+    BIG_TARGET: 0.60,                  // 0.60% big profit
 
     // TIME-BASED OPTIMIZATION
-    SCALP_TIME_LIMIT: 3,              // 3 min scalps
-    QUICK_TIME_LIMIT: 8,              // 8 min quick trades
-    MAX_TRADE_TIME: 20,               // 20 min max (was 30)
+    SCALP_TIME_LIMIT: 3,               // 3 min scalps
+    QUICK_TIME_LIMIT: 8,               // 8 min quick trades
+    MAX_TRADE_TIME: 20,                // 20 min max
 
     // DAILY LIMITS
-    MAX_TRADES_PER_DAY: 25,           // High frequency
-    PROFIT_LOCK_AT: 450,              // Lock trading at $450 profit
+    MAX_TRADES_PER_DAY: 25,
+    PROFIT_LOCK_AT: 450,
 
-    // ADVANCED FEATURES
-    GRID_TRADING: true,               // Multiple small positions
-    MEAN_REVERSION: true,             // Counter-trend trades
-    BREAKOUT_TRADING: true            // Momentum trades
+    // LEVERAGE SYSTEM
+    MIN_LEVERAGE: 6,
+    MAX_LEVERAGE: 12
 } as const;
 
 // ——— INTERFACES ————————————————————————————————————————
-interface Trade {
+interface EnhancedTrade {
     tradeId: string;
     entryPrice: number;
     size: number;
@@ -2479,22 +3254,33 @@ interface Trade {
     isLong: boolean;
     strategy: 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID';
 
-    // PROFIT TARGETS
-    scalpTarget: number;      // 0.15% quick target
-    mediumTarget: number;     // 0.25% medium target  
-    bigTarget: number;        // 0.40% big target
+    // ISOLATED MARGIN
+    allocatedMargin: number;
+    slotId: number;
 
-    // RISK MANAGEMENT
-    ultraTightStop: number;   // 0.08% immediate stop
+    // NATIVE STOP LOSS ORDERS
+    mainOrderId?: string;              // Main position order ID
+    stopLossOrderId?: string;          // Native stop loss order ID
+    takeProfitOrderId?: string;        // Native take profit order ID
+
+    // STOP LOSS LEVELS
+    hardStopPrice: number;             // Exchange-level stop (0.08%)
+    emergencyStopPrice: number;        // Dynamic backup stop (0.15%)
+
+    // PROFIT TARGETS
+    scalpTarget: number;
+    mediumTarget: number;
+    bigTarget: number;
 
     // STATE
     currentPrice: number;
     unrealizedPnl: number;
     maxProfit: number;
 
-    // FLAGS
-    profitSecured: boolean;
-    scalpHit: boolean;
+    // STATUS
+    stopLossActive: boolean;           // Is native stop loss active?
+    profitTargetActive: boolean;       // Is native take profit active?
+    manuallyManaged: boolean;          // Fallback to manual management?
 }
 
 interface MarketCondition {
@@ -2504,6 +3290,13 @@ interface MarketCondition {
     resistance: number;
     rsi: number;
     movingAverage: number;
+}
+
+interface PositionSlot {
+    slotId: number;
+    allocatedMargin: number;
+    isOccupied: boolean;
+    currentTrade?: EnhancedTrade;
 }
 
 // ——— SDK SETUP ————————————————————————————————————————
@@ -2520,44 +3313,59 @@ const sdk = new Hyperliquid({
     testnet: false
 });
 
-// ——— ULTRA-PROFITABLE TRADER CLASS ————————————————————————————————————————
-class ProfitMaximizer {
-    private trades = new Map<string, Trade>();
+// ——— ENHANCED TRADING ENGINE WITH NATIVE STOPS ————————————————————————————————————————
+class EnhancedProfitMaximizer {
+    private positionSlots: PositionSlot[] = [];
     private stats = {
         tradesPerformed: 0,
         totalProfit: 0,
-        scalpWins: 0,
-        momentumWins: 0,
-        meanReversionWins: 0,
-        breakoutWins: 0,
-        gridWins: 0,
-        stopLosses: 0,
+        nativeStopHits: 0,
+        emergencyStopHits: 0,
+        profitTargetHits: 0,
+        manualCloses: 0,
         currentDayProfit: 0
     };
-    private marketCondition: MarketCondition | null = null;
+
+    constructor() {
+        // Initialize 4 isolated margin position slots
+        for (let i = 1; i <= ENHANCED_PROFIT_MAXIMIZER.MAX_CONCURRENT_POSITIONS; i++) {
+            this.positionSlots.push({
+                slotId: i,
+                allocatedMargin: ENHANCED_PROFIT_MAXIMIZER.MARGIN_PER_POSITION,
+                isOccupied: false
+            });
+        }
+        console.log(`🛡️ Enhanced Trading Engine with Native Stop Loss Initialized`);
+    }
+
+    // ——— POSITION SLOT MANAGEMENT ————————————————————————————————————————
+    public getAvailableSlot(): PositionSlot | null {
+        return this.positionSlots.find(slot => !slot.isOccupied) || null;
+    }
+
+    private releaseSlot(tradeId: string): void {
+        const slot = this.positionSlots.find(slot =>
+            slot.currentTrade?.tradeId === tradeId
+        );
+        if (slot) {
+            console.log(`🔓 Released Slot ${slot.slotId}: $${slot.allocatedMargin} margin available`);
+            slot.isOccupied = false;
+            slot.currentTrade = undefined;
+        }
+    }
 
     // ——— MARKET ANALYSIS ————————————————————————————————————————
     public async analyzeMarket(currentPrice: number): Promise<MarketCondition> {
         try {
-            // Get recent price history for analysis
-            const priceHistory = await this.getPriceHistory(100); // 100 data points
+            const priceHistory = await this.getPriceHistory(100);
 
             const volatility = this.calculateVolatility(priceHistory);
             const momentum = this.calculateMomentum(priceHistory);
             const rsi = this.calculateRSI(priceHistory);
             const ma = this.calculateMovingAverage(priceHistory, 20);
-
-            // Calculate support/resistance
             const { support, resistance } = this.calculateSupportResistance(priceHistory);
 
-            return {
-                volatility,
-                momentum,
-                support,
-                resistance,
-                rsi,
-                movingAverage: ma
-            };
+            return { volatility, momentum, support, resistance, rsi, movingAverage: ma };
         } catch (error) {
             console.error('❌ Market analysis error:', error);
             return {
@@ -2572,7 +3380,6 @@ class ProfitMaximizer {
     }
 
     private async getPriceHistory(periods: number): Promise<number[]> {
-        // Simplified - in real implementation, get actual historical data
         const response = await fetch('https://api.hyperliquid.xyz/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2581,7 +3388,7 @@ class ProfitMaximizer {
         const allMids: Record<string, number> = await response.json();
         const currentPrice = allMids['BTC'];
 
-        // Generate mock historical data (replace with real data)
+        // Mock data - replace with real historical data
         const prices: number[] = [];
         for (let i = 0; i < periods; i++) {
             prices.push(currentPrice + (Math.random() - 0.5) * 100);
@@ -2591,23 +3398,16 @@ class ProfitMaximizer {
 
     private calculateVolatility(prices: number[]): number {
         if (prices.length < 2) return 0.5;
-
-        const returns = prices.slice(1).map((price, i) =>
-            Math.log(price / prices[i])
-        );
-
+        const returns = prices.slice(1).map((price, i) => Math.log(price / prices[i]));
         const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
         const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
-
         return Math.sqrt(variance);
     }
 
     private calculateMomentum(prices: number[]): 'STRONG_UP' | 'UP' | 'SIDEWAYS' | 'DOWN' | 'STRONG_DOWN' {
         if (prices.length < 10) return 'SIDEWAYS';
-
         const recent = prices.slice(-10);
         const change = (recent[recent.length - 1] - recent[0]) / recent[0] * 100;
-
         if (change > 0.5) return 'STRONG_UP';
         if (change > 0.2) return 'UP';
         if (change < -0.5) return 'STRONG_DOWN';
@@ -2617,14 +3417,11 @@ class ProfitMaximizer {
 
     private calculateRSI(prices: number[], period: number = 14): number {
         if (prices.length < period + 1) return 50;
-
         const changes = prices.slice(1).map((price, i) => price - prices[i]);
         const gains = changes.map(c => c > 0 ? c : 0);
         const losses = changes.map(c => c < 0 ? -c : 0);
-
         const avgGain = gains.slice(-period).reduce((sum, g) => sum + g, 0) / period;
         const avgLoss = losses.slice(-period).reduce((sum, l) => sum + l, 0) / period;
-
         if (avgLoss === 0) return 100;
         const rs = avgGain / avgLoss;
         return 100 - (100 / (1 + rs));
@@ -2646,270 +3443,388 @@ class ProfitMaximizer {
     public selectStrategy(signal: any, market: MarketCondition): 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID' {
         const currentPrice = signal.forecast_price;
 
-        // HIGH VOLATILITY = SCALPING
-        if (market.volatility > 0.8) {
-            return 'SCALP';
-        }
-
-        // STRONG MOMENTUM = BREAKOUT
-        if (market.momentum === 'STRONG_UP' || market.momentum === 'STRONG_DOWN') {
-            return 'BREAKOUT';
-        }
-
-        // NEAR SUPPORT/RESISTANCE = MEAN REVERSION
+        if (market.volatility > 0.8) return 'SCALP';
+        if (market.momentum === 'STRONG_UP' || market.momentum === 'STRONG_DOWN') return 'BREAKOUT';
         if (Math.abs(currentPrice - market.support) / currentPrice < 0.002 ||
-            Math.abs(currentPrice - market.resistance) / currentPrice < 0.002) {
-            return 'MEAN_REVERSION';
-        }
-
-        // MODERATE MOMENTUM = MOMENTUM TRADE
-        if (market.momentum === 'UP' || market.momentum === 'DOWN') {
-            return 'MOMENTUM';
-        }
-
-        // DEFAULT = GRID TRADING
+            Math.abs(currentPrice - market.resistance) / currentPrice < 0.002) return 'MEAN_REVERSION';
+        if (market.momentum === 'UP' || market.momentum === 'DOWN') return 'MOMENTUM';
         return 'GRID';
     }
 
-    // ——— DYNAMIC POSITION SIZING ————————————————————————————————————————
-    public calculateDynamicPosition(price: number, confidence: number, market: MarketCondition, strategy: string): {
+    // ——— ENHANCED POSITION SIZING WITH NATIVE STOPS ————————————————————————————————————————
+    public calculateEnhancedPosition(
+        price: number,
+        confidence: number,
+        strategy: string,
+        allocatedMargin: number
+    ): {
         size: number;
         leverage: number;
-        expectedProfit: number;
+        hardStopPrice: number;
+        emergencyStopPrice: number;
+        scalpTarget: number;
+        mediumTarget: number;
+        bigTarget: number;
     } {
-        let baseCapital = PROFIT_MAXIMIZER.ACCOUNT_SIZE * PROFIT_MAXIMIZER.CAPITAL_PER_TRADE;
+        // Conservative leverage for isolated margin with native stops
+        let leverage: number = ENHANCED_PROFIT_MAXIMIZER.MIN_LEVERAGE;
+        if (confidence >= 95) leverage = ENHANCED_PROFIT_MAXIMIZER.MAX_LEVERAGE;
+        else if (confidence >= 92) leverage = Math.round(ENHANCED_PROFIT_MAXIMIZER.MAX_LEVERAGE * 0.9);
+        else if (confidence >= 89) leverage = Math.round(ENHANCED_PROFIT_MAXIMIZER.MAX_LEVERAGE * 0.75);
+        else if (confidence >= 85) leverage = Math.round(ENHANCED_PROFIT_MAXIMIZER.MAX_LEVERAGE * 0.6);
 
-        // STRATEGY-BASED SIZING
-        switch (strategy) {
-            case 'SCALP':
-                baseCapital *= 0.8; // Smaller size for quick scalps
-                break;
-            case 'BREAKOUT':
-                baseCapital *= 1.2; // Larger size for breakouts
-                break;
-            case 'MEAN_REVERSION':
-                baseCapital *= 0.9; // Conservative for counter-trend
-                break;
+        // Strategy adjustments
+        if (strategy === 'SCALP') leverage = Math.max(6, leverage - 1);
+        if (strategy === 'BREAKOUT') leverage = Math.min(12, leverage + 1);
+
+        const maxPositionValue = allocatedMargin * leverage;
+        const positionSize = this.roundToLotSize(maxPositionValue / price);
+
+        // Calculate stop loss levels
+        const hardStopDistance = price * (ENHANCED_PROFIT_MAXIMIZER.HARD_STOP_PERCENT / 100);
+        const emergencyStopDistance = price * (ENHANCED_PROFIT_MAXIMIZER.EMERGENCY_STOP_PERCENT / 100);
+
+        // Calculate profit targets
+        let scalpPercent: number = ENHANCED_PROFIT_MAXIMIZER.QUICK_SCALP_TARGET;
+        let mediumPercent: number = ENHANCED_PROFIT_MAXIMIZER.MEDIUM_TARGET;
+        let bigPercent: number = ENHANCED_PROFIT_MAXIMIZER.BIG_TARGET;
+
+        if (strategy === 'SCALP') {
+            scalpPercent = 0.15;
+            mediumPercent = 0.25;
+        } else if (strategy === 'BREAKOUT') {
+            scalpPercent = 0.25;
+            mediumPercent = 0.45;
+            bigPercent = 0.75;
         }
-
-        // VOLATILITY SCALING
-        if (market.volatility > 1.0) {
-            baseCapital *= 0.7; // Reduce size in high volatility
-        } else if (market.volatility < 0.3) {
-            baseCapital *= 1.3; // Increase size in low volatility
-        }
-
-        // CONFIDENCE SCALING
-        const confidenceMultiplier = Math.min(confidence / 100, 1.2);
-        baseCapital *= confidenceMultiplier;
-
-        // DYNAMIC LEVERAGE (8-18x based on conditions)
-        let leverage = 10; // Base leverage
-        if (confidence >= 95) leverage = 18;
-        else if (confidence >= 90) leverage = 15;
-        else if (confidence >= 85) leverage = 12;
-        else leverage = 8;
-
-        // Reduce leverage in high volatility
-        if (market.volatility > 0.8) leverage = Math.max(8, leverage - 3);
-
-        const positionValue = baseCapital * leverage;
-        const positionSize = this.roundToLotSize(positionValue / price);
-        const expectedProfit = positionValue * (PROFIT_MAXIMIZER.MEDIUM_TARGET / 100);
 
         return {
             size: positionSize,
             leverage,
-            expectedProfit
+            hardStopPrice: price - hardStopDistance, // Will adjust for LONG/SHORT
+            emergencyStopPrice: price - emergencyStopDistance, // Will adjust for LONG/SHORT
+            scalpTarget: price + (price * scalpPercent / 100), // Will adjust for LONG/SHORT
+            mediumTarget: price + (price * mediumPercent / 100), // Will adjust for LONG/SHORT
+            bigTarget: price + (price * bigPercent / 100) // Will adjust for LONG/SHORT
         };
     }
 
-    // ——— TRADE CREATION ————————————————————————————————————————
-    public createTrade(signal: any, entryPrice: number, size: number, leverage: number, strategy: string): string {
-        const tradeId = `PROFIT_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-        const isLong = size > 0;
+    // ——— NATIVE ORDER PLACEMENT WITH EXCHANGE-LEVEL STOPS ————————————————————————————————————————
+    public async placeOrderWithNativeStops(
+        signal: any,
+        position: any,
+        slot: PositionSlot,
+        strategy: string
+    ): Promise<{ success: boolean; tradeId?: string; error?: string }> {
+        try {
+            const isLong = signal.signal === 'LONG';
+            const entryPrice = signal.forecast_price;
 
-        // CALCULATE TARGETS BASED ON STRATEGY
-        let scalpPercent: number = PROFIT_MAXIMIZER.QUICK_SCALP_TARGET;
-        let mediumPercent: number = PROFIT_MAXIMIZER.MEDIUM_TARGET;
-        let bigPercent: number = PROFIT_MAXIMIZER.BIG_TARGET;
+            // Adjust stops and targets for direction
+            const hardStopPrice = isLong ?
+                position.hardStopPrice :
+                entryPrice + (entryPrice - position.hardStopPrice);
 
-        if (strategy === 'SCALP') {
-            scalpPercent = 0.12; // Tighter scalp targets
-            mediumPercent = 0.20;
-        } else if (strategy === 'BREAKOUT') {
-            scalpPercent = 0.20; // Larger breakout targets
-            mediumPercent = 0.35;
-            bigPercent = 0.50;
-        }
+            const emergencyStopPrice = isLong ?
+                position.emergencyStopPrice :
+                entryPrice + (entryPrice - position.emergencyStopPrice);
 
-        const scalpDistance = entryPrice * (scalpPercent / 100);
-        const mediumDistance = entryPrice * (mediumPercent / 100);
-        const bigDistance = entryPrice * (bigPercent / 100);
+            const scalpTarget = isLong ?
+                position.scalpTarget :
+                entryPrice - (position.scalpTarget - entryPrice);
 
-        const scalpTarget = isLong ? entryPrice + scalpDistance : entryPrice - scalpDistance;
-        const mediumTarget = isLong ? entryPrice + mediumDistance : entryPrice - mediumDistance;
-        const bigTarget = isLong ? entryPrice + bigDistance : entryPrice - bigDistance;
+            // Step 1: Place main position order
+            const mainOrderResult = await this.placeMainOrder(
+                signal.signal === 'LONG' ? 'BUY' : 'SELL',
+                position.size
+            );
 
-        // ULTRA TIGHT STOP
-        const stopDistance = entryPrice * (PROFIT_MAXIMIZER.TIGHT_STOP_PERCENT / 100);
-        const ultraTightStop = isLong ? entryPrice - stopDistance : entryPrice + stopDistance;
-
-        const trade: Trade = {
-            tradeId,
-            entryPrice,
-            size,
-            leverage,
-            entryTime: Date.now(),
-            isLong,
-            strategy: strategy as 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID',
-
-            scalpTarget,
-            mediumTarget,
-            bigTarget,
-            ultraTightStop,
-
-            currentPrice: entryPrice,
-            unrealizedPnl: 0,
-            maxProfit: 0,
-
-            profitSecured: false,
-            scalpHit: false
-        };
-
-        this.trades.set(tradeId, trade);
-        this.stats.tradesPerformed++;
-
-        console.log(`🚀 ${strategy} TRADE: ${tradeId}`);
-        console.log(`   Entry: $${entryPrice}, Size: ${size}, Leverage: ${leverage}x`);
-        console.log(`   Scalp: $${scalpTarget.toFixed(2)} (${scalpPercent}%)`);
-        console.log(`   Medium: $${mediumTarget.toFixed(2)} (${mediumPercent}%)`);
-        console.log(`   Stop: $${ultraTightStop.toFixed(2)} (${PROFIT_MAXIMIZER.TIGHT_STOP_PERCENT}%)`);
-
-        return tradeId;
-    }
-
-    // ——— TRADE MANAGEMENT ————————————————————————————————————————
-    public checkTrade(tradeId: string, currentPrice: number): string | null {
-        const trade = this.trades.get(tradeId);
-        if (!trade) return null;
-
-        // Update state
-        trade.currentPrice = currentPrice;
-        const priceChange = currentPrice - trade.entryPrice;
-        const pnlPercent = (priceChange / trade.entryPrice) * 100;
-        const adjustedPnl = trade.isLong ? pnlPercent : -pnlPercent;
-        trade.unrealizedPnl = (adjustedPnl * Math.abs(trade.size) * trade.entryPrice * trade.leverage) / 100;
-        trade.maxProfit = Math.max(trade.maxProfit, trade.unrealizedPnl);
-
-        const ageMinutes = (Date.now() - trade.entryTime) / (60 * 1000);
-
-        // 🚨 ULTRA TIGHT STOP - IMMEDIATE
-        if ((trade.isLong && currentPrice <= trade.ultraTightStop) ||
-            (!trade.isLong && currentPrice >= trade.ultraTightStop)) {
-            this.stats.stopLosses++;
-            return `ULTRA_STOP_${trade.unrealizedPnl.toFixed(2)}`;
-        }
-
-        // 💰 BIG TARGET HIT
-        if ((trade.isLong && currentPrice >= trade.bigTarget) ||
-            (!trade.isLong && currentPrice <= trade.bigTarget)) {
-            // Update strategy-specific wins
-            switch (trade.strategy) {
-                case 'MOMENTUM': this.stats.momentumWins++; break;
-                case 'MEAN_REVERSION': this.stats.meanReversionWins++; break;
-                case 'BREAKOUT': this.stats.breakoutWins++; break;
-                case 'GRID': this.stats.gridWins++; break;
-                default: this.stats.scalpWins++; break;
+            if (!mainOrderResult.success) {
+                return { success: false, error: 'Main order failed' };
             }
-            return `BIG_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
-        }
 
-        // 💰 MEDIUM TARGET HIT
-        if ((trade.isLong && currentPrice >= trade.mediumTarget) ||
-            (!trade.isLong && currentPrice <= trade.mediumTarget)) {
-            // Update strategy-specific wins
-            switch (trade.strategy) {
-                case 'MOMENTUM': this.stats.momentumWins++; break;
-                case 'MEAN_REVERSION': this.stats.meanReversionWins++; break;
-                case 'BREAKOUT': this.stats.breakoutWins++; break;
-                case 'GRID': this.stats.gridWins++; break;
-                default: this.stats.scalpWins++; break;
+            // Step 2: Place native stop loss order
+            const stopOrderResult = await this.placeNativeStopLoss(
+                isLong ? 'SELL' : 'BUY',
+                position.size,
+                hardStopPrice
+            );
+
+            // Step 3: Place native take profit order (optional)
+            const takeProfitResult = await this.placeNativeTakeProfit(
+                isLong ? 'SELL' : 'BUY',
+                position.size,
+                scalpTarget
+            );
+
+            // Create trade record
+            const tradeId = `NATIVE_${Date.now()}_${slot.slotId}`;
+
+            const trade: EnhancedTrade = {
+                tradeId,
+                entryPrice,
+                size: isLong ? position.size : -position.size,
+                leverage: position.leverage,
+                entryTime: Date.now(),
+                isLong,
+                strategy: strategy as 'SCALP' | 'MOMENTUM' | 'MEAN_REVERSION' | 'BREAKOUT' | 'GRID',
+
+                allocatedMargin: slot.allocatedMargin,
+                slotId: slot.slotId,
+
+                mainOrderId: mainOrderResult.orderId,
+                stopLossOrderId: stopOrderResult.orderId,
+                takeProfitOrderId: takeProfitResult.orderId,
+
+                hardStopPrice,
+                emergencyStopPrice,
+                scalpTarget,
+                mediumTarget: isLong ? position.mediumTarget : entryPrice - (position.mediumTarget - entryPrice),
+                bigTarget: isLong ? position.bigTarget : entryPrice - (position.bigTarget - entryPrice),
+
+                currentPrice: entryPrice,
+                unrealizedPnl: 0,
+                maxProfit: 0,
+
+                stopLossActive: stopOrderResult.success,
+                profitTargetActive: takeProfitResult.success,
+                manuallyManaged: false
+            };
+
+            slot.isOccupied = true;
+            slot.currentTrade = trade;
+            this.stats.tradesPerformed++;
+
+            console.log(`🚀 NATIVE STOP TRADE: ${tradeId} (Slot ${slot.slotId})`);
+            console.log(`   Entry: $${entryPrice}, Size: ${position.size}, Leverage: ${position.leverage}x`);
+            console.log(`   Native Stop: $${hardStopPrice.toFixed(2)} (${ENHANCED_PROFIT_MAXIMIZER.HARD_STOP_PERCENT}%)`);
+            console.log(`   Emergency Stop: $${emergencyStopPrice.toFixed(2)} (${ENHANCED_PROFIT_MAXIMIZER.EMERGENCY_STOP_PERCENT}%)`);
+            console.log(`   Native Take Profit: $${scalpTarget.toFixed(2)}`);
+            console.log(`   Stop Loss Active: ${stopOrderResult.success}`);
+            console.log(`   Take Profit Active: ${takeProfitResult.success}`);
+
+            return { success: true, tradeId };
+
+        } catch (error) {
+            console.error('❌ Native order placement error:', error);
+            return { success: false, error: String(error) };
+        }
+    }
+
+    private async placeMainOrder(side: 'BUY' | 'SELL', size: number): Promise<{ success: boolean; orderId?: string }> {
+        try {
+            const response = await fetch('https://api.hyperliquid.xyz/info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'allMids' })
+            });
+            const allMids: Record<string, number> = await response.json();
+            const marketPrice = allMids['BTC'];
+
+            const slippage = 0.008;
+            const orderPrice = Math.round(marketPrice * (side === 'BUY' ? (1 + slippage) : (1 - slippage)));
+
+            const result = await sdk.exchange.placeOrder({
+                coin: 'BTC-PERP',
+                is_buy: side === 'BUY',
+                sz: size,
+                limit_px: orderPrice,
+                order_type: { limit: { tif: 'Ioc' as Tif } },
+                reduce_only: false
+            });
+
+            console.log(`📤 Main Order: ${side} ${size} BTC @ ${orderPrice}`);
+            return {
+                success: result.status === 'ok',
+                orderId: result.response?.data?.statuses?.[0]?.filled?.oid || undefined
+            };
+
+        } catch (error) {
+            console.error('❌ Main order error:', error);
+            return { success: false };
+        }
+    }
+
+    private async placeNativeStopLoss(side: 'BUY' | 'SELL', size: number, stopPrice: number): Promise<{ success: boolean; orderId?: string }> {
+        try {
+            // Use proper Hyperliquid trigger order for native stop loss
+            const result = await sdk.exchange.placeOrder({
+                coin: 'BTC-PERP',
+                is_buy: side === 'BUY',
+                sz: size,
+                limit_px: stopPrice,
+                order_type: {
+                    trigger: {
+                        triggerPx: stopPrice,
+                        isMarket: true,  // Market order when triggered
+                        tpsl: 'sl'       // Stop Loss type
+                    }
+                },
+                reduce_only: true
+            });
+
+            console.log(`🛑 Native Stop Loss: ${side} ${size} BTC @ ${stopPrice.toFixed(2)}`);
+
+            if (result.status === 'ok') {
+                // Extract the actual order ID from the response
+                const orderId = result.response?.data?.statuses?.[0]?.resting?.oid;
+                return {
+                    success: true,
+                    orderId: orderId ? String(orderId) : undefined
+                };
             }
-            return `MEDIUM_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
+
+            return { success: false };
+
+        } catch (error) {
+            console.error('❌ Native stop loss error:', error);
+            return { success: false };
         }
-
-        // 💰 SCALP TARGET HIT
-        if ((trade.isLong && currentPrice >= trade.scalpTarget) ||
-            (!trade.isLong && currentPrice <= trade.scalpTarget)) {
-            this.stats.scalpWins++;
-            return `SCALP_TARGET_${trade.unrealizedPnl.toFixed(2)}`;
-        }
-
-        // ⏰ TIME-BASED EXITS (Strategy specific)
-        const timeLimit = trade.strategy === 'SCALP' ? PROFIT_MAXIMIZER.SCALP_TIME_LIMIT :
-            trade.strategy === 'BREAKOUT' ? PROFIT_MAXIMIZER.QUICK_TIME_LIMIT :
-                PROFIT_MAXIMIZER.MAX_TRADE_TIME;
-
-        if (ageMinutes >= timeLimit) {
-            return `TIME_EXIT_${trade.strategy}_${ageMinutes.toFixed(1)}min_${trade.unrealizedPnl.toFixed(2)}`;
-        }
-
-        // ⏰ QUICK PROFIT SECURE (if in profit after time)
-        if (ageMinutes >= 2 && trade.unrealizedPnl >= 5) {
-            return `QUICK_SECURE_${ageMinutes.toFixed(1)}min_${trade.unrealizedPnl.toFixed(2)}`;
-        }
-
-        return null; // HOLD
     }
 
-    // ——— HELPER FUNCTIONS ————————————————————————————————————————
-    public roundToLotSize(size: number): number {
-        const LOT_SIZE = 0.00001;
-        const MIN_SIZE = 0.0001;
-        return Math.max(
-            Math.round(size / LOT_SIZE) * LOT_SIZE,
-            MIN_SIZE
-        );
+    private async placeNativeTakeProfit(side: 'BUY' | 'SELL', size: number, targetPrice: number): Promise<{ success: boolean; orderId?: string }> {
+        try {
+            // Use proper Hyperliquid trigger order for native take profit
+            const result = await sdk.exchange.placeOrder({
+                coin: 'BTC-PERP',
+                is_buy: side === 'BUY',
+                sz: size,
+                limit_px: targetPrice,
+                order_type: {
+                    trigger: {
+                        triggerPx: targetPrice,
+                        isMarket: false,  // Limit order when triggered
+                        tpsl: 'tp'        // Take Profit type
+                    }
+                },
+                reduce_only: true
+            });
+
+            console.log(`💰 Native Take Profit: ${side} ${size} BTC @ ${targetPrice.toFixed(2)}`);
+
+            if (result.status === 'ok') {
+                // Extract the actual order ID from the response
+                const orderId = result.response?.data?.statuses?.[0]?.resting?.oid;
+                return {
+                    success: true,
+                    orderId: orderId ? String(orderId) : undefined
+                };
+            }
+
+            return { success: false };
+
+        } catch (error) {
+            console.error('❌ Native take profit error:', error);
+            return { success: false };
+        }
     }
 
-    public async closeTrade(tradeId: string, reason: string): Promise<boolean> {
-        const trade = this.trades.get(tradeId);
-        if (!trade) return false;
+    // ——— DYNAMIC EMERGENCY MONITORING (BACKUP TO NATIVE STOPS) ————————————————————————————————————————
+    public async monitorEmergencyStops(): Promise<void> {
+        const activeTrades = this.getAllActiveTrades();
+        if (activeTrades.length === 0) return;
 
         try {
-            const success = await this.instantClose(trade, reason);
+            const response = await fetch('https://api.hyperliquid.xyz/info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'allMids' })
+            });
+            const allMids: Record<string, number> = await response.json();
+            const currentPrice = allMids['BTC'];
 
-            if (success) {
-                this.stats.totalProfit += trade.unrealizedPnl;
-                this.stats.currentDayProfit += trade.unrealizedPnl;
+            for (const trade of activeTrades) {
+                trade.currentPrice = currentPrice;
 
-                console.log(`✅ CLOSED: ${tradeId} | ${reason} | PnL: $${trade.unrealizedPnl.toFixed(2)}`);
-                console.log(`📊 Day Profit: $${this.stats.currentDayProfit.toFixed(2)}/${PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET}`);
+                // Calculate current PnL
+                const priceChange = currentPrice - trade.entryPrice;
+                const pnlPercent = (priceChange / trade.entryPrice) * 100;
+                const adjustedPnl = trade.isLong ? pnlPercent : -pnlPercent;
+                trade.unrealizedPnl = (adjustedPnl * Math.abs(trade.size) * trade.entryPrice * trade.leverage) / 100;
 
-                // Push to day state
-                pushTrade({
-                    id: tradeId,
-                    pnl: trade.unrealizedPnl,
-                    side: reason,
-                    size: Math.abs(trade.size),
-                    avgPrice: trade.entryPrice,
-                    leverage: trade.leverage,
-                    timestamp: Date.now()
-                });
+                // Track max profit for trailing
+                if (trade.unrealizedPnl > trade.maxProfit) {
+                    trade.maxProfit = trade.unrealizedPnl;
+                }
 
-                this.trades.delete(tradeId);
-                return true;
+                // ——— EMERGENCY STOP (BACKUP TO NATIVE STOP) ————————————————————————————————————————
+                const emergencyHit = (trade.isLong && currentPrice <= trade.emergencyStopPrice) ||
+                    (!trade.isLong && currentPrice >= trade.emergencyStopPrice);
+
+                if (emergencyHit && !trade.manuallyManaged) {
+                    console.log(`🚨 EMERGENCY STOP TRIGGERED: ${trade.tradeId} at $${currentPrice}`);
+                    console.log(`   Native stop may have failed - executing emergency close`);
+                    await this.emergencyClosePosition(trade);
+                    continue;
+                }
+
+                // ——— TIME-BASED EXITS ————————————————————————————————————————
+                const ageMinutes = (Date.now() - trade.entryTime) / (60 * 1000);
+                const timeLimit = trade.strategy === 'SCALP' ? ENHANCED_PROFIT_MAXIMIZER.SCALP_TIME_LIMIT :
+                    trade.strategy === 'BREAKOUT' ? ENHANCED_PROFIT_MAXIMIZER.QUICK_TIME_LIMIT :
+                        ENHANCED_PROFIT_MAXIMIZER.MAX_TRADE_TIME;
+
+                if (ageMinutes >= timeLimit) {
+                    console.log(`⏰ TIME EXIT: ${trade.tradeId} after ${ageMinutes.toFixed(1)} minutes`);
+                    await this.manualClosePosition(trade, `TIME_EXIT_${ageMinutes.toFixed(1)}min`);
+                    continue;
+                }
+
+                // ——— PROFIT TARGET MANAGEMENT ————————————————————————————————————————
+                if (trade.unrealizedPnl >= (trade.allocatedMargin * 0.05)) { // 5% of allocated margin
+                    console.log(`💰 PROFIT TARGET HIT: ${trade.tradeId} - ${trade.unrealizedPnl.toFixed(2)}`);
+                    await this.manualClosePosition(trade, `PROFIT_TARGET_${trade.unrealizedPnl.toFixed(2)}`);
+                    continue;
+                }
             }
 
-            return false;
         } catch (error) {
-            console.error(`❌ Close error for ${tradeId}:`, error);
-            return false;
+            console.error('❌ Emergency monitoring error:', error);
         }
     }
 
-    private async instantClose(trade: Trade, reason: string): Promise<boolean> {
+    // ——— FIXED CANCEL ORDER IMPLEMENTATION ————————————————————————————————————————
+    private async cancelPendingOrders(trade: EnhancedTrade): Promise<void> {
+        try {
+            const cancels = [];
+
+            // Add stop loss order to cancel list
+            if (trade.stopLossOrderId) {
+                cancels.push({
+                    coin: 'BTC-PERP',
+                    o: parseInt(trade.stopLossOrderId)  // Order ID as number, using 'o' parameter
+                });
+            }
+
+            // Add take profit order to cancel list  
+            if (trade.takeProfitOrderId) {
+                cancels.push({
+                    coin: 'BTC-PERP',
+                    o: parseInt(trade.takeProfitOrderId)  // Order ID as number, using 'o' parameter
+                });
+            }
+
+            if (cancels.length > 0) {
+                // Use the SDK's cancel method with proper parameters
+                const result = await sdk.exchange.cancelOrder(cancels);
+
+                if (result.status === 'ok') {
+                    console.log(`✅ Canceled ${cancels.length} pending orders for ${trade.tradeId}`);
+                } else {
+                    console.log(`⚠️ Cancel failed for ${trade.tradeId}, fallback to instant close`);
+                    await this.instantClose(trade, 'CANCEL_FALLBACK');
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ Cancel orders error:', error);
+            // Fallback to working instant close
+            await this.instantClose(trade, 'CANCEL_ERROR_FALLBACK');
+        }
+    }
+
+    // ——— YOUR WORKING INSTANT CLOSE (UNCHANGED) ————————————————————————————————————————
+    private async instantClose(trade: EnhancedTrade, reason: string): Promise<boolean> {
         try {
             const response = await fetch('https://api.hyperliquid.xyz/info', {
                 method: 'POST',
@@ -2932,7 +3847,13 @@ class ProfitMaximizer {
             };
 
             const result = await sdk.exchange.placeOrder(orderParams);
-            return result.status === 'ok';
+
+            if (result.status === 'ok') {
+                console.log(`✅ Instant close successful for ${trade.tradeId}: ${reason}`);
+                return true;
+            }
+
+            return false;
 
         } catch (error) {
             console.error('❌ Instant close error:', error);
@@ -2940,122 +3861,121 @@ class ProfitMaximizer {
         }
     }
 
-    public getActiveCount(): number {
-        return this.trades.size;
+    private async emergencyClosePosition(trade: EnhancedTrade): Promise<void> {
+        try {
+            const reason = `EMERGENCY_STOP_${trade.unrealizedPnl.toFixed(2)}`;
+            await this.cancelPendingOrders(trade);
+            const success = await this.instantClose(trade, reason);
+
+            if (success) {
+                this.completeTrade(trade, reason);
+            } else {
+                // Complete anyway to free slot
+                trade.manuallyManaged = true;
+                this.completeTrade(trade, `${reason}_FAILED`);
+            }
+
+            this.stats.emergencyStopHits++;
+        } catch (error) {
+            console.error(`❌ Emergency close error for ${trade.tradeId}:`, error);
+        }
     }
 
-    public getStats() {
-        const winRate = this.stats.tradesPerformed > 0
-            ? (((this.stats.scalpWins + this.stats.momentumWins + this.stats.meanReversionWins +
-                this.stats.breakoutWins + this.stats.gridWins) / this.stats.tradesPerformed) * 100).toFixed(1)
-            : '0';
+    private async manualClosePosition(trade: EnhancedTrade, reason: string): Promise<void> {
+        try {
+            await this.cancelPendingOrders(trade);
+            const success = await this.instantClose(trade, reason);
 
-        return {
-            ...this.stats,
-            activeTrades: this.trades.size,
-            winRate,
-            profitProgress: `${this.stats.currentDayProfit.toFixed(2)}/${PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET}`,
-            profitPercentage: ((this.stats.currentDayProfit / PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET) * 100).toFixed(1)
-        };
+            if (success) {
+                this.completeTrade(trade, reason);
+            } else {
+                // Complete anyway to free slot
+                trade.manuallyManaged = true;
+                this.completeTrade(trade, `${reason}_FAILED`);
+            }
+
+            this.stats.manualCloses++;
+        } catch (error) {
+            console.error(`❌ Manual close error for ${trade.tradeId}:`, error);
+        }
+    }
+
+    private completeTrade(trade: EnhancedTrade, reason: string): void {
+        this.stats.totalProfit += trade.unrealizedPnl;
+        this.stats.currentDayProfit += trade.unrealizedPnl;
+
+        console.log(`✅ COMPLETED: ${trade.tradeId} | ${reason} | PnL: $${trade.unrealizedPnl.toFixed(2)}`);
+
+        pushTrade({
+            id: trade.tradeId,
+            pnl: trade.unrealizedPnl,
+            side: reason,
+            size: Math.abs(trade.size),
+            avgPrice: trade.entryPrice,
+            leverage: trade.leverage,
+            timestamp: Date.now()
+        });
+
+        this.releaseSlot(trade.tradeId);
+    }
+
+    // ——— HELPER FUNCTIONS ————————————————————————————————————————
+    private roundToLotSize(size: number): number {
+        const LOT_SIZE = 0.00001;
+        const MIN_SIZE = 0.0001;
+        return Math.max(Math.round(size / LOT_SIZE) * LOT_SIZE, MIN_SIZE);
+    }
+
+    public getActiveCount(): number {
+        return this.positionSlots.filter(slot => slot.isOccupied).length;
+    }
+
+    public getAllActiveTrades(): EnhancedTrade[] {
+        return this.positionSlots
+            .filter(slot => slot.isOccupied && slot.currentTrade)
+            .map(slot => slot.currentTrade!);
     }
 
     public shouldStopTrading(): boolean {
-        return this.stats.currentDayProfit >= PROFIT_MAXIMIZER.PROFIT_LOCK_AT;
+        return this.stats.currentDayProfit >= ENHANCED_PROFIT_MAXIMIZER.PROFIT_LOCK_AT;
     }
 
-    public getActiveTrades(): Map<string, Trade> {
-        return this.trades;
+    public getStats(): any {
+        return {
+            ...this.stats,
+            activeTrades: this.getActiveCount(),
+            profitProgress: `${this.stats.currentDayProfit.toFixed(2)}/${ENHANCED_PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET}`,
+            profitPercentage: ((this.stats.currentDayProfit / ENHANCED_PROFIT_MAXIMIZER.DAILY_PROFIT_TARGET) * 100).toFixed(1)
+        };
     }
 }
 
 // ——— GLOBAL INSTANCE ————————————————————————————————————————
-const profitMaximizer = new ProfitMaximizer();
-
-// ——— HELPER FUNCTIONS ————————————————————————————————————————
-async function placeAggressiveOrder(coin: string, side: 'BUY' | 'SELL', size: number): Promise<{
-    success: boolean;
-    result?: any;
-    pricing?: { marketPrice: number; orderPrice: number };
-    error?: any;
-}> {
-    try {
-        const response = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'allMids' })
-        });
-        const allMids: Record<string, number> = await response.json();
-        const marketPrice = allMids[coin.replace('-PERP', '')];
-
-        // Aggressive pricing for instant fill
-        const slippage = 0.008; // 0.8% slippage
-        const orderPrice = Math.round(marketPrice * (side === 'BUY' ? (1 + slippage) : (1 - slippage)));
-
-        const orderParams = {
-            coin: coin,
-            is_buy: side === 'BUY',
-            sz: size,
-            limit_px: orderPrice,
-            order_type: { limit: { tif: 'Ioc' as Tif } },
-            reduce_only: false
-        };
-
-        console.log(`🚀 ORDER: ${side} ${size} ${coin} @ ${orderPrice}`);
-
-        const result = await sdk.exchange.placeOrder(orderParams);
-
-        return {
-            success: result.status === 'ok',
-            result: result,
-            pricing: { marketPrice, orderPrice }
-        };
-
-    } catch (error) {
-        console.error('❌ Order error:', error);
-        return { success: false, error: error };
-    }
-}
+const enhancedProfitMaximizer = new EnhancedProfitMaximizer();
 
 // ——— MAIN ENDPOINT ————————————————————————————————————————
 export async function GET(): Promise<NextResponse> {
     try {
-        console.log('💰 PROFIT MAXIMIZER - Target: $500/day');
+        console.log('🛡️ ENHANCED NATIVE STOP LOSS TRADER - Exchange-Level Risk Management');
 
-        // Check if we should stop trading (profit target nearly reached)
-        if (profitMaximizer.shouldStopTrading()) {
+        // First: Monitor emergency stops for existing positions
+        await enhancedProfitMaximizer.monitorEmergencyStops();
+
+        // Check if we should stop trading
+        if (enhancedProfitMaximizer.shouldStopTrading()) {
             return NextResponse.json({
                 success: true,
-                message: 'Daily profit target nearly reached - trading paused',
-                stats: profitMaximizer.getStats()
+                message: 'Daily profit target reached - trading paused',
+                stats: enhancedProfitMaximizer.getStats()
             });
         }
 
-        // Manage existing trades first
-        if (profitMaximizer.getActiveCount() > 0) {
-            const response = await fetch('https://api.hyperliquid.xyz/info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'allMids' })
-            });
-            const allMids: Record<string, number> = await response.json();
-            const currentPrice = allMids['BTC'];
-
-            if (currentPrice) {
-                for (const [tradeId] of profitMaximizer.getActiveTrades()) {
-                    const action = profitMaximizer.checkTrade(tradeId, currentPrice);
-                    if (action) {
-                        await profitMaximizer.closeTrade(tradeId, action);
-                        await new Promise(resolve => setTimeout(resolve, 600));
-                    }
-                }
-            }
-        }
-
-        // Check concurrent trade limit
-        if (profitMaximizer.getActiveCount() >= PROFIT_MAXIMIZER.MAX_CONCURRENT_TRADES) {
+        // Check available slots
+        const availableSlot = enhancedProfitMaximizer.getAvailableSlot();
+        if (!availableSlot) {
             return NextResponse.json({
-                error: `Max concurrent trades reached (${PROFIT_MAXIMIZER.MAX_CONCURRENT_TRADES})`,
-                stats: profitMaximizer.getStats()
+                error: 'All position slots occupied',
+                stats: enhancedProfitMaximizer.getStats()
             });
         }
 
@@ -3081,122 +4001,83 @@ export async function GET(): Promise<NextResponse> {
         if (!signal || signal.signal === 'HOLD' || !signal.forecast_price) {
             return NextResponse.json({
                 error: 'No trading signal',
-                stats: profitMaximizer.getStats()
+                stats: enhancedProfitMaximizer.getStats()
             });
         }
 
-        // Analyze market conditions
-        const marketCondition = await profitMaximizer.analyzeMarket(signal.forecast_price);
-
-        // Select strategy based on market conditions
-        const strategy = profitMaximizer.selectStrategy(signal, marketCondition);
-
-        // Calculate dynamic position
+        // Check confidence
         const confidence = signal.confidence_90?.[1] || 80;
-        const position = profitMaximizer.calculateDynamicPosition(
+        if (confidence < 85) {
+            return NextResponse.json({
+                error: `Confidence too low: ${confidence}%`,
+                stats: enhancedProfitMaximizer.getStats()
+            });
+        }
+
+        // Analyze market
+        const marketCondition = await enhancedProfitMaximizer.analyzeMarket(signal.forecast_price);
+        const strategy = enhancedProfitMaximizer.selectStrategy(signal, marketCondition);
+
+        // Calculate position
+        const position = enhancedProfitMaximizer.calculateEnhancedPosition(
             signal.forecast_price,
             confidence,
-            marketCondition,
+            strategy,
+            availableSlot.allocatedMargin
+        );
+
+        // Place order with native stops
+        const orderResult = await enhancedProfitMaximizer.placeOrderWithNativeStops(
+            signal,
+            position,
+            availableSlot,
             strategy
         );
-
-        // Place trade
-        const orderResult = await placeAggressiveOrder(
-            'BTC-PERP',
-            signal.signal === 'LONG' ? 'BUY' : 'SELL',
-            position.size
-        );
-
-        // Track new trade
-        let newTradeId: string | null = null;
-        if (orderResult.success && orderResult.result?.response?.data?.statuses) {
-            const statuses = orderResult.result.response.data.statuses;
-
-            for (const status of statuses) {
-                if (status.filled) {
-                    const { avgPx, totalSz } = status.filled;
-                    newTradeId = profitMaximizer.createTrade(
-                        signal,
-                        avgPx,
-                        signal.signal === 'LONG' ? totalSz : -totalSz,
-                        position.leverage,
-                        strategy
-                    );
-                    break;
-                }
-            }
-        }
 
         return NextResponse.json({
             success: orderResult.success,
             timestamp: new Date().toISOString(),
             newTrade: {
-                tradeId: newTradeId,
+                tradeId: orderResult.tradeId,
+                slotId: availableSlot.slotId,
                 strategy: strategy,
                 signal: signal.signal,
                 confidence: confidence,
-                entryPrice: orderResult.pricing?.orderPrice,
+                entryPrice: signal.forecast_price,
                 size: position.size,
                 leverage: position.leverage,
-                expectedProfit: position.expectedProfit
+                nativeStopActive: true,
+                hardStopPrice: position.hardStopPrice,
+                emergencyStopPrice: position.emergencyStopPrice
             },
             marketCondition,
-            stats: profitMaximizer.getStats()
+            stats: enhancedProfitMaximizer.getStats()
         });
 
     } catch (error: any) {
-        console.error('❌ Profit maximizer error:', error);
+        console.error('❌ Enhanced trading error:', error);
         return NextResponse.json({
             error: String(error.message || error),
-            stats: profitMaximizer.getStats()
+            stats: enhancedProfitMaximizer.getStats()
         });
     }
 }
 
 export async function POST(): Promise<NextResponse> {
     try {
-        if (profitMaximizer.getActiveCount() === 0) {
-            return NextResponse.json({
-                message: 'No active trades',
-                stats: profitMaximizer.getStats()
-            });
-        }
-
-        const response = await fetch('https://api.hyperliquid.xyz/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'allMids' })
-        });
-        const allMids: Record<string, number> = await response.json();
-        const currentPrice = allMids['BTC'];
-
-        if (!currentPrice) {
-            return NextResponse.json({ error: 'Price fetch failed' });
-        }
-
-        const actions: Array<{ tradeId: string; action: string; success: boolean }> = [];
-
-        for (const [tradeId] of profitMaximizer.getActiveTrades()) {
-            const action = profitMaximizer.checkTrade(tradeId, currentPrice);
-            if (action) {
-                const success = await profitMaximizer.closeTrade(tradeId, action);
-                actions.push({ tradeId, action, success });
-                await new Promise(resolve => setTimeout(resolve, 600));
-            }
-        }
+        // Monitor emergency stops and time exits
+        await enhancedProfitMaximizer.monitorEmergencyStops();
 
         return NextResponse.json({
             success: true,
             timestamp: new Date().toISOString(),
-            activeTrades: profitMaximizer.getActiveCount(),
-            actionsPerformed: actions.length,
-            actions,
-            stats: profitMaximizer.getStats(),
-            currentPrice
+            activeTrades: enhancedProfitMaximizer.getActiveCount(),
+            stats: enhancedProfitMaximizer.getStats(),
+            message: 'Emergency monitoring completed'
         });
 
     } catch (error: any) {
-        console.error('❌ Management error:', error);
+        console.error('❌ Monitoring error:', error);
         return NextResponse.json({ error: String(error.message || error) });
     }
 }
