@@ -487,6 +487,25 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     // const [activeMobileTab, setActiveMobileTab] = useState<'terminal' | 'prediction'>('terminal');
 
 
+    const generateUUID = (): string => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    };
+    //chaingpt integration
+    const [chainGptMode, setChainGptMode] = useState(false);
+    const [chainGptHistory, setChainGptHistory] = useState(true);
+    // const [chainGptUniqueId, setChainGptUniqueId] = useState<string>('');
+    const [chainGptUniqueId, setChainGptUniqueId] = useState<string>(() => {
+        return generateUUID(); // Generates proper UUID on mount
+    });
+    const [showChainGptPopup, setShowChainGptPopup] = useState(false);
+    const [showPluginsPopup, setShowPluginsPopup] = useState(false);
+
+
+
     const normalizeSentiment = (score: number): 'bearish' | 'neutral' | 'bullish' => {
         if (score <= 1.6) return 'bearish';
         if (score <= 3.3) return 'neutral';
@@ -812,6 +831,342 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     const TREASURY_WALLET = "8jgNmNZ5ig9jPyYw1acGj8MsGbAFvPR8RqunPdNByoqm"; // Replace with your actual Solana wallet
 
+    //ChainGPT api itnegration function
+    const processChainGptMessage = async (message: string): Promise<void> => {
+        try {
+            // Generate unique ID if not exists (wallet-based)
+            if (!chainGptUniqueId && wallet.publicKey) {
+                setChainGptUniqueId(`${wallet.publicKey.toString()}-${Date.now()}`);
+            }
+
+            // Prepare ChainGPT API payload according to their documentation
+            const chainGptPayload = {
+                model: "general_assistant",
+                question: message,
+                chatHistory: chainGptHistory ? "on" : "off",
+                sdkUniqueId: chainGptUniqueId || "default-user",
+                useCustomContext: true,
+                contextInjection: {
+                    companyName: "ZkTerminal",
+                    companyDescription: "Web3 AI platform for crypto analysis and DeFi insights",
+                    aiTone: "PRE_SET_TONE",
+                    selectedTone: "FRIENDLY"
+                }
+            };
+
+            // Call ChainGPT API
+            const response = await fetch('https://api.chaingpt.org/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CHAINGPT_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(chainGptPayload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`ChainGPT API error: ${response.status} ${response.statusText}`);
+            }
+
+            // Create temporary message for streaming response
+            const tempAssistantMessage: Message = {
+                role: 'assistant',
+                content: ''
+            };
+
+            setDisplayMessages(prev => [...prev, tempAssistantMessage]);
+
+            // Handle ChainGPT response (can be streaming or single response)
+            if (response.body) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedContent = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+
+                    try {
+                        // Try to parse as JSON (single response)
+                        const parsed = JSON.parse(chunk);
+                        if (parsed.status && parsed.data && parsed.data.bot) {
+                            accumulatedContent = parsed.data.bot;
+                            break;
+                        }
+                    } catch {
+                        // If not JSON, treat as streaming text
+                        accumulatedContent += chunk;
+                    }
+
+                    // Update the message with accumulated content
+                    setDisplayMessages(prev => {
+                        const newMessages = [...prev];
+                        newMessages[newMessages.length - 1] = {
+                            role: 'assistant',
+                            content: accumulatedContent || 'ChainGPT is thinking...'
+                        };
+                        return newMessages;
+                    });
+                }
+
+                // Final update
+                setDisplayMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1] = {
+                        role: 'assistant',
+                        content: accumulatedContent || 'No response received from ChainGPT'
+                    };
+                    return newMessages;
+                });
+
+                // Update API messages for context
+                setApiMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: accumulatedContent
+                }]);
+            }
+
+        } catch (error) {
+            console.error('ChainGPT Error:', error);
+
+            setDisplayMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = {
+                    role: 'assistant',
+                    content: `🚫 Error connecting to Web3 AI: ${error instanceof Error ? error.message : 'Network error'}. Switching back to regular AI.`,
+                    type: 'text'
+                };
+                return newMessages;
+            });
+
+            // Auto-disable ChainGPT mode on error
+            setChainGptMode(false);
+        }
+    };
+
+    const PluginsPopup: React.FC<{
+        onClose: () => void;
+    }> = ({ onClose }) => {
+        const popupRef = useRef<HTMLDivElement>(null);
+
+        // Close popup when clicking outside
+        useEffect(() => {
+            const handleClickOutside = (event: MouseEvent) => {
+                if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+                    onClose();
+                }
+            };
+
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }, [onClose]);
+
+        return (
+            <div
+                ref={popupRef}
+                className="absolute bottom-full left-0 mb-2 bg-[#171D3D] rounded-lg shadow-lg border border-gray-600 p-4 w-80 z-50"
+            >
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold">🔌 Plugins</h3>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-white"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                {/* Web3 AI Plugin */}
+                <div className="space-y-3">
+                    <div className="border border-gray-600 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center">
+                                <span className="mr-2">🚀</span>
+                                <span className="text-white font-medium">Web3 AI Assistant</span>
+                            </div>
+                            <div className={`w-3 h-3 rounded-full ${chainGptMode ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
+                        </div>
+
+                        <p className="text-xs text-gray-300 mb-3">
+                            Powered by ChainGPT - Specialized in crypto, DeFi, NFTs, and blockchain analysis
+                        </p>
+
+                        <div className="space-y-2">
+                            {/* Mode Toggle */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-white text-sm">Status</span>
+                                <button
+                                    onClick={() => {
+                                        setChainGptMode(!chainGptMode);
+                                        if (!chainGptMode) {
+                                            // Show activation message
+                                            const activationMessage: Message = {
+                                                role: 'assistant',
+                                                content: (
+                                                    <div className="flex items-center space-x-2 bg-green-900 border border-green-500 rounded-lg p-3">
+                                                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                                        <span className="text-green-300">
+                                                            🚀 Web3 AI Plugin Activated - Now using ChainGPT for Web3 insights
+                                                        </span>
+                                                    </div>
+                                                ),
+                                                type: 'text'
+                                            };
+                                            setDisplayMessages(prev => [...prev, activationMessage]);
+                                        }
+                                    }}
+                                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${chainGptMode
+                                        ? 'bg-green-600 text-white hover:bg-green-700'
+                                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                        }`}
+                                >
+                                    {chainGptMode ? 'ON' : 'OFF'}
+                                </button>
+                            </div>
+
+                            {/* History Toggle */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-white text-sm">Memory</span>
+                                <button
+                                    onClick={() => setChainGptHistory(!chainGptHistory)}
+                                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${chainGptHistory
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                        }`}
+                                    disabled={!chainGptMode}
+                                >
+                                    {chainGptHistory ? 'ON' : 'OFF'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Specializations */}
+                        <div className="mt-3">
+                            <div className="text-xs text-gray-400 mb-1">Specializes in:</div>
+                            <div className="flex flex-wrap gap-1">
+                                {['DeFi', 'Trading', 'NFTs', 'Blockchain', 'Crypto News'].map(tag => (
+                                    <span key={tag} className="bg-blue-900 text-blue-300 px-2 py-1 rounded text-xs">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Future plugins can be added here */}
+                    <div className="border border-gray-600 rounded-lg p-3 opacity-50">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center">
+                                <span className="mr-2">🎨</span>
+                                <span className="text-white font-medium">AI Art Generator</span>
+                            </div>
+                            <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                        </div>
+                        <p className="text-xs text-gray-400">Coming Soon</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
+    //chaingpt popupcomponent
+    const ChainGptToolsPopup: React.FC<{
+        onClose: () => void;
+        onToggleMode: () => void;
+        isActive: boolean;
+        historyEnabled: boolean;
+        onToggleHistory: () => void;
+    }> = ({ onClose, onToggleMode, isActive, historyEnabled, onToggleHistory }) => {
+
+        const popupRef = useRef<HTMLDivElement>(null);
+
+        // Close popup when clicking outside
+        useEffect(() => {
+            const handleClickOutside = (event: MouseEvent) => {
+                if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+                    onClose();
+                }
+            };
+
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }, [onClose]);
+
+        return (
+            <div
+                ref={popupRef}
+                className="absolute bottom-full left-0 mb-2 bg-[#171D3D] rounded-lg shadow-lg border border-gray-600 p-4 w-80 z-50"
+            >
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold flex items-center">
+                        <span className="mr-2">🚀</span>
+                        Web3 AI Assistant
+                    </h3>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-white"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div className="text-sm text-gray-300 mb-4">
+                    Powered by ChainGPT - Specialized in crypto, DeFi, NFTs, and blockchain analysis
+                </div>
+
+                <div className="space-y-3">
+                    {/* Mode Toggle */}
+                    <div className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                        <div className="flex items-center">
+                            <div className={`w-3 h-3 rounded-full mr-2 ${isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
+                            <span className="text-white text-sm">Web3 AI Mode</span>
+                        </div>
+                        <button
+                            onClick={onToggleMode}
+                            className={`px-3 py-1 rounded text-sm font-medium ${isActive
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                }`}
+                        >
+                            {isActive ? 'ON' : 'OFF'}
+                        </button>
+                    </div>
+
+                    {/* History Toggle */}
+                    <div className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                        <span className="text-white text-sm">Conversation Memory</span>
+                        <button
+                            onClick={onToggleHistory}
+                            className={`px-3 py-1 rounded text-sm font-medium ${historyEnabled
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                }`}
+                            disabled={!isActive}
+                        >
+                            {historyEnabled ? 'ON' : 'OFF'}
+                        </button>
+                    </div>
+
+                    {/* Specializations */}
+                    <div className="text-xs text-gray-400">
+                        <div className="font-medium mb-1">Specializes in:</div>
+                        <div className="flex flex-wrap gap-1">
+                            {['DeFi', 'Trading', 'NFTs', 'Blockchain', 'Crypto News'].map(tag => (
+                                <span key={tag} className="bg-blue-900 text-blue-300 px-2 py-1 rounded">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
 
     const [payments, setPayments] = useState<any[]>([]);
     const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -946,7 +1301,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     useEffect(() => {
         if (!wallet.connected) {
             setShowConnectModal(true);
-           // setShowTour(true)    
+            // setShowTour(true)    
         } else {
             setShowConnectModal(false);
         }
@@ -2674,6 +3029,27 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         setImageResultType(resultType);
 
         const fullMessage = inputMessage.trim();
+
+        if (chainGptMode && !fullMessage.startsWith('/')) {
+            // Add user message
+            const userMessage: Message = {
+                role: 'user',
+                content: fullMessage
+            };
+            setDisplayMessages(prev => [...prev, userMessage]);
+            setApiMessages(prev => [...prev, userMessage]);
+
+            setInputMessage('');
+            if (inputRef.current) {
+                inputRef.current.style.height = '2.5rem';
+            }
+            setIsLoading(true);
+
+            // Process with ChainGPT
+            await processChainGptMessage(fullMessage);
+            setIsLoading(false);
+            return;
+        }
 
         // if (fullMessage.startsWith('/generate-voice-clone')) {
         //     // Find an audio file among the uploaded files.
@@ -5065,13 +5441,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     return (
         <div className="flex min-h-screen bg-[#000000] overflow-hidden text-white">
 
-            {showConnectModal && <ConnectWalletModal onClose={() => 
-                {setShowConnectModal(false)  
-                setShowTour(true)  
+            {showConnectModal && <ConnectWalletModal onClose={() => {
+                setShowConnectModal(false)
+                setShowTour(true)
 
-                 }} 
-                 />
-                 }
+            }}
+            />
+            }
 
             {/* <PresaleBanner walletConnected={connected} walletAddress={walletAddress} /> */}
 
@@ -5130,8 +5506,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 <div className="flex items-center gap-2">
                                     {/* <CustomWalletButton /> */}
                                     <div className="wallet-button">
-  <CustomWalletButton />
-</div>
+                                        <CustomWalletButton />
+                                    </div>
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsOpen(!isOpen)}
@@ -5175,7 +5551,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
 
 
-                        {/* // Desktop header: your original one (or adjusted as needed) */}
+                            {/* // Desktop header: your original one (or adjusted as needed) */}
                             <header className="w-full py-4 bg-[#08121f] flex justify-between items-center px-4">
                                 <div className="text-lg font-semibold flex-1 flex justify-start items-center gap-2">
                                     <div>
@@ -5878,313 +6254,221 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                     />
                                 )} */}
 
-                                <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]">
-                                    <div className={`bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg ${!isMobile ? 'w-2/5' : 'w-full'} w-3/4`}>
+                                <footer className="w-full py-6 flex justify-center px-2 sticky top-0 bg-[#08121F]">
+                                    <div className="bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full">
                                         <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+
                                             {files.length > 0 && (
-                                                // <div className="flex flex-wrap gap-2 p-2">
-                                                //     {files.map((file, index) => (
-                                                //         <div key={index} className="relative w-20 h-20">
-                                                //             {file.isPdf ? (
-                                                //                 <div className="w-full h-full flex items-center justify-center bg-[#24284E] rounded-lg text-xs text-[#BDA0FF] text-center overflow-hidden p-1 border border-[#BDA0FF]">
-                                                //                     {file.file.name}
-                                                //                 </div>
-                                                //             ) : (
-                                                //                 <Image
-                                                //                     src={file.preview}
-                                                //                     alt={`Preview ${index}`}
-                                                //                     width={500}
-                                                //                     height={500}
-                                                //                     className="w-full h-full object-cover rounded-lg"
-                                                //                     layout="responsive"
-                                                //                 />
-                                                //             )}
-                                                //             <button
-                                                //                 onClick={() => removeFile(index)}
-                                                //                 className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                                                //                 type="button"
-                                                //             >
-                                                //                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                //                     <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                //                     <line x1="6" y1="6" x2="18" y2="18"></line>
-                                                //                 </svg>
-                                                //             </button>
-                                                //         </div>
-                                                //     ))}
-                                                // </div>
-                                                <div className="flex flex-wrap gap-2 p-2">
-                                                    {files.map((file, index) => (
-                                                        <div key={index} className="relative w-20 h-20">
+                                                <div className="flex flex-wrap gap-2 p-2 border-b border-gray-700">
+                                                    {files.map((file, i) => (
+                                                        <div key={i} className="relative w-20 h-20">
                                                             {file.isPdf ? (
                                                                 <div className="w-full h-full flex items-center justify-center bg-gray-800 text-xs text-white rounded-lg">
                                                                     {file.file.name}
                                                                 </div>
                                                             ) : file.isVideoOrAudio ? (
-                                                                <div className="w-full h-full">
-                                                                    {file.file.type.startsWith('video/') ? (
-                                                                        <video
-                                                                            src={file.preview}
-                                                                            controls
-                                                                            className="w-full h-full object-cover rounded-lg"
-                                                                        />
-                                                                    ) : (
-                                                                        <audio
-                                                                            src={file.preview}
-                                                                            controls
-                                                                            className="w-full object-cover rounded-lg"
-                                                                        />
-                                                                    )}
-                                                                </div>
+                                                                file.file.type.startsWith('video/') ? (
+                                                                    <video
+                                                                        src={file.preview}
+                                                                        controls
+                                                                        className="w-full h-full object-cover rounded-lg"
+                                                                    />
+                                                                ) : (
+                                                                    <audio
+                                                                        src={file.preview}
+                                                                        controls
+                                                                        className="w-full object-cover rounded-lg"
+                                                                    />
+                                                                )
                                                             ) : (
                                                                 <img
                                                                     src={file.preview}
-                                                                    alt={`Preview ${index}`}
+                                                                    alt={`Preview ${i}`}
                                                                     className="w-full h-full object-cover rounded-lg"
                                                                 />
                                                             )}
                                                             <button
-                                                                onClick={() => removeFile(index)}
-                                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                                                                onClick={() => removeFile(i)}
                                                                 type="button"
+                                                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 text-white text-xs"
                                                             >
                                                                 ✖
                                                             </button>
                                                         </div>
                                                     ))}
                                                 </div>
-
                                             )}
 
-
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="file"
-                                                    onChange={handleFileChange}
-                                                    //accept="image/*,.pdf"
-                                                    accept="image/*,.pdf,video/*,audio/*"
-                                                    className="hidden"
-                                                    id="fileInput"
-                                                    multiple
-                                                    disabled={!wallet.connected}
-                                                />
-                                                <label
-                                                    htmlFor="fileInput"
-                                                    className={`flex items-center justify-center bg-[#08121f] text-white rounded-lg px-3 py-2 ${!wallet.connected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                            <div className="p-3 pb-0">
+                                                <textarea
+                                                    ref={inputRef}
+                                                    value={inputMessage}
+                                                    onChange={handleInputChange}
+                                                    onKeyDown={(e) => {
+                                                        if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+                                                            if (!inputMessage.trim()) {
+                                                                e.preventDefault()
+                                                                return
+                                                            }
+                                                            e.preventDefault()
+                                                            handleSubmit(e)
+                                                        }
+                                                    }}
+                                                    placeholder={
+                                                        chainGptMode
+                                                            ? 'Ask Web3 AI about crypto, DeFi, NFTs...'
+                                                            : dictionary?.inputPlaceholder || 'How can I help you today?'
+                                                    }
+                                                    className={`w-full resize-none overflow-y-auto bg-transparent text-white rounded-lg border-none focus:outline-none ${chainGptMode ? 'placeholder-green-400' : 'placeholder-gray-400'
                                                         }`}
                                                     style={{
-                                                        height: '2.5rem', // Match the initial height of the textarea
+                                                        lineHeight: '1.5',
+                                                        minHeight: '20px',
+                                                        maxHeight: '120px',
+                                                        padding: '2px 4px',
+                                                        boxSizing: 'border-box',
                                                     }}
-                                                >
-                                                    <Image
-                                                        src="/images/Attach.svg"
-                                                        alt="Attach file"
-                                                        width={20}
-                                                        height={20}
-                                                    />
-                                                </label>
+                                                    onInput={(e) => {
+                                                        const t = e.target as HTMLTextAreaElement
+                                                        t.style.height = '40px'
+                                                        t.style.height = `${Math.min(t.scrollHeight, 120)}px`
+                                                    }}
+                                                    disabled={!wallet.connected}
+                                                />
+                                            </div>
 
-                                                {/* Textarea for input */}
-                                                <div className="relative w-full flex items-center bg-transparent py-1 mt-2 px-4 rounded-l-full command-input">
-                                                    <textarea
-                                                        ref={inputRef}
-                                                        value={inputMessage}
-                                                        onChange={handleInputChange}
-                                                        // onKeyDown={(e) => {
-                                                        //     if (e.key === 'Enter' && !e.shiftKey) {
-                                                        //         e.preventDefault(); // Prevent default new line
-                                                        //         handleSubmit(e); // Pass the event to handleSubmit
-                                                        //     }
-                                                        // }}
-                                                        onKeyDown={(e) => {
-                                                            if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-                                                                // Only submit if there's non-whitespace content
-                                                                if (!inputMessage.trim()) {
-                                                                    e.preventDefault();
-                                                                    return; // Prevent submission when empty
-                                                                }
-                                                                e.preventDefault();
-                                                                handleSubmit(e);
-                                                            }
-                                                        }}
-                                                        placeholder={dictionary?.inputPlaceholder}
-                                                        className="w-full resize-none overflow-y-auto bg-[#08121f] text-white rounded-lg placeholder-[#A0AEC0] focus:outline-none"
-                                                        style={{
-                                                            lineHeight: '1.5',
-                                                            height: '2.5rem', // Same initial height as the label
-                                                            maxHeight: '10rem', // Limit height to 10rem
-                                                            boxSizing: 'border-box',
-                                                        }}
-                                                        onInput={(e) => {
-                                                            const target = e.target as HTMLTextAreaElement;
-                                                            target.style.height = '2.5rem'; // Reset to the default height
-                                                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`; // Adjust height dynamically
-                                                        }}
+                                            <div className="flex items-center justify-between gap-2 px-3 pb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        id="fileInput"
+                                                        type="file"
+                                                        onChange={handleFileChange}
+                                                        accept="image/*,.pdf,video/*,audio/*"
+                                                        className="hidden"
+                                                        multiple
                                                         disabled={!wallet.connected}
                                                     />
-                                                    {/* {showAgentTypePopup && <AgentTypePopup onSelect={handleAgentTypeSelect} />} */}
-
-                                                    {showCommandPopup && (
-                                                        <div ref={commandPopupRef}>
-                                                            <CommandPopup onSelect={handleCommandSelect} />
-                                                        </div>
-                                                    )}
-                                                    {showTickerPopup && (
-                                                        <TickerPopup tickers={tickers} onSelect={handleTickerSelect} />
-                                                    )}
-
-                                                    {showImgToVideoPopup && (
-                                                        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
-                                                            <p className="mb-2 text-sm text-white">Choose your /img-to-video mode:</p>
-                                                            <div className="flex flex-col gap-2">
-                                                                <button
-                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                                    onClick={() => {
-                                                                        setWan2Choice('with');
-                                                                        setShowImgToVideoPopup(false);
-                                                                        // The user typed /img-to-video, we’ll let them finish the prompt
-                                                                        // or we can do it automatically:
-                                                                        // setInputMessage('/img-to-video with Wan2.0 ');
-                                                                        // Optionally show the video length modal right away:
-                                                                        // setShowVideoLengthModal(true);
-                                                                        setInputMessage('/img-to-video with Wan2.0 ');
-                                                                    }}
-                                                                >
-                                                                    With Wan2.0
-                                                                </button>
-
-                                                                <button
-                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                                    onClick={() => {
-                                                                        setWan2Choice('without');
-                                                                        setShowImgToVideoPopup(false);
-                                                                        // Optionally set a default message:
-                                                                        // setInputMessage('/img-to-video without Wan2.0 ');
-                                                                    }}
-                                                                >
-                                                                    Without Wan2.0
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {showVideoLengthModal && wan2Choice === 'with' && (
-                                                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                                            <div className="bg-[#171D3D] p-6 rounded-lg shadow-lg relative w-80">
-                                                                <button
-                                                                    className="absolute top-2 right-2 text-white"
-                                                                    onClick={() => setShowVideoLengthModal(false)}
-                                                                >
-                                                                    ✖
-                                                                </button>
-                                                                <h2 className="text-xl text-white mb-4">Enter Video Length</h2>
-                                                                <input
-                                                                    type="number"
-                                                                    className="w-full bg-gray-800 text-white p-2 rounded mb-4"
-                                                                    value={videoLength}
-                                                                    onChange={(e) => setVideoLength(e.target.value)}
-                                                                />
-                                                                <button
-                                                                    className="px-4 py-2 bg-blue-500 text-white rounded w-full"
-                                                                    onClick={() => {
-                                                                        setShowVideoLengthModal(false);
-                                                                        // Now call the function to execute the API call for "with Wan2.0"
-                                                                        handleSubmitImgToVideoWan2();
-                                                                    }}
-                                                                >
-                                                                    Submit
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-
-
-                                                    {showVideoLipsyncOption && (
-                                                        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#171D3D] rounded-lg shadow-lg z-50 p-2">
-                                                            <p className="mb-2 text-sm text-white">Select animation type:</p>
-                                                            <div className="flex flex-col gap-2">
-                                                                <button
-                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                                    onClick={() => {
-                                                                        // Set option and update the input field.
-                                                                        setVideoLipsyncOption('Animal');
-                                                                        setInputMessage('/video-lipsync animation mode animal');
-                                                                        setShowVideoLipsyncOption(false);
-                                                                    }}
-                                                                >
-                                                                    Animal
-                                                                </button>
-                                                                <button
-                                                                    className="px-4 py-2 bg-blue-500 text-white rounded"
-                                                                    onClick={() => {
-                                                                        setVideoLipsyncOption('Human');
-                                                                        setInputMessage('/video-lipsync animation mode human');
-                                                                        setShowVideoLipsyncOption(false);
-                                                                    }}
-                                                                >
-                                                                    Human
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* {showBridgePopup && (
-                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                                    <div className="bg-white p-4 rounded-lg relative">
-                                                        <button
-                                                            className="absolute top-2 right-2 text-black"
-                                                            onClick={() => setShowBridgePopup(false)}
-                                                        >
-                                                            ✖
-                                                        </button>
-                                                        <WalletConnectPopup
-                                                            isOpen={showBridgePopup}
-                                                            onClose={() => setShowBridgePopup(false)}
+                                                    <label
+                                                        htmlFor="fileInput"
+                                                        className={`flex items-center justify-center rounded-lg p-2 transition-colors ${!wallet.connected
+                                                                ? 'opacity-50 cursor-not-allowed bg-gray-800'
+                                                                : 'cursor-pointer bg-gray-700 hover:bg-gray-600'
+                                                            }`}
+                                                        style={{ width: '40px', height: '40px' }}
+                                                    >
+                                                        <Image
+                                                            src="/images/Attach.svg"
+                                                            alt="Attach file"
+                                                            width={20}
+                                                            height={20}
                                                         />
-                                                    </div>
+                                                    </label>
+                                                    {/* <button
+                                                        type="button"
+                                                        onClick={() => setShowPluginsPopup(!showPluginsPopup)}
+                                                        className={`flex items-center justify-center rounded-lg p-2 transition-colors ${chainGptMode
+                                                                ? 'bg-green-700 text-white border border-green-500'
+                                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                            }`}
+                                                        style={{ width: '70px', height: '40px' }}
+                                                        disabled={!wallet.connected}
+                                                    >
+                                                        <span>Plugins</span>
+                                                        {chainGptMode && (
+                                                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                                        )}
+                                                    </button> */}
+                                                    <button
+    type="button"
+    onClick={() => setShowPluginsPopup((v) => !v)}
+    className={`
+      flex items-center justify-center 
+      rounded-lg p-2 transition-colors
+      ${chainGptMode
+        ? 'bg-green-700 text-white border border-green-500'
+        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
+    `}
+    style={{ width: 70, height: 40 }}
+    disabled={!wallet.connected}
+  >
+    Plugins
+    {chainGptMode && (
+      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+    )}
+  </button>
+
+  {showPluginsPopup && (
+    <div className="absolute bottom-full left-0 mb-2 z-50">
+      <PluginsPopup onClose={() => setShowPluginsPopup(false)} />
+    </div>
+  )}
                                                 </div>
-                                            )} */}
-
-                                                    {showImageSelectModal && selectedImage && (
-                                                        <ImageSelectionModal
-                                                            imageUrl={selectedImage}
-                                                            onClose={() => {
-                                                                setShowImageSelectModal(false);
-                                                                setSelectedImage(null);
-                                                            }}
-                                                        />
-                                                    )}
-
-                                                    {showVideoEditModal && videoToEdit && (
-                                                        <VideoEditModal
-                                                            videoUrl={videoToEdit}
-                                                            onClose={() => setShowVideoEditModal(false)}
-                                                            onSaveTrimmed={handleSaveTrimmed}
-                                                            onSaveCaption={handleSaveCaption}
-                                                        />
-                                                    )}
-
-
-
-
-                                                </div>
-
-                                                {/* Submit button */}
                                                 <button
                                                     type="submit"
-                                                    className="bg-white text-black p-1 m-1 rounded-md font-bold"
-                                                    style={{
-                                                        height: '1.5rem', // Same height as the textarea
-                                                    }}
-                                                    disabled={isLoading || !wallet.connected}
+                                                    className={`flex items-center justify-center rounded-lg p-2 font-bold transition-colors ${chainGptMode
+                                                            ? 'bg-green-600 text-white hover:bg-green-700'
+                                                            : 'bg-white text-black hover:bg-gray-100'
+                                                        }`}
+                                                    style={{ width: '40px', height: '40px' }}
+                                                    disabled={isLoading || !wallet.connected || !inputMessage.trim()}
                                                 >
-                                                    <BsArrowReturnLeft />
+                                                    <BsArrowReturnLeft size={16} />
                                                 </button>
                                             </div>
 
+                                            {showVideoLengthModal && wan2Choice === 'with' && (
+                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                                                    <div className="bg-[#171D3D] p-6 rounded-lg shadow-lg relative w-80">
+                                                        <button
+                                                            className="absolute top-2 right-2 text-white hover:text-gray-300"
+                                                            onClick={() => setShowVideoLengthModal(false)}
+                                                        >
+                                                            ✖
+                                                        </button>
+                                                        <h2 className="text-xl text-white mb-4">Enter Video Length</h2>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full bg-gray-800 text-white p-2 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={videoLength}
+                                                            onChange={(e) => setVideoLength(e.target.value)}
+                                                            placeholder="Duration in seconds"
+                                                        />
+                                                        <button
+                                                            className="px-4 py-2 bg-blue-500 text-white rounded w-full hover:bg-blue-600 transition-colors"
+                                                            onClick={() => {
+                                                                setShowVideoLengthModal(false)
+                                                                handleSubmitImgToVideoWan2()
+                                                            }}
+                                                        >
+                                                            Generate Video
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {showImageSelectModal && selectedImage && (
+                                                <ImageSelectionModal
+                                                    imageUrl={selectedImage}
+                                                    onClose={() => {
+                                                        setShowImageSelectModal(false)
+                                                        setSelectedImage(null)
+                                                    }}
+                                                />
+                                            )}
+
+                                            {showVideoEditModal && videoToEdit && (
+                                                <VideoEditModal
+                                                    videoUrl={videoToEdit}
+                                                    onClose={() => setShowVideoEditModal(false)}
+                                                    onSaveTrimmed={handleSaveTrimmed}
+                                                    onSaveCaption={handleSaveCaption}
+                                                />
+                                            )}
 
                                         </form>
                                     </div>
                                 </footer>
+
                             </>
                         )}
                         {/* {isMobile && activeMobileTab === 'prediction' && (
