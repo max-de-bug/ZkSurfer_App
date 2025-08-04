@@ -6305,6 +6305,11 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     value={inputMessage}
                                                     onChange={handleInputChange}
                                                     onKeyDown={(e) => {
+                                                        if (e.key === '/') {
+                                                            e.preventDefault();
+                                                            setShowCommandPopup(true);
+                                                            return;
+                                                        }
                                                         if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                                                             if (!inputMessage.trim()) {
                                                                 e.preventDefault()
@@ -6335,6 +6340,14 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     }}
                                                     disabled={!wallet.connected}
                                                 />
+                                                {showCommandPopup && (
+    <div
+      ref={commandPopupRef}
+      className="absolute  left-36 top-0 z-50"
+    >
+      <CommandPopup onSelect={handleCommandSelect}/>
+    </div>
+  )}
                                             </div>
 
                                             <div className="flex items-center justify-between gap-2 px-3 pb-3">
@@ -6351,8 +6364,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     <label
                                                         htmlFor="fileInput"
                                                         className={`flex items-center justify-center rounded-lg p-2 transition-colors ${!wallet.connected
-                                                                ? 'opacity-50 cursor-not-allowed bg-gray-800'
-                                                                : 'cursor-pointer bg-gray-700 hover:bg-gray-600'
+                                                            ? 'opacity-50 cursor-not-allowed bg-gray-800'
+                                                            : 'cursor-pointer bg-gray-700 hover:bg-gray-600'
                                                             }`}
                                                         style={{ width: '40px', height: '40px' }}
                                                     >
@@ -6379,35 +6392,35 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         )}
                                                     </button> */}
                                                     <button
-    type="button"
-    onClick={() => setShowPluginsPopup((v) => !v)}
-    className={`
+                                                        type="button"
+                                                        onClick={() => setShowPluginsPopup((v) => !v)}
+                                                        className={`
       flex items-center justify-center 
       rounded-lg p-2 transition-colors
       ${chainGptMode
-        ? 'bg-green-700 text-white border border-green-500'
-        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
+                                                                ? 'bg-green-700 text-white border border-green-500'
+                                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
     `}
-    style={{ width: 70, height: 40 }}
-    disabled={!wallet.connected}
-  >
-    Plugins
-    {chainGptMode && (
-      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-    )}
-  </button>
+                                                        style={{ width: 70, height: 40 }}
+                                                        disabled={!wallet.connected}
+                                                    >
+                                                        Plugins
+                                                        {chainGptMode && (
+                                                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                                        )}
+                                                    </button>
 
-  {showPluginsPopup && (
-    <div className="absolute bottom-full left-0 mb-2 z-50">
-      <PluginsPopup onClose={() => setShowPluginsPopup(false)} />
-    </div>
-  )}
+                                                    {showPluginsPopup && (
+                                                        <div className="absolute bottom-full left-0 mb-2 z-50">
+                                                            <PluginsPopup onClose={() => setShowPluginsPopup(false)} />
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <button
                                                     type="submit"
                                                     className={`flex items-center justify-center rounded-lg p-2 font-bold transition-colors ${chainGptMode
-                                                            ? 'bg-green-600 text-white hover:bg-green-700'
-                                                            : 'bg-white text-black hover:bg-gray-100'
+                                                        ? 'bg-green-600 text-white hover:bg-green-700'
+                                                        : 'bg-white text-black hover:bg-gray-100'
                                                         }`}
                                                     style={{ width: '40px', height: '40px' }}
                                                     disabled={isLoading || !wallet.connected || !inputMessage.trim()}
