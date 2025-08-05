@@ -5749,9 +5749,9 @@ const calculateTradePnL = (currentIndex: number, hourlyForecast: HourlyForecast[
   const currentForecast = hourlyForecast[currentIndex];
   const nextForecast = hourlyForecast[currentIndex + 1];
 
-  if (!currentForecast || !nextForecast || 
-      currentForecast.signal === 'HOLD' || 
-      !currentForecast.entry_price) {
+  if (!currentForecast || !nextForecast ||
+    currentForecast.signal === 'HOLD' ||
+    !currentForecast.entry_price) {
     return { pnl: 0, pnlPercentage: 0, exitPrice: 0, exitReason: 'pending' };
   }
 
@@ -5759,7 +5759,7 @@ const calculateTradePnL = (currentIndex: number, hourlyForecast: HourlyForecast[
   const stopLoss = currentForecast.stop_loss;
   const takeProfit = currentForecast.take_profit;
   const nextPrice = nextForecast.current_price;
-  
+
   let exitPrice = nextPrice;
   let exitReason = 'next_hour';
 
@@ -5998,6 +5998,30 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const [dataSource, setDataSource] = useState<'real' | 'fallback'>('real');
   const [isChartMaximized, setIsChartMaximized] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+
+
+  const nextForecast = hourlyForecast?.at(-1) ?? null;
+
+
+  function formatDollar(n: number) {
+    return `$${n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  // default to “Hold” if nothing
+  const action = nextForecast
+    ? nextForecast.signal === 'LONG' ? 'Buy'
+      : nextForecast.signal === 'SHORT' ? 'Sell'
+        : 'Hold'
+    : 'Hold';
+
+  // build a ±0.1% entry zone
+  const fuzz = 0.001;
+  const entryPrice = nextForecast?.entry_price ?? 0;
+  const entryMin = entryPrice * (1 - fuzz);
+  const entryMax = entryPrice * (1 + fuzz);
 
   const [latest, setLatest] = useState<{
     deviation_percent?: number | string;
@@ -6763,7 +6787,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
           const tradePnL = calculateTradePnL(index, hourlyForecast);
           const isLong = forecast.signal === 'LONG';
-          
+
           return (
             <g key={`trade-${index}`}>
               {/* Entry Marker */}
@@ -6784,7 +6808,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
                 }, 'trade')}
                 onMouseLeave={hideTooltip}
               />
-              
+
               {/* B/S letter */}
               <text
                 x={entryX}
@@ -6830,7 +6854,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
                           }, 'trade')}
                           onMouseLeave={hideTooltip}
                         />
-                        
+
                         {/* X letter */}
                         <text
                           x={exitX}
@@ -7255,12 +7279,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
                       <>
                         <div className="flex justify-between gap-2">
                           <span className="text-gray-400">Exit Reason:</span>
-                          <span className={`${
-                            tooltip.data.exitReason === 'take_profit' ? 'text-green-400' :
+                          <span className={`${tooltip.data.exitReason === 'take_profit' ? 'text-green-400' :
                             tooltip.data.exitReason === 'stop_loss' ? 'text-red-400' : 'text-blue-400'
-                          }`}>
+                            }`}>
                             {tooltip.data.exitReason === 'take_profit' ? 'Take Profit' :
-                             tooltip.data.exitReason === 'stop_loss' ? 'Stop Loss' : 'Next Hour'}
+                              tooltip.data.exitReason === 'stop_loss' ? 'Stop Loss' : 'Next Hour'}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
@@ -7464,6 +7487,42 @@ const PriceChart: React.FC<PriceChartProps> = ({
             <div className="text-yellow-400 text-lg md:text-xl font-bold">{minutesToNextForecast}m</div>
           </div>
         </div>
+        {nextForecast && (
+          <div
+            className={`
+      mt-3
+      inline-block
+      bg-yellow-500/10    /* pale yellow background */
+      border-l-4 border-yellow-400  /* thick yellow accent bar */
+      px-3 py-2           /* padding for breathing room */
+      rounded-md          /* subtle rounding */
+      text-sm text-yellow-100 /* light yellow text */
+      font-semibold       /* bolder copy */
+      shadow-sm           /* tiny drop shadow */
+    `}
+          >
+            <span className="mr-1">🎯</span>
+            <strong className="text-yellow-200">Play:</strong>{" "}
+            {action} around{" "}
+            <span className="font-medium text-white">
+              {formatDollar(entryMin)}–{formatDollar(entryMax)}
+            </span>
+            {nextForecast.signal !== "HOLD" && (
+              <>
+                , target{" "}
+                <span className="font-medium text-yellow-200">
+                  {formatDollar(nextForecast.take_profit!)}
+                </span>
+                , stop at{" "}
+                <span className="font-medium text-yellow-200">
+                  {formatDollar(nextForecast.stop_loss!)}
+                </span>
+              </>
+            )}
+            .
+          </div>
+        )}
+
       </div>
 
       {/* Enhanced Key Metrics */}
@@ -7685,12 +7744,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
                   <>
                     <div className="flex justify-between gap-2">
                       <span className="text-gray-400">Exit Reason:</span>
-                      <span className={`${
-                        tooltip.data.exitReason === 'take_profit' ? 'text-green-400' :
+                      <span className={`${tooltip.data.exitReason === 'take_profit' ? 'text-green-400' :
                         tooltip.data.exitReason === 'stop_loss' ? 'text-red-400' : 'text-blue-400'
-                      }`}>
+                        }`}>
                         {tooltip.data.exitReason === 'take_profit' ? 'Take Profit' :
-                         tooltip.data.exitReason === 'stop_loss' ? 'Stop Loss' : 'Next Hour'}
+                          tooltip.data.exitReason === 'stop_loss' ? 'Stop Loss' : 'Next Hour'}
                       </span>
                     </div>
                     <div className="flex justify-between gap-2">
