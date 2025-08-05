@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/hl/cron-order",
-      "schedule": "0 */18 * * *"
-    }
-  ]
-}
