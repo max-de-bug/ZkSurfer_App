@@ -7,15 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "patch-package",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
-    "stripe:test": "stripe trigger checkout.session.completed",
-    "webhook:update": "tsx scripts/update-webhook-url.ts",
-    
-    // Testing scripts
-    "test:webhook": "curl -X GET http://localhost:3000/api/stripe/webhook",
-    "test:checkout": "curl -X POST http://localhost:3000/api/stripe/create-checkout-session -H 'Content-Type: application/json' -d '{\"planId\":\"monthly\",\"walletAddress\":\"0x123\",\"email\":\"test@example.com\"}'"
-  
+    "postinstall": "patch-package"
   },
   "resolutions": {
     "bigint": "npm:big-integer@^1.6.51",
