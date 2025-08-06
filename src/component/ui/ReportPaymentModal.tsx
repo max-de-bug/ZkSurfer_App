@@ -26,7 +26,7 @@ const PAYMENT_PLANS: PaymentPlan[] = [
   {
     id: 'monthly',
     name: 'Monthly Subscription',
-    usdPrice: 5,
+    usdPrice: 50,
     duration: '1 month',
     features: [
       '📊 All premium prediction reports',
