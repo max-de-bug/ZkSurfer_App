@@ -762,7 +762,7 @@ These Terms are governed by the laws of Singapore, without regard to its conflic
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
             <h3 className="text-white text-lg font-medium">Redirecting to Stripe...</h3>
             <p className="text-gray-400 text-center">
-              You'll be redirected to our secure payment processor to complete your subscription.
+              You&apos;ll be redirected to our secure payment processor to complete your subscription.
             </p>
             <button
               onClick={handleGoBack}
