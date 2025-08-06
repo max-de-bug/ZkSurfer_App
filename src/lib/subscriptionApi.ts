@@ -13,6 +13,10 @@ export interface RecordSubscriptionPayload {
     depositAddress: string;
     transactionHash: string;
     transactionStatus: string;
+     stripeSessionId?: string;
+  stripeSubscriptionId?: string;
+  stripeCustomerId?: string;
+  paymentMethod?: 'stripe' | 'aarc' | 'solana';
 }
 
 export interface SubscriptionResponse {

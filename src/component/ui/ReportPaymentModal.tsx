@@ -26,7 +26,7 @@ const PAYMENT_PLANS: PaymentPlan[] = [
   {
     id: 'monthly',
     name: 'Monthly Subscription',
-    usdPrice: 50,
+    usdPrice: 5,
     duration: '1 month',
     features: [
       '📊 All premium prediction reports',
@@ -61,7 +61,8 @@ enum PaymentStep {
   TERMS_ACCEPTANCE = 'terms_acceptance',
   PAYMENT_METHOD_SELECTION = 'payment_method_selection',
   SOLANA_PAY_QR = 'solana_pay_qr',
-  AARC_PROCESSING = 'aarc_processing'
+  AARC_PROCESSING = 'aarc_processing',
+   STRIPE_PROCESSING = 'stripe_processing' 
 }
 
 export interface ReportPaymentModalProps {
@@ -90,7 +91,7 @@ export default function ReportPaymentModal({
   // New state for enhanced flow
   const [currentStep, setCurrentStep] = useState<PaymentStep>(PaymentStep.PLAN_SELECTION);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'aarc' | 'solana' | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'aarc' | 'solana' | 'stripe' |  null>(null);
 
   const [userInputEmail, setUserInputEmail] = useState<string>('');
   const [isVerifyingEmail, setIsVerifyingEmail] = useState<boolean>(false);
@@ -168,14 +169,55 @@ export default function ReportPaymentModal({
     setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
   };
 
+   const handleStripePayment = async (planId: string) => {
+    if (!connectedWallet || !userEmail) {
+      toast.error('❌ Wallet and email are required for Stripe payment');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planId,
+          walletAddress: connectedWallet,
+          email: userEmail,
+        }),
+      });
+
+      const { sessionId, url } = await response.json();
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+      
+    } catch (error) {
+      console.error('❌ Error creating Stripe session:', error);
+      toast.error('❌ Failed to initialize Stripe payment. Please try again.');
+      setIsProcessing(false);
+      setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
+    }
+  };
+
   // Handle payment method selection
-  const handlePaymentMethodSelection = (method: 'aarc' | 'solana') => {
+  const handlePaymentMethodSelection = (method: 'aarc' | 'solana' | 'stripe') => {
     setSelectedPaymentMethod(method);
 
     if (method === 'solana') {
       handleSolanaPay(selectedPlan);
       setCurrentStep(PaymentStep.SOLANA_PAY_QR);
-    } else {
+    } else if (method === 'stripe') {
+      handleStripePayment(selectedPlan);
+      setCurrentStep(PaymentStep.STRIPE_PROCESSING);
+    }else {
       handleFundKitPayment(selectedPlan);
       setCurrentStep(PaymentStep.AARC_PROCESSING);
     }
@@ -194,6 +236,10 @@ export default function ReportPaymentModal({
         setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
         setSolanaPayURL('');
         setReferencePubKey(null);
+        setIsProcessing(false);
+        break;
+      case PaymentStep.STRIPE_PROCESSING: // NEW
+        setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
         setIsProcessing(false);
         break;
       default:
@@ -668,6 +714,14 @@ These Terms are governed by the laws of Singapore, without regard to its conflic
               </button>
 
               <button
+                onClick={() => handlePaymentMethodSelection('stripe')}
+                className="w-full p-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg border-2 border-transparent hover:border-indigo-400 transition-all"
+              >
+                <div className="text-lg font-bold mb-2">💳 Stripe (Credit Card)</div>
+                <div className="text-sm opacity-90">Pay with credit card, Apple Pay, Google Pay</div>
+              </button>
+
+              <button
                 onClick={handleGoBack}
                 className="w-full py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold"
               >
@@ -702,6 +756,24 @@ These Terms are governed by the laws of Singapore, without regard to its conflic
           </div>
         );
 
+        case PaymentStep.STRIPE_PROCESSING:
+        return (
+          <div className="flex flex-col items-center justify-center p-6 space-y-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+            <h3 className="text-white text-lg font-medium">Redirecting to Stripe...</h3>
+            <p className="text-gray-400 text-center">
+              You'll be redirected to our secure payment processor to complete your subscription.
+            </p>
+            <button
+              onClick={handleGoBack}
+              className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-full"
+              disabled={isProcessing}
+            >
+              Cancel
+            </button>
+          </div>
+        );
+
       default:
         return <div className="p-6 text-white text-center">Loading...</div>;
     }
@@ -717,6 +789,7 @@ These Terms are governed by the laws of Singapore, without regard to its conflic
               currentStep === PaymentStep.TERMS_ACCEPTANCE ? '📋 Terms & Conditions' :
                 currentStep === PaymentStep.PAYMENT_METHOD_SELECTION ? '💳 Payment Method' :
                   currentStep === PaymentStep.SOLANA_PAY_QR ? '⚡ Solana Pay' :
+                  currentStep === PaymentStep.STRIPE_PROCESSING ? '💳 Stripe Payment':
                     '💳 Processing Payment'}
           </h2>
           <button onClick={onClose} disabled={isProcessing}>

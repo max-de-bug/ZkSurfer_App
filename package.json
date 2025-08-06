@@ -7,7 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "stripe:test": "stripe trigger checkout.session.completed",
+    "webhook:update": "tsx scripts/update-webhook-url.ts",
+    
+    // Testing scripts
+    "test:webhook": "curl -X GET http://localhost:3000/api/stripe/webhook",
+    "test:checkout": "curl -X POST http://localhost:3000/api/stripe/create-checkout-session -H 'Content-Type: application/json' -d '{\"planId\":\"monthly\",\"walletAddress\":\"0x123\",\"email\":\"test@example.com\"}'"
+  
   },
   "resolutions": {
     "bigint": "npm:big-integer@^1.6.51",
@@ -51,6 +59,8 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.33",
     "@solana/web3.js": "^1.98.2",
+    "@stripe/react-stripe-js": "^3.9.0",
+    "@stripe/stripe-js": "^7.8.0",
     "@tanstack/react-query": "^5.81.5",
     "@textea/json-viewer": "^4.0.1",
     "@transak/transak-sdk": "^3.2.0",
@@ -99,6 +109,7 @@
     "shepherd.js": "^14.5.1",
     "solana-agent-kit": "^1.4.8",
     "sonner": "^1.7.0",
+    "stripe": "^18.4.0",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
@@ -116,6 +127,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/stripe": "^8.0.416",
     "eslint": "^8",
     "eslint-config-next": "14.2.4",
     "node-loader": "^2.1.0",
