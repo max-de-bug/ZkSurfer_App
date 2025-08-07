@@ -169,43 +169,120 @@ export default function ReportPaymentModal({
     setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
   };
 
-   const handleStripePayment = async (planId: string) => {
-    if (!connectedWallet || !userEmail) {
-      toast.error('❌ Wallet and email are required for Stripe payment');
-      return;
-    }
+  // Update your handleStripePayment function to show the real error
+const handleStripePayment = async (planId: string) => {
+  if (!connectedWallet || !userEmail) {
+    toast.error('❌ Wallet and email are required for Stripe payment');
+    return;
+  }
 
-    setIsProcessing(true);
+  setIsProcessing(true);
 
+  try {
+    console.log('🚀 Initiating Stripe payment for:', { planId, connectedWallet, userEmail });
+    
+    const response = await fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        planId,
+        walletAddress: connectedWallet,
+        email: userEmail,
+      }),
+    });
+
+    // 🔍 DEBUG: Log the actual response
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+
+    // Get response text first to see raw response
+    const responseText = await response.text();
+    console.log('📥 Raw response:', responseText);
+
+    // Try to parse as JSON
+    let responseData;
     try {
-      const response = await fetch('/api/stripe/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          planId,
-          walletAddress: connectedWallet,
-          email: userEmail,
-        }),
-      });
-
-      const { sessionId, url } = await response.json();
-
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      window.location.href = url;
-      
-    } catch (error) {
-      console.error('❌ Error creating Stripe session:', error);
-      toast.error('❌ Failed to initialize Stripe payment. Please try again.');
-      setIsProcessing(false);
-      setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
+      responseData = JSON.parse(responseText);
+      console.log('📥 Parsed response:', responseData);
+    } catch (parseError) {
+      console.error('❌ Failed to parse response as JSON:', parseError);
+      console.error('Raw response was:', responseText);
+      throw new Error(`Invalid JSON response: ${responseText}`);
     }
-  };
+
+    if (!response.ok) {
+      console.error('❌ API Error Details:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: responseData
+      });
+      
+      // Show the actual error from the server
+      const errorMessage = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(`Server Error: ${errorMessage}`);
+    }
+
+    const { sessionId, url } = responseData;
+
+    if (!url) {
+      throw new Error('No checkout URL received from Stripe');
+    }
+
+    console.log('✅ Redirecting to Stripe checkout:', url);
+    
+    // Redirect to Stripe Checkout
+    window.location.href = url;
+    
+  } catch (error) {
+    console.error('❌ Full Error Details:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Show the actual error instead of generic message
+    toast.error(`❌ ${errorMessage}`);
+    setIsProcessing(false);
+    setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
+  }
+};
+
+  //  const handleStripePayment = async (planId: string) => {
+  //   if (!connectedWallet || !userEmail) {
+  //     toast.error('❌ Wallet and email are required for Stripe payment');
+  //     return;
+  //   }
+
+  //   setIsProcessing(true);
+
+  //   try {
+  //     const response = await fetch('/api/stripe/create-checkout-session', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         planId,
+  //         walletAddress: connectedWallet,
+  //         email: userEmail,
+  //       }),
+  //     });
+
+  //     const { sessionId, url } = await response.json();
+
+  //     if (!response.ok) {
+  //       throw new Error('Failed to create checkout session');
+  //     }
+
+  //     // Redirect to Stripe Checkout
+  //     window.location.href = url;
+      
+  //   } catch (error) {
+  //     console.error('❌ Error creating Stripe session:', error);
+  //     toast.error('❌ Failed to initialize Stripe payment. Please try again.');
+  //     setIsProcessing(false);
+  //     setCurrentStep(PaymentStep.PAYMENT_METHOD_SELECTION);
+  //   }
+  // };
 
   // Handle payment method selection
   const handlePaymentMethodSelection = (method: 'aarc' | 'solana' | 'stripe') => {
