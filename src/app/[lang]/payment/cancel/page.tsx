@@ -73,7 +73,7 @@ export default function PaymentCancelPage() {
         {/* Support */}
         <div className="mt-12 text-gray-500 text-sm">
           <p>Need help with payment? Contact us at support@zkagi.ai</p>
-          <p className="mt-2">We're here to help you get started with ZkTerminal Premium!</p>
+          <p className="mt-2">We&apos;re here to help you get started with ZkTerminal Premium!</p>
         </div>
       </div>
     </div>

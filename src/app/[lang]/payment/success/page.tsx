@@ -105,7 +105,7 @@ export default function PaymentSuccessPage() {
 
         {/* What's Next */}
         <div className="bg-gray-800 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4">What's Next?</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">What&apos;s Next?</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="text-white font-medium mb-2">📊 Premium Reports</h4>
