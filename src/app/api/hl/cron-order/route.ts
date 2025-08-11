@@ -1425,69 +1425,50 @@ const sdk = new Hyperliquid({
     testnet: false
 });
 
-// ——— CONSTANTS WITH PNL-BASED LIMITS ————————————————————————————————————————————————
+// ——— SIMPLIFIED CONSTANTS WITH IMMEDIATE PROFIT TARGETS ————————————————————————————————————————————————
 const LOT_SIZE = 0.00001;
 const MIN_ORDER_SIZE = 0.0001;
-const MIN_PROFIT_PER_TRADE = 50;
-const MAX_LOSS_PER_TRADE = 20; // $30 immediate stop loss
-const PROFIT_MONITORING_THRESHOLD = 50; // $50 profit triggers 1-minute monitoring
+const MAX_PROFIT_PER_TRADE = 100;        // 🎯 IMMEDIATE CLOSE at $100 profit
+const QUICK_PROFIT_TARGET = 50;          // 🎯 IMMEDIATE CLOSE at $50 profit
+const MAX_LOSS_PER_TRADE = 20;           // 🛑 IMMEDIATE CLOSE at $20 loss (stop loss)
 const DAILY_LOSS_LIMIT = 100;
 const CAPITAL_USAGE_PERCENT = 0.30;
 const MAX_LEVERAGE = 25;
 const MIN_LEVERAGE = 5;
 const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour in milliseconds
-const ONE_MINUTE_MS = 60 * 1000; // 1 minute in milliseconds
 
-// ——— POSITION TRACKING FOR DYNAMIC PNL MANAGEMENT ————————————————————————————————————————
-interface PositionTracker {
-    coin: string;
-    maxProfitReached: number;
-    profitMonitoringStartTime: number | null;
-    lastPnlCheck: number;
-    pnlHistory: Array<{ timestamp: number; pnl: number }>;
-    isMonitoring: boolean;
-    shouldHold: boolean; // If true, don't close even if declining
-}
-
-class PnLTracker {
-    private trackedPositions = new Map<string, PositionTracker>();
-
+// ——— SIMPLIFIED PNL TRACKER (NO MORE 1-MINUTE MONITORING) ————————————————————————————————————————
+class SimplifiedPnLTracker {
     public updatePosition(coin: string, currentPnl: number): {
         shouldClose: boolean;
         reason: string;
-        action: 'STOP_LOSS' | 'PROFIT_TAKE' | 'HOLD' | 'MONITOR';
+        action: 'STOP_LOSS' | 'PROFIT_TAKE' | 'HOLD' | 'MAX_PROFIT';
     } {
-        const now = Date.now();
-        
-        // Get or create tracker
-        let tracker = this.trackedPositions.get(coin);
-        if (!tracker) {
-            tracker = {
-                coin,
-                maxProfitReached: currentPnl,
-                profitMonitoringStartTime: null,
-                lastPnlCheck: currentPnl,
-                pnlHistory: [],
-                isMonitoring: false,
-                shouldHold: false
+        console.log(`📊 CHECKING: ${coin} PnL: ${currentPnl.toFixed(2)}`);
+
+        // 🎯 RULE 1: MAXIMUM PROFIT TARGET - $100 (IMMEDIATE CLOSE)
+        if (currentPnl >= MAX_PROFIT_PER_TRADE) {
+            console.log(`🎯 MAX PROFIT REACHED: ${coin} at ${currentPnl.toFixed(2)} → IMMEDIATE CLOSE`);
+            return {
+                shouldClose: true,
+                reason: `MAX_PROFIT_${currentPnl.toFixed(2)}`,
+                action: 'MAX_PROFIT'
             };
-            this.trackedPositions.set(coin, tracker);
         }
 
-        // Update PnL history (keep last 10 entries for trend analysis)
-        tracker.pnlHistory.push({ timestamp: now, pnl: currentPnl });
-        if (tracker.pnlHistory.length > 10) {
-            tracker.pnlHistory.shift();
+        // 🎯 RULE 2: QUICK PROFIT TARGET - $50 (IMMEDIATE CLOSE)
+        if (currentPnl >= QUICK_PROFIT_TARGET) {
+            console.log(`💰 QUICK PROFIT REACHED: ${coin} at ${currentPnl.toFixed(2)} → IMMEDIATE CLOSE`);
+            return {
+                shouldClose: true,
+                reason: `QUICK_PROFIT_${currentPnl.toFixed(2)}`,
+                action: 'PROFIT_TAKE'
+            };
         }
 
-        // Update max profit
-        if (currentPnl > tracker.maxProfitReached) {
-            tracker.maxProfitReached = currentPnl;
-        }
-
-        // IMMEDIATE STOP LOSS - $30 loss
+        // 🛑 RULE 3: STOP LOSS - $20 (IMMEDIATE CLOSE)
         if (currentPnl <= -MAX_LOSS_PER_TRADE) {
-            this.removeTracker(coin);
+            console.log(`🛑 STOP LOSS HIT: ${coin} at ${currentPnl.toFixed(2)} → IMMEDIATE CLOSE`);
             return {
                 shouldClose: true,
                 reason: `STOP_LOSS_${currentPnl.toFixed(2)}`,
@@ -1495,107 +1476,23 @@ class PnLTracker {
             };
         }
 
-        // PROFIT MONITORING LOGIC - $50+ profit
-        if (currentPnl >= PROFIT_MONITORING_THRESHOLD) {
-            
-            // Start monitoring if not already
-            if (!tracker.isMonitoring) {
-                tracker.isMonitoring = true;
-                tracker.profitMonitoringStartTime = now;
-                console.log(`📈 PROFIT MONITORING STARTED: ${coin} at ${currentPnl.toFixed(2)} (1-minute watch)`);
-            }
-
-            // Check if 1 minute has passed since monitoring started
-            const monitoringDuration = now - (tracker.profitMonitoringStartTime || now);
-            
-            if (monitoringDuration >= ONE_MINUTE_MS) {
-                // After 1 minute, check if still increasing
-                const isIncreasing = this.isPnlIncreasing(tracker.pnlHistory);
-                
-                if (isIncreasing) {
-                    tracker.shouldHold = true;
-                    console.log(`🚀 LETTING PROFITS RUN: ${coin} still increasing after 1 min (${currentPnl.toFixed(2)})`);
-                    return {
-                        shouldClose: false,
-                        reason: `PROFIT_INCREASING_${currentPnl.toFixed(2)}`,
-                        action: 'HOLD'
-                    };
-                } else {
-                    // Declining after 1 minute - close it
-                    this.removeTracker(coin);
-                    return {
-                        shouldClose: true,
-                        reason: `PROFIT_DECLINING_AFTER_1MIN_${currentPnl.toFixed(2)}`,
-                        action: 'PROFIT_TAKE'
-                    };
-                }
-            } else {
-                // Within first minute - check if declining
-                if (this.isPnlDeclining(tracker.pnlHistory)) {
-                    this.removeTracker(coin);
-                    return {
-                        shouldClose: true,
-                        reason: `PROFIT_DECLINING_EARLY_${currentPnl.toFixed(2)}`,
-                        action: 'PROFIT_TAKE'
-                    };
-                } else {
-                    // Still monitoring
-                    const remainingTime = (ONE_MINUTE_MS - monitoringDuration) / 1000;
-                    console.log(`⏱️ MONITORING: ${coin} - ${remainingTime.toFixed(0)}s remaining`);
-                    return {
-                        shouldClose: false,
-                        reason: `MONITORING_${remainingTime.toFixed(0)}s_${currentPnl.toFixed(2)}`,
-                        action: 'MONITOR'
-                    };
-                }
-            }
-        }
-
-        // Update last check
-        tracker.lastPnlCheck = currentPnl;
-
+        // 📈 RULE 4: CONTINUE HOLDING
+        console.log(`📈 HOLDING: ${coin} at ${currentPnl.toFixed(2)} (waiting for targets)`);
         return {
             shouldClose: false,
-            reason: `NORMAL_OPERATION_${currentPnl.toFixed(2)}`,
+            reason: `HOLDING_${currentPnl.toFixed(2)}`,
             action: 'HOLD'
         };
     }
 
-    private isPnlIncreasing(history: Array<{ timestamp: number; pnl: number }>): boolean {
-        if (history.length < 3) return false;
-        
-        // Check last 3 data points for trend
-        const recent = history.slice(-3);
-        const trend = recent[2].pnl - recent[0].pnl;
-        return trend > 1; // Increasing by more than $1
-    }
-
-    private isPnlDeclining(history: Array<{ timestamp: number; pnl: number }>): boolean {
-        if (history.length < 3) return false;
-        
-        // Check if declining from recent peak
-        const recent = history.slice(-3);
-        const peak = Math.max(...recent.map(h => h.pnl));
-        const current = recent[recent.length - 1].pnl;
-        
-        return (peak - current) > 2; // Declined by more than $2 from recent peak
-    }
-
-    private removeTracker(coin: string): void {
-        this.trackedPositions.delete(coin);
-    }
-
-    public getTrackerInfo(coin: string): PositionTracker | null {
-        return this.trackedPositions.get(coin) || null;
-    }
-
     public clearTracker(coin: string): void {
-        this.trackedPositions.delete(coin);
+        // No tracking needed in simplified version
+        console.log(`✅ Cleared tracker for ${coin}`);
     }
 }
 
-// Global PnL tracker instance
-const pnlTracker = new PnLTracker();
+// Global simplified PnL tracker instance
+const pnlTracker = new SimplifiedPnLTracker();
 
 // ——— Helper Functions ————————————————————————————————————————————————
 function roundLot(x: number) {
@@ -1766,10 +1663,10 @@ async function getPositionsWithROE() {
     }
 }
 
-// ——— DYNAMIC PNL MONITORING FOR ALL POSITIONS ————————————————————————————————————————
+// ——— SIMPLIFIED POSITION MONITORING WITH IMMEDIATE PROFIT TARGETS ————————————————————————————————————————
 async function monitorAllPositionsPnL() {
     try {
-        console.log('💰 DYNAMIC PNL MONITORING: Checking all positions for stop loss and profit management...');
+        console.log('💰 SIMPLIFIED MONITORING: Immediate profit targets + age-based rules...');
 
         const positions = await getPositionsWithROE();
         
@@ -1782,163 +1679,124 @@ async function monitorAllPositionsPnL() {
         const monitoringResults = [];
 
         for (const pos of positions) {
-            const { coin, size, unrealizedPnl, roe, positionAgeHours, isLong } = pos;
+            const { coin, size, unrealizedPnl, roe, positionAgeHours, isLong, isOlderThanOneHour } = pos;
 
             console.log(`\n📊 MONITORING: ${coin}`);
             console.log(`   PnL: ${unrealizedPnl.toFixed(2)} | ROE: ${roe.toFixed(2)}% | Age: ${positionAgeHours.toFixed(1)}h`);
 
-            // Get dynamic PnL decision
-            const pnlDecision = pnlTracker.updatePosition(coin, unrealizedPnl);
-            
-            console.log(`   Decision: ${pnlDecision.action} - ${pnlDecision.reason}`);
-
-            const result = {
+            let result = {
                 coin,
                 pnl: unrealizedPnl.toFixed(2),
                 roe: roe.toFixed(2),
                 age: positionAgeHours.toFixed(1),
-                action: pnlDecision.action,
-                reason: pnlDecision.reason,
+                action: 'HOLD',
+                reason: '',
                 closed: false
             };
 
+            // 🎯 PRIORITY RULE: IMMEDIATE PROFIT/LOSS TARGETS (applies to ALL positions regardless of age)
+            const pnlDecision = pnlTracker.updatePosition(coin, unrealizedPnl);
+
+            // Check if immediate action is needed (profit targets or stop loss)
             if (pnlDecision.shouldClose) {
-                console.log(`🎯 EXECUTING CLOSE: ${coin} - ${pnlDecision.reason}`);
+                console.log(`   🎯 IMMEDIATE ACTION: ${coin} - ${pnlDecision.reason}`);
+                result.action = pnlDecision.action;
+                result.reason = pnlDecision.reason;
                 
                 const isBuy = size < 0; // If short, buy to close
                 const closeResult = await guaranteedInstantClose(
                     coin, 
                     size, 
                     isBuy, 
-                    pnlDecision.reason
+                    result.reason
                 );
 
                 if (closeResult.success) {
-                    console.log(`✅ Successfully closed: ${coin} | Reason: ${pnlDecision.reason}`);
+                    console.log(`   ✅ Successfully closed position: ${coin}`);
                     actionsPerformed++;
                     result.closed = true;
                     
-                    // Clear tracker since position is closed
                     pnlTracker.clearTracker(coin);
                     
                     pushTrade({
-                        id: `pnl_close_${Date.now()}`,
+                        id: `immediate_${Date.now()}`,
                         pnl: unrealizedPnl,
-                        side: pnlDecision.reason,
+                        side: result.reason,
                         size: Math.abs(size),
                         avgPrice: pos.currentPrice,
                         leverage: pos.leverage,
                         timestamp: Date.now()
                     });
                 } else {
-                    console.error(`❌ Failed to close: ${coin}`);
+                    console.error(`   ❌ Failed to close position: ${coin}`);
                     result.reason += '_FAILED';
                 }
 
                 await new Promise(resolve => setTimeout(resolve, 1000));
+                monitoringResults.push(result);
+                continue; // Skip age-based rules since we took immediate action
+            }
+
+            // ——— AGE-BASED RULES (only apply if no immediate action was taken) ———————————————————————————————————————
+            if (isOlderThanOneHour) {
+                if (unrealizedPnl < 0) {
+                    // OLD + NEGATIVE PnL = HOLD
+                    console.log(`   🔒 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + NEGATIVE PnL → HOLD (wait for recovery)`);
+                    result.action = 'HOLD';
+                    result.reason = `OLD_NEGATIVE_HOLD_${unrealizedPnl.toFixed(2)}`;
+                } else {
+                    // OLD + POSITIVE PnL = CLOSE
+                    console.log(`   💰 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + POSITIVE PnL → CLOSE (take profits)`);
+                    result.action = 'PROFIT_TAKE';
+                    result.reason = `OLD_POSITIVE_CLOSE_${unrealizedPnl.toFixed(2)}`;
+                    
+                    const isBuy = size < 0; // If short, buy to close
+                    const closeResult = await guaranteedInstantClose(
+                        coin, 
+                        size, 
+                        isBuy, 
+                        result.reason
+                    );
+
+                    if (closeResult.success) {
+                        console.log(`   ✅ Successfully closed old profitable position: ${coin}`);
+                        actionsPerformed++;
+                        result.closed = true;
+                        
+                        pnlTracker.clearTracker(coin);
+                        
+                        pushTrade({
+                            id: `old_profit_${Date.now()}`,
+                            pnl: unrealizedPnl,
+                            side: result.reason,
+                            size: Math.abs(size),
+                            avgPrice: pos.currentPrice,
+                            leverage: pos.leverage,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        console.error(`   ❌ Failed to close old position: ${coin}`);
+                        result.reason += '_FAILED';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            } else {
+                // NEW POSITION + NO IMMEDIATE ACTION = CONTINUE MONITORING
+                console.log(`   ⏱️ NEW POSITION: ${positionAgeHours.toFixed(1)}h old → Continue monitoring for profit targets`);
+                result.action = pnlDecision.action;
+                result.reason = pnlDecision.reason;
             }
 
             monitoringResults.push(result);
         }
 
-        console.log(`\n💰 PNL MONITORING COMPLETE: ${actionsPerformed} actions on ${positions.length} positions`);
+        console.log(`\n💰 SIMPLIFIED MONITORING COMPLETE: ${actionsPerformed} actions on ${positions.length} positions`);
         return { actionsPerformed, monitoringResults };
 
     } catch (error) {
-        console.error('❌ Error in PnL monitoring:', error);
+        console.error('❌ Error in simplified monitoring:', error);
         return { actionsPerformed: 0, monitoringResults: [], error };
-    }
-}
-async function manageOldPositions() {
-    try {
-        console.log('⏰ Checking positions older than 1 hour with detailed ROE analysis...');
-
-        const positions = await getPositionsWithROE();
-        const oldPositions = positions.filter((pos: { isOlderThanOneHour: any; }) => pos.isOlderThanOneHour);
-
-        if (oldPositions.length === 0) {
-            console.log('✅ No positions older than 1 hour');
-            return { actionsPerformed: 0, oldPositionsChecked: 0 };
-        }
-
-        let actionsPerformed = 0;
-
-        for (const pos of oldPositions) {
-            const { coin, size, unrealizedPnl, roe, alternativeROE, positionAgeHours, isLong, positionValue, leverage, initialMargin } = pos;
-
-            console.log(`\n🔍 OLD POSITION ANALYSIS: ${coin} (${positionAgeHours.toFixed(1)}h old)`);
-            console.log(`   📊 Position Details:`);
-            console.log(`      Size: ${size} | Direction: ${isLong ? 'LONG' : 'SHORT'}`);
-            console.log(`      Position Value: ${positionValue.toFixed(2)} | Leverage: ${leverage}x`);
-            console.log(`      Initial Margin: ${initialMargin.toFixed(2)}`);
-            console.log(`   💰 Performance:`);
-            console.log(`      Unrealized PnL: ${unrealizedPnl.toFixed(2)}`);
-            console.log(`      ROE: ${roe.toFixed(2)}% | Alt ROE: ${alternativeROE.toFixed(2)}%`);
-            console.log(`      Status: ${unrealizedPnl > 0 ? '✅ PROFITABLE' : '❌ LOSING'}`);
-
-            // Enhanced decision logic using both PnL and ROE
-            const isProfitable = unrealizedPnl > 0 && roe > 0;
-            const isSignificantLoss = unrealizedPnl < -20 || roe < -15; // Major loss threshold
-
-            if (isProfitable) {
-                console.log(`   🎯 DECISION: SELL (Profitable position)`);
-                console.log(`      Reason: PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%`);
-                
-                const isBuy = size < 0; // If short, buy to close
-                const closeResult = await guaranteedInstantClose(
-                    coin, 
-                    size, 
-                    isBuy, 
-                    `OLD_PROFIT_${positionAgeHours.toFixed(1)}h_ROE${roe.toFixed(1)}%_PnL${unrealizedPnl.toFixed(0)}`
-                );
-
-                if (closeResult.success) {
-                    console.log(`   ✅ Successfully closed profitable old position: ${coin}`);
-                    actionsPerformed++;
-                    
-                    pushTrade({
-                        id: `close_old_${Date.now()}`,
-                        pnl: unrealizedPnl,
-                        side: `OLD_PROFIT_CLOSE_ROE${roe.toFixed(1)}%`,
-                        size: Math.abs(size),
-                        avgPrice: pos.currentPrice,
-                        leverage: pos.leverage,
-                        timestamp: Date.now()
-                    });
-                } else {
-                    console.error(`   ❌ Failed to close old position: ${coin}`);
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-            } else if (isSignificantLoss) {
-                console.log(`   ⚠️ DECISION: SIGNIFICANT LOSS DETECTED but HOLDING as per rules`);
-                console.log(`      Reason: Large loss (PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%)`);
-                console.log(`      Action: HOLD (following 1-hour rule: hold losses, sell profits)`);
-                
-            } else {
-                console.log(`   🔒 DECISION: HOLD (Unprofitable position)`);
-                console.log(`      Reason: PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%`);
-                console.log(`      Strategy: Wait for potential recovery`);
-            }
-        }
-
-        return { 
-            actionsPerformed, 
-            oldPositionsChecked: oldPositions.length,
-            totalPositions: positions.length,
-            positionsDetails: oldPositions.map((pos: { coin: any; positionAgeHours: number; unrealizedPnl: number; roe: number; }) => ({
-                coin: pos.coin,
-                ageHours: pos.positionAgeHours.toFixed(1),
-                pnl: pos.unrealizedPnl.toFixed(2),
-                roe: pos.roe.toFixed(2),
-                action: pos.unrealizedPnl > 0 && pos.roe > 0 ? 'SOLD' : 'HELD'
-            }))
-        };
-
-    } catch (error) {
-        console.error('❌ Error managing old positions:', error);
-        return { actionsPerformed: 0, oldPositionsChecked: 0, error };
     }
 }
 
@@ -2114,14 +1972,14 @@ async function placeReversedOrder(originalSignal: string, size: number, price: n
 // ——— MAIN HANDLER ————————————————————————————————————————————————
 export async function GET() {
     try {
-        console.log('🚀 FIXED TRADING BOT with Signal Reversal & 1-Hour Logic:', new Date().toISOString());
+        console.log('🚀 SIMPLIFIED TRADING BOT with Immediate Profit Targets:', new Date().toISOString());
 
-        // 🔍 STEP 1: Dynamic PnL monitoring for ALL positions (stop loss & profit management)
-        console.log('💰 Step 1: Dynamic PnL monitoring for all positions...');
+        // 🔍 STEP 1: Simplified position management
+        console.log('💰 Step 1: Simplified position management with immediate targets...');
         const pnlMonitoringResult = await monitorAllPositionsPnL();
 
         if (pnlMonitoringResult.actionsPerformed > 0) {
-            console.log(`✅ PnL Management: ${pnlMonitoringResult.actionsPerformed} actions performed`);
+            console.log(`✅ Position Management: ${pnlMonitoringResult.actionsPerformed} actions performed`);
             await new Promise(resolve => setTimeout(resolve, 2000)); // Settlement wait
         }
 
@@ -2131,17 +1989,8 @@ export async function GET() {
             await debugPositionData();
         }
 
-        // ⏰ STEP 3: Manage old positions (1+ hours) based on ROE/PnL
-        console.log('⏰ Step 3: Managing positions older than 1 hour...');
-        const oldPositionResult = await manageOldPositions();
-
-        if (oldPositionResult.actionsPerformed > 0) {
-            console.log(`✅ Old Position Management: ${oldPositionResult.actionsPerformed} actions on ${oldPositionResult.oldPositionsChecked} old positions`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Settlement wait
-        }
-
-        // 📊 STEP 4: Get trading signal
-        console.log('📊 Step 4: Fetching trading signal...');
+        // 📊 STEP 3: Get trading signal
+        console.log('📊 Step 3: Fetching trading signal...');
         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: 'API_KEY missing' }, { status: 500 });
@@ -2171,51 +2020,36 @@ export async function GET() {
         if (!slot || slot.signal === 'HOLD' || !slot.forecast_price) {
             return NextResponse.json({
                 message: 'No trade signal',
-                pnlMonitoring: {
+                simplifiedManagement: {
                     actionsPerformed: pnlMonitoringResult.actionsPerformed,
                     monitoringResults: pnlMonitoringResult.monitoringResults
-                },
-                oldPositionManagement: {
-                    actionsPerformed: oldPositionResult.actionsPerformed,
-                    oldPositionsChecked: oldPositionResult.oldPositionsChecked,
-                    positionsDetails: oldPositionResult.positionsDetails
                 }
             });
         }
 
-        // 🛑 STEP 5: Daily loss check
+        // 🛑 STEP 4: Daily loss check
         const dayState = getDayState();
         if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
             return NextResponse.json({
                 message: `Daily loss limit: ${dayState.realizedLoss}`,
-                pnlMonitoring: {
+                simplifiedManagement: {
                     actionsPerformed: pnlMonitoringResult.actionsPerformed,
                     monitoringResults: pnlMonitoringResult.monitoringResults
-                },
-                oldPositionManagement: {
-                    actionsPerformed: oldPositionResult.actionsPerformed,
-                    oldPositionsChecked: oldPositionResult.oldPositionsChecked,
-                    positionsDetails: oldPositionResult.positionsDetails
                 }
             });
         }
 
-        // 💰 STEP 6: Position sizing
-        console.log('💰 Step 6: Position calculation...');
+        // 💰 STEP 5: Position sizing
+        console.log('💰 Step 5: Position calculation...');
         const balanceInfo = await getAvailableUSDC();
 
         if (balanceInfo.noFunds || balanceInfo.availableMargin < 10) {
             return NextResponse.json({
                 error: 'Insufficient funds',
                 balanceInfo,
-                pnlMonitoring: {
+                simplifiedManagement: {
                     actionsPerformed: pnlMonitoringResult.actionsPerformed,
                     monitoringResults: pnlMonitoringResult.monitoringResults
-                },
-                oldPositionManagement: {
-                    actionsPerformed: oldPositionResult.actionsPerformed,
-                    oldPositionsChecked: oldPositionResult.oldPositionsChecked,
-                    positionsDetails: oldPositionResult.positionsDetails
                 }
             });
         }
@@ -2226,15 +2060,15 @@ export async function GET() {
             slot.confidence_90?.[1] || 85
         );
 
-        // 🎯 STEP 7: Place reversed signal order
-        console.log('🎯 Step 7: Placing REVERSED signal order...');
+        // 🎯 STEP 6: Place reversed signal order
+        console.log('🎯 Step 6: Placing REVERSED signal order...');
         const orderResult = await placeReversedOrder(
             slot.signal,
             positionCalc.size,
             slot.forecast_price
         );
 
-        // 📊 STEP 8: Response
+        // 📊 STEP 7: Response
         const payload = {
             success: orderResult.success,
             timestamp: new Date().toISOString(),
@@ -2245,21 +2079,17 @@ export async function GET() {
                 reason: 'Signal automatically reversed as requested'
             },
 
-            dynamicPnLManagement: {
+            simplifiedManagement: {
                 actionsPerformed: pnlMonitoringResult.actionsPerformed,
                 monitoringResults: pnlMonitoringResult.monitoringResults,
                 rules: {
-                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
-                    profitManagement: `Monitor at +${PROFIT_MONITORING_THRESHOLD}: if increasing for 1min → hold, if declining → close`,
-                    implementation: 'Real-time PnL tracking with trend analysis'
+                    system: "Simplified immediate profit targets",
+                    maxProfit: `$${MAX_PROFIT_PER_TRADE} → IMMEDIATE CLOSE`,
+                    quickProfit: `$${QUICK_PROFIT_TARGET} → IMMEDIATE CLOSE`,
+                    stopLoss: `$${MAX_LOSS_PER_TRADE} → IMMEDIATE CLOSE`,
+                    oldPositions: "Positions 1h+ old: Negative PnL → HOLD, Positive PnL → CLOSE",
+                    implementation: 'No complex timing logic - all rules are immediate'
                 }
-            },
-            
-            oldPositionManagement: {
-                actionsPerformed: oldPositionResult.actionsPerformed,
-                oldPositionsChecked: oldPositionResult.oldPositionsChecked,
-                totalPositions: oldPositionResult.totalPositions,
-                positionsDetails: oldPositionResult.positionsDetails || []
             },
 
             forecastSlot: slot,
@@ -2275,17 +2105,17 @@ export async function GET() {
             },
 
             riskManagement: {
-                dynamicPnLLimits: {
-                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
-                    profitThreshold: `Start monitoring at +${PROFIT_MONITORING_THRESHOLD} unrealized PnL`,
-                    profitLogic: 'Monitor for 1 minute: if still increasing → hold, if declining → close',
-                    implementation: 'Real-time trend analysis with position tracking'
+                immediateRules: {
+                    maxProfit: `🎯 $${MAX_PROFIT_PER_TRADE} profit → IMMEDIATE CLOSE`,
+                    quickProfit: `💰 $${QUICK_PROFIT_TARGET} profit → IMMEDIATE CLOSE`,
+                    stopLoss: `🛑 $${MAX_LOSS_PER_TRADE} loss → IMMEDIATE CLOSE`
                 },
-                oneHourRule: {
-                    description: "Positions older than 1 hour: if profitable (ROE > 0, PnL > 0) → SELL, if losing → HOLD",
-                    roeCalculation: "ROE% = (Unrealized PnL / Initial Margin) * 100"
+                ageBasedRules: {
+                    oldPositions: "🕰️ Positions 1h+ old: Negative PnL → HOLD, Positive PnL → CLOSE",
+                    newPositions: "⚡ Positions < 1h old: Wait for immediate profit targets"
                 },
-                debugMode: "Set DEBUG_POSITIONS=true in env to see raw API data"
+                implementation: "Simplified system - NO complex timing logic",
+                benefits: "More reliable, easier to manage, no continuous monitoring needed"
             },
 
             performance: {
@@ -2297,58 +2127,51 @@ export async function GET() {
             sdkResponse: orderResult.result
         };
 
-        console.log('🎯 FIXED BOT COMPLETE:', JSON.stringify(payload, null, 2));
+        console.log('🎯 SIMPLIFIED BOT COMPLETE:', JSON.stringify(payload, null, 2));
         return NextResponse.json(payload);
 
     } catch (err: any) {
-        console.error('❌ Fixed bot error:', err);
+        console.error('❌ Simplified bot error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
 
-// ——— POST ENDPOINT FOR MANUAL PNL MONITORING ————————————————————————————————————————
+// ——— POST ENDPOINT FOR MANUAL MONITORING ————————————————————————————————————————
 export async function POST() {
     try {
-        console.log('🔄 MANUAL PNL MONITORING TRIGGER:', new Date().toISOString());
+        console.log('🔄 MANUAL SIMPLIFIED MONITORING TRIGGER:', new Date().toISOString());
 
-        // Run dynamic PnL monitoring
-        const pnlMonitoringResult = await monitorAllPositionsPnL();
-
-        // Run old position management
-        const oldPositionResult = await manageOldPositions();
+        // Run simplified position management
+        const simplifiedResult = await monitorAllPositionsPnL();
 
         return NextResponse.json({
             success: true,
             timestamp: new Date().toISOString(),
-            message: 'Manual PnL monitoring completed',
+            message: 'Manual simplified monitoring completed',
             
-            dynamicPnLMonitoring: {
-                actionsPerformed: pnlMonitoringResult.actionsPerformed,
-                totalPositionsChecked: pnlMonitoringResult.monitoringResults.length,
-                results: pnlMonitoringResult.monitoringResults,
+            simplifiedManagement: {
+                actionsPerformed: simplifiedResult.actionsPerformed,
+                totalPositionsChecked: simplifiedResult.monitoringResults.length,
+                results: simplifiedResult.monitoringResults,
                 rules: {
-                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
-                    profitManagement: `Monitor at +${PROFIT_MONITORING_THRESHOLD}: trend analysis for 1 minute`,
-                    implementation: 'Real-time position tracking and trend analysis'
+                    system: "Simplified immediate profit targets",
+                    maxProfit: `$${MAX_PROFIT_PER_TRADE} → IMMEDIATE CLOSE`,
+                    quickProfit: `$${QUICK_PROFIT_TARGET} → IMMEDIATE CLOSE`,
+                    stopLoss: `$${MAX_LOSS_PER_TRADE} → IMMEDIATE CLOSE`,
+                    oldPositions: "Positions 1h+ old: Negative PnL → HOLD, Positive PnL → CLOSE",
+                    implementation: 'No complex timing logic - all rules are immediate'
                 }
             },
 
-            oldPositionManagement: {
-                actionsPerformed: oldPositionResult.actionsPerformed,
-                oldPositionsChecked: oldPositionResult.oldPositionsChecked,
-                totalPositions: oldPositionResult.totalPositions,
-                positionsDetails: oldPositionResult.positionsDetails || []
-            },
-
             summary: {
-                totalActions: pnlMonitoringResult.actionsPerformed + oldPositionResult.actionsPerformed,
-                pnlBasedActions: pnlMonitoringResult.actionsPerformed,
-                ageBasedActions: oldPositionResult.actionsPerformed
+                totalActions: simplifiedResult.actionsPerformed,
+                systemStatus: "Simplified immediate profit targeting active",
+                benefits: "No continuous monitoring needed - all rules are immediate"
             }
         });
 
     } catch (err: any) {
-        console.error('❌ Manual PnL monitoring error:', err);
+        console.error('❌ Manual simplified monitoring error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
