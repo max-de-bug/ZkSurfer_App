@@ -9,6 +9,8 @@ import HourlyPredictionsTable from './HourelyForecast';
 import { Trade, TradingIntegration } from './TradingIntegration';
 import { getOrderStatus, placeTestOrder } from '@/lib/hyperLiquidClient';
 import { PlaceOrderBody } from '@/lib/hlTypes';
+import Link from 'next/link';
+
 
 interface HourlyEntry {
   time: string;                       // e.g. "2025-07-17T00:00:00+00:00"
@@ -624,6 +626,16 @@ const payload: PlaceOrderBody = {
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
+ <Link
+      href="/predictions"
+      target="_blank"
+      className="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700
+                 text-white font-semibold shadow-sm focus:outline-none focus:ring-2
+                 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-[#0a1628]"
+    >
+      Place Trade
+    </Link>
+                        
                         <div className="text-right">
                             <h2 className="text-lg font-bold">{getReportTitle()}</h2>
                             <p className="text-sm text-gray-400">{getCurrentDate()}</p>
