@@ -777,6 +777,630 @@
 // }
 
 
+// import { NextResponse } from 'next/server';
+// import { Hyperliquid, Tif } from 'hyperliquid';
+// import { getDayState, pushTrade } from '@/lib/dayState';
+
+// export const runtime = 'nodejs';
+
+// // ——— SDK Configuration ————————————————————————————————————————————————
+// const PK = process.env.NEXT_PUBLIC_HL_PRIVATE_KEY;
+// const MAIN_WALLET_RAW = process.env.NEXT_PUBLIC_HL_MAIN_WALLET;
+// const USER_WALLET_RAW = process.env.NEXT_PUBLIC_HL_USER_WALLET;
+
+// if (!PK) throw new Error('HL_PRIVATE_KEY missing in env');
+// if (!MAIN_WALLET_RAW) throw new Error('HL_MAIN_WALLET missing in env');
+// if (!USER_WALLET_RAW) throw new Error('USER_WALLET_RAW missing in env');
+
+// const MAIN_WALLET: string = MAIN_WALLET_RAW;
+// const USER_WALLET: string = USER_WALLET_RAW;
+
+// const sdk = new Hyperliquid({
+//     privateKey: PK,
+//     walletAddress: MAIN_WALLET,
+//     testnet: false
+// });
+
+// // ——— CONSTANTS ————————————————————————————————————————————————
+// const LOT_SIZE = 0.00001;
+// const MIN_ORDER_SIZE = 0.0001;
+// const MIN_PROFIT_PER_TRADE = 50;
+// const MAX_LOSS_PER_TRADE = 20;
+// const DAILY_LOSS_LIMIT = 100;
+// const CAPITAL_USAGE_PERCENT = 0.30;
+// const MAX_LEVERAGE = 25;
+// const MIN_LEVERAGE = 5;
+// const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+
+// // ——— Helper Functions ————————————————————————————————————————————————
+// function roundLot(x: number) {
+//     const lots = Math.max(
+//         Math.floor(x / LOT_SIZE),
+//         Math.ceil(MIN_ORDER_SIZE / LOT_SIZE)
+//     );
+//     return lots * LOT_SIZE;
+// }
+
+// // ——— REVERSE SIGNAL FUNCTION ————————————————————————————————————————
+// function reverseSignal(originalSignal: string): string {
+//     if (originalSignal === 'LONG') return 'SHORT';
+//     if (originalSignal === 'SHORT') return 'LONG';
+//     return originalSignal; // Keep HOLD as is
+// }
+
+// // ——— DEBUG: SHOW RAW POSITION DATA ————————————————————————————————————————
+// async function debugPositionData() {
+//     try {
+//         console.log('🔍 DEBUG: Raw position data from Hyperliquid API...');
+
+//         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 type: 'clearinghouseState',
+//                 user: USER_WALLET
+//             })
+//         });
+
+//         const perpState = await perpResponse.json();
+        
+//         console.log('📊 FULL API RESPONSE:');
+//         console.log(JSON.stringify(perpState, null, 2));
+
+//         if (perpState?.assetPositions) {
+//             console.log('\n📊 POSITION DETAILS:');
+//             perpState.assetPositions.forEach((pos: any, index: number) => {
+//                 console.log(`\n--- Position ${index + 1} ---`);
+//                 console.log('Raw position object:', JSON.stringify(pos, null, 2));
+                
+//                 if (pos.position) {
+//                     console.log('Available fields in position:');
+//                     Object.keys(pos.position).forEach(key => {
+//                         console.log(`  ${key}: ${pos.position[key]}`);
+//                     });
+//                 }
+//             });
+//         }
+
+//         return perpState;
+//     } catch (error) {
+//         console.error('❌ Debug error:', error);
+//         return null;
+//     }
+// }
+
+// // ——— GET POSITIONS WITH EXACT HYPERLIQUID ROE/PNL ————————————————————————————————————————
+// async function getPositionsWithROE() {
+//     try {
+//         console.log('🔍 Getting positions with exact Hyperliquid ROE calculation...');
+
+//         // Get current positions
+//         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 type: 'clearinghouseState',
+//                 user: USER_WALLET
+//             })
+//         });
+
+//         const perpState = await perpResponse.json();
+//         const positions = perpState?.assetPositions || [];
+
+//         if (positions.length === 0) {
+//             console.log('✅ No open positions found');
+//             return [];
+//         }
+
+//         // Get fills for entry price/time data
+//         const fillsResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 type: 'userFills',
+//                 user: USER_WALLET
+//             })
+//         });
+
+//         const fills = await fillsResponse.json();
+
+//         // Get current market prices
+//         const priceResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'allMids' })
+//         });
+//         const allMids = await priceResponse.json();
+
+//         const enrichedPositions = positions.map((position: any) => {
+//             const coin = position.position.coin;
+//             const size = parseFloat(position.position.szi);
+//             const unrealizedPnl = parseFloat(position.position.unrealizedPnl || '0');
+//             const currentPrice = allMids[coin];
+//             const marginUsed = parseFloat(position.position.marginUsed || '0');
+//             const leverage = parseFloat(position.position.leverage?.value || '1');
+//             const positionValue = parseFloat(position.position.positionValue || '0');
+
+//             // Get latest fill for entry price and time
+//             const coinFills = fills.filter((fill: any) => fill.coin === coin);
+//             const latestFill = coinFills.sort((a: any, b: any) => b.time - a.time)[0];
+
+//             const entryPrice = latestFill ? latestFill.px : currentPrice - (unrealizedPnl / Math.abs(size));
+//             const entryTime = latestFill ? latestFill.time : Date.now() - (30 * 60 * 1000);
+//             const positionAgeMs = Date.now() - entryTime;
+//             const positionAgeHours = positionAgeMs / (60 * 60 * 1000);
+
+//             // Calculate ROE% exactly like Hyperliquid UI
+//             // ROE% = (Unrealized PnL / Initial Margin) * 100
+//             // Initial Margin = Position Value / Leverage
+//             const initialMargin = Math.abs(positionValue) / leverage;
+//             const roe = initialMargin > 0 ? (unrealizedPnl / initialMargin) * 100 : 0;
+
+//             // Alternative calculation if positionValue not available
+//             const alternativeInitialMargin = marginUsed; // Sometimes marginUsed = initial margin
+//             const alternativeROE = alternativeInitialMargin > 0 ? (unrealizedPnl / alternativeInitialMargin) * 100 : 0;
+
+//             return {
+//                 coin,
+//                 size,
+//                 unrealizedPnl,
+//                 currentPrice,
+//                 entryPrice,
+//                 entryTime,
+//                 positionAgeMs,
+//                 positionAgeHours,
+//                 isLong: size > 0,
+//                 leverage,
+//                 marginUsed,
+//                 positionValue,
+//                 initialMargin,
+//                 roe, // Primary ROE calculation
+//                 alternativeROE, // Backup ROE calculation
+//                 isOlderThanOneHour: positionAgeMs > ONE_HOUR_MS
+//             };
+//         });
+
+//         // Log each position's ROE details like Hyperliquid UI
+//         enrichedPositions.forEach(pos => {
+//             console.log(`📊 POSITION: ${pos.coin}`);
+//             console.log(`   Size: ${pos.size} | Entry: ${pos.entryPrice}`);
+//             console.log(`   Current: ${pos.currentPrice} | PnL: ${pos.unrealizedPnl.toFixed(2)}`);
+//             console.log(`   Position Value: ${pos.positionValue.toFixed(2)} | Leverage: ${pos.leverage}x`);
+//             console.log(`   Initial Margin: ${pos.initialMargin.toFixed(2)} | Margin Used: ${pos.marginUsed.toFixed(2)}`);
+//             console.log(`   ROE: ${pos.roe.toFixed(2)}% | Alt ROE: ${pos.alternativeROE.toFixed(2)}%`);
+//             console.log(`   Age: ${pos.positionAgeHours.toFixed(1)}h | 1h+: ${pos.isOlderThanOneHour}`);
+//             console.log(`   ─────────────────────────────────`);
+//         });
+
+//         console.log(`📊 Found ${enrichedPositions.length} positions with exact ROE data`);
+//         return enrichedPositions;
+
+//     } catch (error) {
+//         console.error('❌ Error getting positions with ROE:', error);
+//         return [];
+//     }
+// }
+
+// // ——— CHECK AND MANAGE 1+ HOUR OLD POSITIONS WITH DETAILED ROE ————————————————————————————————————————
+// async function manageOldPositions() {
+//     try {
+//         console.log('⏰ Checking positions older than 1 hour with detailed ROE analysis...');
+
+//         const positions = await getPositionsWithROE();
+//         const oldPositions = positions.filter(pos => pos.isOlderThanOneHour);
+
+//         if (oldPositions.length === 0) {
+//             console.log('✅ No positions older than 1 hour');
+//             return { actionsPerformed: 0, oldPositionsChecked: 0 };
+//         }
+
+//         let actionsPerformed = 0;
+
+//         for (const pos of oldPositions) {
+//             const { coin, size, unrealizedPnl, roe, alternativeROE, positionAgeHours, isLong, positionValue, leverage, initialMargin } = pos;
+
+//             console.log(`\n🔍 OLD POSITION ANALYSIS: ${coin} (${positionAgeHours.toFixed(1)}h old)`);
+//             console.log(`   📊 Position Details:`);
+//             console.log(`      Size: ${size} | Direction: ${isLong ? 'LONG' : 'SHORT'}`);
+//             console.log(`      Position Value: ${positionValue.toFixed(2)} | Leverage: ${leverage}x`);
+//             console.log(`      Initial Margin: ${initialMargin.toFixed(2)}`);
+//             console.log(`   💰 Performance:`);
+//             console.log(`      Unrealized PnL: ${unrealizedPnl.toFixed(2)}`);
+//             console.log(`      ROE: ${roe.toFixed(2)}% | Alt ROE: ${alternativeROE.toFixed(2)}%`);
+//             console.log(`      Status: ${unrealizedPnl > 0 ? '✅ PROFITABLE' : '❌ LOSING'}`);
+
+//             // Enhanced decision logic using both PnL and ROE
+//             const isProfitable = unrealizedPnl > 0 && roe > 0;
+//             const isSignificantLoss = unrealizedPnl < -20 || roe < -15; // Major loss threshold
+
+//             if (isProfitable) {
+//                 console.log(`   🎯 DECISION: SELL (Profitable position)`);
+//                 console.log(`      Reason: PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%`);
+                
+//                 const isBuy = size < 0; // If short, buy to close
+//                 const closeResult = await guaranteedInstantClose(
+//                     coin, 
+//                     size, 
+//                     isBuy, 
+//                     `OLD_PROFIT_${positionAgeHours.toFixed(1)}h_ROE${roe.toFixed(1)}%_PnL${unrealizedPnl.toFixed(0)}`
+//                 );
+
+//                 if (closeResult.success) {
+//                     console.log(`   ✅ Successfully closed profitable old position: ${coin}`);
+//                     actionsPerformed++;
+                    
+//                     pushTrade({
+//                         id: `close_old_${Date.now()}`,
+//                         pnl: unrealizedPnl,
+//                         side: `OLD_PROFIT_CLOSE_ROE${roe.toFixed(1)}%`,
+//                         size: Math.abs(size),
+//                         avgPrice: pos.currentPrice,
+//                         leverage: pos.leverage,
+//                         timestamp: Date.now()
+//                     });
+//                 } else {
+//                     console.error(`   ❌ Failed to close old position: ${coin}`);
+//                 }
+
+//                 await new Promise(resolve => setTimeout(resolve, 1000));
+                
+//             } else if (isSignificantLoss) {
+//                 console.log(`   ⚠️ DECISION: SIGNIFICANT LOSS DETECTED but HOLDING as per rules`);
+//                 console.log(`      Reason: Large loss (PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%)`);
+//                 console.log(`      Action: HOLD (following 1-hour rule: hold losses, sell profits)`);
+                
+//             } else {
+//                 console.log(`   🔒 DECISION: HOLD (Unprofitable position)`);
+//                 console.log(`      Reason: PnL: ${unrealizedPnl.toFixed(2)}, ROE: ${roe.toFixed(2)}%`);
+//                 console.log(`      Strategy: Wait for potential recovery`);
+//             }
+//         }
+
+//         return { 
+//             actionsPerformed, 
+//             oldPositionsChecked: oldPositions.length,
+//             totalPositions: positions.length,
+//             positionsDetails: oldPositions.map(pos => ({
+//                 coin: pos.coin,
+//                 ageHours: pos.positionAgeHours.toFixed(1),
+//                 pnl: pos.unrealizedPnl.toFixed(2),
+//                 roe: pos.roe.toFixed(2),
+//                 action: pos.unrealizedPnl > 0 && pos.roe > 0 ? 'SOLD' : 'HELD'
+//             }))
+//         };
+
+//     } catch (error) {
+//         console.error('❌ Error managing old positions:', error);
+//         return { actionsPerformed: 0, oldPositionsChecked: 0, error };
+//     }
+// }
+
+// // ——— GUARANTEED INSTANT CLOSE FUNCTION ————————————————————————————————————
+// async function guaranteedInstantClose(coin: string, size: number, isBuy: boolean, reason: string = 'AUTO') {
+//     console.log(`🎯 INSTANT CLOSE: ${coin} | Size: ${size} | Side: ${isBuy ? 'BUY' : 'SELL'} | Reason: ${reason}`);
+
+//     try {
+//         // Get aggressive pricing from order book
+//         const l2Response = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 type: 'l2Book',
+//                 coin: coin,
+//                 nSigFigs: 5
+//             })
+//         });
+
+//         const l2Book = await l2Response.json();
+//         let aggressivePrice;
+
+//         if (isBuy && l2Book?.levels?.[0]?.[0]) {
+//             const bestAsk = parseFloat(l2Book.levels[0][0].px);
+//             aggressivePrice = bestAsk * 1.02; // 2% above ask
+//         } else if (!isBuy && l2Book?.levels?.[1]?.[0]) {
+//             const bestBid = parseFloat(l2Book.levels[1][0].px);
+//             aggressivePrice = bestBid * 0.98; // 2% below bid
+//         } else {
+//             // Fallback to mid-price
+//             const midResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({ type: 'allMids' })
+//             });
+//             const allMids = await midResponse.json();
+//             const midPrice = allMids[coin];
+//             aggressivePrice = midPrice * (isBuy ? 1.03 : 0.97);
+//         }
+
+//         const closeOrderParams = {
+//             coin: `${coin}-PERP`,
+//             is_buy: isBuy,
+//             sz: Math.abs(size),
+//             limit_px: Math.round(aggressivePrice),
+//             order_type: { limit: { tif: 'Ioc' as Tif } },
+//             reduce_only: true
+//         };
+
+//         console.log('📤 INSTANT CLOSE (SDK):', closeOrderParams);
+//         const result = await sdk.exchange.placeOrder(closeOrderParams);
+
+//         return {
+//             success: result.status === 'ok',
+//             method: 'SDK_INSTANT_CLOSE',
+//             result: result,
+//             executionPrice: aggressivePrice
+//         };
+
+//     } catch (error) {
+//         console.error(`❌ SDK close error for ${coin}:`, error);
+//         return { success: false, method: 'FAILED', error };
+//     }
+// }
+
+// // ——— GET AVAILABLE USDC ————————————————————————————————————————
+// async function getAvailableUSDC() {
+//     try {
+//         console.log('🔍 Checking wallet:', USER_WALLET);
+
+//         const perpResponse = await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 type: 'clearinghouseState',
+//                 user: USER_WALLET
+//             })
+//         });
+
+//         const perpState = await perpResponse.json();
+//         const perpBalance = parseFloat(perpState?.marginSummary?.accountValue || '0');
+
+//         if (perpBalance > 0) {
+//             return {
+//                 totalUSDC: perpBalance,
+//                 availableMargin: parseFloat(perpState.withdrawable || perpState.marginSummary.accountValue),
+//                 source: 'perpetuals'
+//             };
+//         }
+
+//         return { totalUSDC: 0, availableMargin: 0, noFunds: true };
+
+//     } catch (err) {
+//         console.error('❌ API Error:', err);
+//         return { totalUSDC: 0, availableMargin: 0, error: err };
+//     }
+// }
+
+// // ——— CALCULATE DYNAMIC POSITION SIZE ————————————————————————————————————————
+// function calculateDynamicSize(
+//     price: number,
+//     availableUSDC: number,
+//     confidence: number = 85
+// ) {
+//     const capitalPerTrade = availableUSDC * CAPITAL_USAGE_PERCENT;
+    
+//     // Dynamic leverage based on confidence
+//     let leverage = MIN_LEVERAGE;
+//     if (confidence >= 95) leverage = MAX_LEVERAGE;
+//     else if (confidence >= 90) leverage = Math.round(MAX_LEVERAGE * 0.8);
+//     else if (confidence >= 85) leverage = Math.round(MAX_LEVERAGE * 0.6);
+
+//     const notionalValue = capitalPerTrade * leverage;
+//     const positionSize = notionalValue / price;
+
+//     return {
+//         size: roundLot(positionSize),
+//         leverage,
+//         notionalValue,
+//         capitalUsed: capitalPerTrade,
+//         expectedProfit: (notionalValue * 2.0) / 100, // 2% expected move
+//         maxRisk: Math.min(notionalValue * 0.025, MAX_LOSS_PER_TRADE)
+//     };
+// }
+
+// // ——— PLACE ORDER WITH REVERSED SIGNAL ————————————————————————————————————————
+// async function placeReversedOrder(originalSignal: string, size: number, price: number) {
+//     try {
+//         const reversedSignal = reverseSignal(originalSignal);
+//         console.log(`🔄 SIGNAL REVERSAL: ${originalSignal} → ${reversedSignal}`);
+
+//         const coin = 'BTC-PERP';
+//         const isBuy = reversedSignal === 'LONG'; // Reversed logic
+
+//         // Get current market price for aggressive entry
+//         const currentMarketPrice = (await fetch('https://api.hyperliquid.xyz/info', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ type: 'allMids' })
+//         }).then(r => r.json()))['BTC'];
+
+//         // 1% slippage for instant fills
+//         const aggressiveEntryPrice = isBuy ?
+//             Math.round(currentMarketPrice * 1.01) :
+//             Math.round(currentMarketPrice * 0.99);
+
+//         const orderParams = {
+//             coin,
+//             is_buy: isBuy,
+//             sz: Number(size),
+//             limit_px: aggressiveEntryPrice,
+//             order_type: { limit: { tif: 'Ioc' as Tif } },
+//             reduce_only: false
+//         };
+
+//         console.log('📤 REVERSED ORDER:', orderParams);
+//         const result = await sdk.exchange.placeOrder(orderParams);
+
+//         return {
+//             success: result.status === 'ok',
+//             result,
+//             reversedSignal,
+//             orderPrice: aggressiveEntryPrice,
+//             marketPrice: currentMarketPrice
+//         };
+
+//     } catch (error) {
+//         console.error('❌ Reversed order error:', error);
+//         return { success: false, error };
+//     }
+// }
+
+// // ——— MAIN HANDLER ————————————————————————————————————————————————
+// export async function GET() {
+//     try {
+//         console.log('🚀 FIXED TRADING BOT with Signal Reversal & 1-Hour Logic:', new Date().toISOString());
+
+//         // 🔍 STEP 1: Debug raw position data (optional)
+//         if (process.env.DEBUG_POSITIONS === 'true') {
+//             console.log('🔍 DEBUG MODE: Showing raw position data...');
+//             await debugPositionData();
+//         }
+
+//         // ⏰ STEP 2: Manage old positions (1+ hours) based on ROE/PnL
+//         console.log('⏰ Step 2: Managing positions older than 1 hour...');
+//         const oldPositionResult = await manageOldPositions();
+
+//         if (oldPositionResult.actionsPerformed > 0) {
+//             console.log(`✅ Old Position Management: ${oldPositionResult.actionsPerformed} actions on ${oldPositionResult.oldPositionsChecked} old positions`);
+//             await new Promise(resolve => setTimeout(resolve, 2000)); // Settlement wait
+//         }
+
+//         // 📊 STEP 3: Get trading signal
+//         console.log('📊 Step 3: Fetching trading signal...');
+//         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+//         if (!apiKey) {
+//             return NextResponse.json({ error: 'API_KEY missing' }, { status: 500 });
+//         }
+
+//         const forecastRes = await fetch('https://zynapse.zkagi.ai/today', {
+//             method: 'GET',
+//             cache: 'no-store',
+//             headers: {
+//                 accept: 'application/json',
+//                 'api-key': apiKey
+//             }
+//         });
+
+//         if (!forecastRes.ok) {
+//             return NextResponse.json(
+//                 { error: `Forecast API error (${forecastRes.status})` },
+//                 { status: forecastRes.status }
+//             );
+//         }
+
+//         const { forecast_today_hourly } = await forecastRes.json();
+//         const slot = Array.isArray(forecast_today_hourly) && forecast_today_hourly.length > 0
+//             ? forecast_today_hourly[forecast_today_hourly.length - 1]
+//             : null;
+
+//         if (!slot || slot.signal === 'HOLD' || !slot.forecast_price) {
+//             return NextResponse.json({
+//                 message: 'No trade signal',
+//                 oldPositionManagement: {
+//                     actionsPerformed: oldPositionResult.actionsPerformed,
+//                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
+//                     positionsDetails: oldPositionResult.positionsDetails
+//                 }
+//             });
+//         }
+
+//         // 🛑 STEP 4: Daily loss check
+//         const dayState = getDayState();
+//         if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
+//             return NextResponse.json({
+//                 message: `Daily loss limit: ${dayState.realizedLoss}`,
+//                 oldPositionManagement: {
+//                     actionsPerformed: oldPositionResult.actionsPerformed,
+//                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
+//                     positionsDetails: oldPositionResult.positionsDetails
+//                 }
+//             });
+//         }
+
+//         // 💰 STEP 5: Position sizing
+//         console.log('💰 Step 5: Position calculation...');
+//         const balanceInfo = await getAvailableUSDC();
+
+//         if (balanceInfo.noFunds || balanceInfo.availableMargin < 10) {
+//             return NextResponse.json({
+//                 error: 'Insufficient funds',
+//                 balanceInfo,
+//                 oldPositionManagement: {
+//                     actionsPerformed: oldPositionResult.actionsPerformed,
+//                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
+//                     positionsDetails: oldPositionResult.positionsDetails
+//                 }
+//             });
+//         }
+
+//         const positionCalc = calculateDynamicSize(
+//             slot.forecast_price,
+//             balanceInfo.availableMargin,
+//             slot.confidence_90?.[1] || 85
+//         );
+
+//         // 🎯 STEP 6: Place reversed signal order
+//         console.log('🎯 Step 6: Placing REVERSED signal order...');
+//         const orderResult = await placeReversedOrder(
+//             slot.signal,
+//             positionCalc.size,
+//             slot.forecast_price
+//         );
+
+//         // 📊 STEP 7: Response
+//         const payload = {
+//             success: orderResult.success,
+//             timestamp: new Date().toISOString(),
+            
+//             signalReversal: {
+//                 originalSignal: slot.signal,
+//                 reversedSignal: orderResult.reversedSignal,
+//                 reason: 'Signal automatically reversed as requested'
+//             },
+            
+//             oldPositionManagement: {
+//                 actionsPerformed: oldPositionResult.actionsPerformed,
+//                 oldPositionsChecked: oldPositionResult.oldPositionsChecked,
+//                 totalPositions: oldPositionResult.totalPositions,
+//                 positionsDetails: oldPositionResult.positionsDetails || []
+//             },
+
+//             forecastSlot: slot,
+            
+//             orderDetails: {
+//                 coin: 'BTC',
+//                 originalSignal: slot.signal,
+//                 executedSignal: orderResult.reversedSignal,
+//                 size: positionCalc.size,
+//                 leverage: positionCalc.leverage,
+//                 orderPrice: orderResult.orderPrice,
+//                 marketPrice: orderResult.marketPrice
+//             },
+
+//             oneHourLogic: {
+//                 description: "Positions older than 1 hour: if profitable (ROE > 0, PnL > 0) → SELL, if losing → HOLD",
+//                 implemented: true,
+//                 roeCalculation: "ROE% = (Unrealized PnL / Initial Margin) * 100",
+//                 debugMode: "Set DEBUG_POSITIONS=true in env to see raw API data"
+//             },
+
+//             performance: {
+//                 expectedProfit: `$${positionCalc.expectedProfit.toFixed(2)}`,
+//                 maxRisk: `$${positionCalc.maxRisk.toFixed(2)}`,
+//                 capitalUsed: `$${positionCalc.capitalUsed.toFixed(0)}`
+//             },
+
+//             sdkResponse: orderResult.result
+//         };
+
+//         console.log('🎯 FIXED BOT COMPLETE:', JSON.stringify(payload, null, 2));
+//         return NextResponse.json(payload);
+
+//     } catch (err: any) {
+//         console.error('❌ Fixed bot error:', err);
+//         return NextResponse.json({ error: err.message }, { status: 500 });
+//     }
+// }
+
 import { NextResponse } from 'next/server';
 import { Hyperliquid, Tif } from 'hyperliquid';
 import { getDayState, pushTrade } from '@/lib/dayState';
@@ -801,16 +1425,177 @@ const sdk = new Hyperliquid({
     testnet: false
 });
 
-// ——— CONSTANTS ————————————————————————————————————————————————
+// ——— CONSTANTS WITH PNL-BASED LIMITS ————————————————————————————————————————————————
 const LOT_SIZE = 0.00001;
 const MIN_ORDER_SIZE = 0.0001;
 const MIN_PROFIT_PER_TRADE = 50;
-const MAX_LOSS_PER_TRADE = 20;
+const MAX_LOSS_PER_TRADE = 20; // $30 immediate stop loss
+const PROFIT_MONITORING_THRESHOLD = 50; // $50 profit triggers 1-minute monitoring
 const DAILY_LOSS_LIMIT = 100;
 const CAPITAL_USAGE_PERCENT = 0.30;
 const MAX_LEVERAGE = 25;
 const MIN_LEVERAGE = 5;
 const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+const ONE_MINUTE_MS = 60 * 1000; // 1 minute in milliseconds
+
+// ——— POSITION TRACKING FOR DYNAMIC PNL MANAGEMENT ————————————————————————————————————————
+interface PositionTracker {
+    coin: string;
+    maxProfitReached: number;
+    profitMonitoringStartTime: number | null;
+    lastPnlCheck: number;
+    pnlHistory: Array<{ timestamp: number; pnl: number }>;
+    isMonitoring: boolean;
+    shouldHold: boolean; // If true, don't close even if declining
+}
+
+class PnLTracker {
+    private trackedPositions = new Map<string, PositionTracker>();
+
+    public updatePosition(coin: string, currentPnl: number): {
+        shouldClose: boolean;
+        reason: string;
+        action: 'STOP_LOSS' | 'PROFIT_TAKE' | 'HOLD' | 'MONITOR';
+    } {
+        const now = Date.now();
+        
+        // Get or create tracker
+        let tracker = this.trackedPositions.get(coin);
+        if (!tracker) {
+            tracker = {
+                coin,
+                maxProfitReached: currentPnl,
+                profitMonitoringStartTime: null,
+                lastPnlCheck: currentPnl,
+                pnlHistory: [],
+                isMonitoring: false,
+                shouldHold: false
+            };
+            this.trackedPositions.set(coin, tracker);
+        }
+
+        // Update PnL history (keep last 10 entries for trend analysis)
+        tracker.pnlHistory.push({ timestamp: now, pnl: currentPnl });
+        if (tracker.pnlHistory.length > 10) {
+            tracker.pnlHistory.shift();
+        }
+
+        // Update max profit
+        if (currentPnl > tracker.maxProfitReached) {
+            tracker.maxProfitReached = currentPnl;
+        }
+
+        // IMMEDIATE STOP LOSS - $30 loss
+        if (currentPnl <= -MAX_LOSS_PER_TRADE) {
+            this.removeTracker(coin);
+            return {
+                shouldClose: true,
+                reason: `STOP_LOSS_${currentPnl.toFixed(2)}`,
+                action: 'STOP_LOSS'
+            };
+        }
+
+        // PROFIT MONITORING LOGIC - $50+ profit
+        if (currentPnl >= PROFIT_MONITORING_THRESHOLD) {
+            
+            // Start monitoring if not already
+            if (!tracker.isMonitoring) {
+                tracker.isMonitoring = true;
+                tracker.profitMonitoringStartTime = now;
+                console.log(`📈 PROFIT MONITORING STARTED: ${coin} at ${currentPnl.toFixed(2)} (1-minute watch)`);
+            }
+
+            // Check if 1 minute has passed since monitoring started
+            const monitoringDuration = now - (tracker.profitMonitoringStartTime || now);
+            
+            if (monitoringDuration >= ONE_MINUTE_MS) {
+                // After 1 minute, check if still increasing
+                const isIncreasing = this.isPnlIncreasing(tracker.pnlHistory);
+                
+                if (isIncreasing) {
+                    tracker.shouldHold = true;
+                    console.log(`🚀 LETTING PROFITS RUN: ${coin} still increasing after 1 min (${currentPnl.toFixed(2)})`);
+                    return {
+                        shouldClose: false,
+                        reason: `PROFIT_INCREASING_${currentPnl.toFixed(2)}`,
+                        action: 'HOLD'
+                    };
+                } else {
+                    // Declining after 1 minute - close it
+                    this.removeTracker(coin);
+                    return {
+                        shouldClose: true,
+                        reason: `PROFIT_DECLINING_AFTER_1MIN_${currentPnl.toFixed(2)}`,
+                        action: 'PROFIT_TAKE'
+                    };
+                }
+            } else {
+                // Within first minute - check if declining
+                if (this.isPnlDeclining(tracker.pnlHistory)) {
+                    this.removeTracker(coin);
+                    return {
+                        shouldClose: true,
+                        reason: `PROFIT_DECLINING_EARLY_${currentPnl.toFixed(2)}`,
+                        action: 'PROFIT_TAKE'
+                    };
+                } else {
+                    // Still monitoring
+                    const remainingTime = (ONE_MINUTE_MS - monitoringDuration) / 1000;
+                    console.log(`⏱️ MONITORING: ${coin} - ${remainingTime.toFixed(0)}s remaining`);
+                    return {
+                        shouldClose: false,
+                        reason: `MONITORING_${remainingTime.toFixed(0)}s_${currentPnl.toFixed(2)}`,
+                        action: 'MONITOR'
+                    };
+                }
+            }
+        }
+
+        // Update last check
+        tracker.lastPnlCheck = currentPnl;
+
+        return {
+            shouldClose: false,
+            reason: `NORMAL_OPERATION_${currentPnl.toFixed(2)}`,
+            action: 'HOLD'
+        };
+    }
+
+    private isPnlIncreasing(history: Array<{ timestamp: number; pnl: number }>): boolean {
+        if (history.length < 3) return false;
+        
+        // Check last 3 data points for trend
+        const recent = history.slice(-3);
+        const trend = recent[2].pnl - recent[0].pnl;
+        return trend > 1; // Increasing by more than $1
+    }
+
+    private isPnlDeclining(history: Array<{ timestamp: number; pnl: number }>): boolean {
+        if (history.length < 3) return false;
+        
+        // Check if declining from recent peak
+        const recent = history.slice(-3);
+        const peak = Math.max(...recent.map(h => h.pnl));
+        const current = recent[recent.length - 1].pnl;
+        
+        return (peak - current) > 2; // Declined by more than $2 from recent peak
+    }
+
+    private removeTracker(coin: string): void {
+        this.trackedPositions.delete(coin);
+    }
+
+    public getTrackerInfo(coin: string): PositionTracker | null {
+        return this.trackedPositions.get(coin) || null;
+    }
+
+    public clearTracker(coin: string): void {
+        this.trackedPositions.delete(coin);
+    }
+}
+
+// Global PnL tracker instance
+const pnlTracker = new PnLTracker();
 
 // ——— Helper Functions ————————————————————————————————————————————————
 function roundLot(x: number) {
@@ -961,7 +1746,7 @@ async function getPositionsWithROE() {
         });
 
         // Log each position's ROE details like Hyperliquid UI
-        enrichedPositions.forEach(pos => {
+        enrichedPositions.forEach((pos: { coin: any; size: any; entryPrice: any; currentPrice: any; unrealizedPnl: number; positionValue: number; leverage: any; initialMargin: number; marginUsed: number; roe: number; alternativeROE: number; positionAgeHours: number; isOlderThanOneHour: any; }) => {
             console.log(`📊 POSITION: ${pos.coin}`);
             console.log(`   Size: ${pos.size} | Entry: ${pos.entryPrice}`);
             console.log(`   Current: ${pos.currentPrice} | PnL: ${pos.unrealizedPnl.toFixed(2)}`);
@@ -981,13 +1766,95 @@ async function getPositionsWithROE() {
     }
 }
 
-// ——— CHECK AND MANAGE 1+ HOUR OLD POSITIONS WITH DETAILED ROE ————————————————————————————————————————
+// ——— DYNAMIC PNL MONITORING FOR ALL POSITIONS ————————————————————————————————————————
+async function monitorAllPositionsPnL() {
+    try {
+        console.log('💰 DYNAMIC PNL MONITORING: Checking all positions for stop loss and profit management...');
+
+        const positions = await getPositionsWithROE();
+        
+        if (positions.length === 0) {
+            console.log('✅ No positions to monitor');
+            return { actionsPerformed: 0, monitoringResults: [] };
+        }
+
+        let actionsPerformed = 0;
+        const monitoringResults = [];
+
+        for (const pos of positions) {
+            const { coin, size, unrealizedPnl, roe, positionAgeHours, isLong } = pos;
+
+            console.log(`\n📊 MONITORING: ${coin}`);
+            console.log(`   PnL: ${unrealizedPnl.toFixed(2)} | ROE: ${roe.toFixed(2)}% | Age: ${positionAgeHours.toFixed(1)}h`);
+
+            // Get dynamic PnL decision
+            const pnlDecision = pnlTracker.updatePosition(coin, unrealizedPnl);
+            
+            console.log(`   Decision: ${pnlDecision.action} - ${pnlDecision.reason}`);
+
+            const result = {
+                coin,
+                pnl: unrealizedPnl.toFixed(2),
+                roe: roe.toFixed(2),
+                age: positionAgeHours.toFixed(1),
+                action: pnlDecision.action,
+                reason: pnlDecision.reason,
+                closed: false
+            };
+
+            if (pnlDecision.shouldClose) {
+                console.log(`🎯 EXECUTING CLOSE: ${coin} - ${pnlDecision.reason}`);
+                
+                const isBuy = size < 0; // If short, buy to close
+                const closeResult = await guaranteedInstantClose(
+                    coin, 
+                    size, 
+                    isBuy, 
+                    pnlDecision.reason
+                );
+
+                if (closeResult.success) {
+                    console.log(`✅ Successfully closed: ${coin} | Reason: ${pnlDecision.reason}`);
+                    actionsPerformed++;
+                    result.closed = true;
+                    
+                    // Clear tracker since position is closed
+                    pnlTracker.clearTracker(coin);
+                    
+                    pushTrade({
+                        id: `pnl_close_${Date.now()}`,
+                        pnl: unrealizedPnl,
+                        side: pnlDecision.reason,
+                        size: Math.abs(size),
+                        avgPrice: pos.currentPrice,
+                        leverage: pos.leverage,
+                        timestamp: Date.now()
+                    });
+                } else {
+                    console.error(`❌ Failed to close: ${coin}`);
+                    result.reason += '_FAILED';
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            monitoringResults.push(result);
+        }
+
+        console.log(`\n💰 PNL MONITORING COMPLETE: ${actionsPerformed} actions on ${positions.length} positions`);
+        return { actionsPerformed, monitoringResults };
+
+    } catch (error) {
+        console.error('❌ Error in PnL monitoring:', error);
+        return { actionsPerformed: 0, monitoringResults: [], error };
+    }
+}
 async function manageOldPositions() {
     try {
         console.log('⏰ Checking positions older than 1 hour with detailed ROE analysis...');
 
         const positions = await getPositionsWithROE();
-        const oldPositions = positions.filter(pos => pos.isOlderThanOneHour);
+        const oldPositions = positions.filter((pos: { isOlderThanOneHour: any; }) => pos.isOlderThanOneHour);
 
         if (oldPositions.length === 0) {
             console.log('✅ No positions older than 1 hour');
@@ -1060,7 +1927,7 @@ async function manageOldPositions() {
             actionsPerformed, 
             oldPositionsChecked: oldPositions.length,
             totalPositions: positions.length,
-            positionsDetails: oldPositions.map(pos => ({
+            positionsDetails: oldPositions.map((pos: { coin: any; positionAgeHours: number; unrealizedPnl: number; roe: number; }) => ({
                 coin: pos.coin,
                 ageHours: pos.positionAgeHours.toFixed(1),
                 pnl: pos.unrealizedPnl.toFixed(2),
@@ -1249,14 +2116,23 @@ export async function GET() {
     try {
         console.log('🚀 FIXED TRADING BOT with Signal Reversal & 1-Hour Logic:', new Date().toISOString());
 
-        // 🔍 STEP 1: Debug raw position data (optional)
+        // 🔍 STEP 1: Dynamic PnL monitoring for ALL positions (stop loss & profit management)
+        console.log('💰 Step 1: Dynamic PnL monitoring for all positions...');
+        const pnlMonitoringResult = await monitorAllPositionsPnL();
+
+        if (pnlMonitoringResult.actionsPerformed > 0) {
+            console.log(`✅ PnL Management: ${pnlMonitoringResult.actionsPerformed} actions performed`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Settlement wait
+        }
+
+        // 🔍 STEP 2: Debug raw position data (optional)
         if (process.env.DEBUG_POSITIONS === 'true') {
             console.log('🔍 DEBUG MODE: Showing raw position data...');
             await debugPositionData();
         }
 
-        // ⏰ STEP 2: Manage old positions (1+ hours) based on ROE/PnL
-        console.log('⏰ Step 2: Managing positions older than 1 hour...');
+        // ⏰ STEP 3: Manage old positions (1+ hours) based on ROE/PnL
+        console.log('⏰ Step 3: Managing positions older than 1 hour...');
         const oldPositionResult = await manageOldPositions();
 
         if (oldPositionResult.actionsPerformed > 0) {
@@ -1264,8 +2140,8 @@ export async function GET() {
             await new Promise(resolve => setTimeout(resolve, 2000)); // Settlement wait
         }
 
-        // 📊 STEP 3: Get trading signal
-        console.log('📊 Step 3: Fetching trading signal...');
+        // 📊 STEP 4: Get trading signal
+        console.log('📊 Step 4: Fetching trading signal...');
         const apiKey = process.env.NEXT_PUBLIC_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: 'API_KEY missing' }, { status: 500 });
@@ -1295,6 +2171,10 @@ export async function GET() {
         if (!slot || slot.signal === 'HOLD' || !slot.forecast_price) {
             return NextResponse.json({
                 message: 'No trade signal',
+                pnlMonitoring: {
+                    actionsPerformed: pnlMonitoringResult.actionsPerformed,
+                    monitoringResults: pnlMonitoringResult.monitoringResults
+                },
                 oldPositionManagement: {
                     actionsPerformed: oldPositionResult.actionsPerformed,
                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
@@ -1303,11 +2183,15 @@ export async function GET() {
             });
         }
 
-        // 🛑 STEP 4: Daily loss check
+        // 🛑 STEP 5: Daily loss check
         const dayState = getDayState();
         if (dayState.realizedLoss >= DAILY_LOSS_LIMIT) {
             return NextResponse.json({
                 message: `Daily loss limit: ${dayState.realizedLoss}`,
+                pnlMonitoring: {
+                    actionsPerformed: pnlMonitoringResult.actionsPerformed,
+                    monitoringResults: pnlMonitoringResult.monitoringResults
+                },
                 oldPositionManagement: {
                     actionsPerformed: oldPositionResult.actionsPerformed,
                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
@@ -1316,14 +2200,18 @@ export async function GET() {
             });
         }
 
-        // 💰 STEP 5: Position sizing
-        console.log('💰 Step 5: Position calculation...');
+        // 💰 STEP 6: Position sizing
+        console.log('💰 Step 6: Position calculation...');
         const balanceInfo = await getAvailableUSDC();
 
         if (balanceInfo.noFunds || balanceInfo.availableMargin < 10) {
             return NextResponse.json({
                 error: 'Insufficient funds',
                 balanceInfo,
+                pnlMonitoring: {
+                    actionsPerformed: pnlMonitoringResult.actionsPerformed,
+                    monitoringResults: pnlMonitoringResult.monitoringResults
+                },
                 oldPositionManagement: {
                     actionsPerformed: oldPositionResult.actionsPerformed,
                     oldPositionsChecked: oldPositionResult.oldPositionsChecked,
@@ -1338,15 +2226,15 @@ export async function GET() {
             slot.confidence_90?.[1] || 85
         );
 
-        // 🎯 STEP 6: Place reversed signal order
-        console.log('🎯 Step 6: Placing REVERSED signal order...');
+        // 🎯 STEP 7: Place reversed signal order
+        console.log('🎯 Step 7: Placing REVERSED signal order...');
         const orderResult = await placeReversedOrder(
             slot.signal,
             positionCalc.size,
             slot.forecast_price
         );
 
-        // 📊 STEP 7: Response
+        // 📊 STEP 8: Response
         const payload = {
             success: orderResult.success,
             timestamp: new Date().toISOString(),
@@ -1355,6 +2243,16 @@ export async function GET() {
                 originalSignal: slot.signal,
                 reversedSignal: orderResult.reversedSignal,
                 reason: 'Signal automatically reversed as requested'
+            },
+
+            dynamicPnLManagement: {
+                actionsPerformed: pnlMonitoringResult.actionsPerformed,
+                monitoringResults: pnlMonitoringResult.monitoringResults,
+                rules: {
+                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
+                    profitManagement: `Monitor at +${PROFIT_MONITORING_THRESHOLD}: if increasing for 1min → hold, if declining → close`,
+                    implementation: 'Real-time PnL tracking with trend analysis'
+                }
             },
             
             oldPositionManagement: {
@@ -1367,7 +2265,7 @@ export async function GET() {
             forecastSlot: slot,
             
             orderDetails: {
-                coin: 'BTC',
+                coin: 'BTC-PERP',
                 originalSignal: slot.signal,
                 executedSignal: orderResult.reversedSignal,
                 size: positionCalc.size,
@@ -1376,10 +2274,17 @@ export async function GET() {
                 marketPrice: orderResult.marketPrice
             },
 
-            oneHourLogic: {
-                description: "Positions older than 1 hour: if profitable (ROE > 0, PnL > 0) → SELL, if losing → HOLD",
-                implemented: true,
-                roeCalculation: "ROE% = (Unrealized PnL / Initial Margin) * 100",
+            riskManagement: {
+                dynamicPnLLimits: {
+                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
+                    profitThreshold: `Start monitoring at +${PROFIT_MONITORING_THRESHOLD} unrealized PnL`,
+                    profitLogic: 'Monitor for 1 minute: if still increasing → hold, if declining → close',
+                    implementation: 'Real-time trend analysis with position tracking'
+                },
+                oneHourRule: {
+                    description: "Positions older than 1 hour: if profitable (ROE > 0, PnL > 0) → SELL, if losing → HOLD",
+                    roeCalculation: "ROE% = (Unrealized PnL / Initial Margin) * 100"
+                },
                 debugMode: "Set DEBUG_POSITIONS=true in env to see raw API data"
             },
 
@@ -1397,6 +2302,53 @@ export async function GET() {
 
     } catch (err: any) {
         console.error('❌ Fixed bot error:', err);
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+// ——— POST ENDPOINT FOR MANUAL PNL MONITORING ————————————————————————————————————————
+export async function POST() {
+    try {
+        console.log('🔄 MANUAL PNL MONITORING TRIGGER:', new Date().toISOString());
+
+        // Run dynamic PnL monitoring
+        const pnlMonitoringResult = await monitorAllPositionsPnL();
+
+        // Run old position management
+        const oldPositionResult = await manageOldPositions();
+
+        return NextResponse.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            message: 'Manual PnL monitoring completed',
+            
+            dynamicPnLMonitoring: {
+                actionsPerformed: pnlMonitoringResult.actionsPerformed,
+                totalPositionsChecked: pnlMonitoringResult.monitoringResults.length,
+                results: pnlMonitoringResult.monitoringResults,
+                rules: {
+                    stopLoss: `Immediate close at -${MAX_LOSS_PER_TRADE} unrealized PnL`,
+                    profitManagement: `Monitor at +${PROFIT_MONITORING_THRESHOLD}: trend analysis for 1 minute`,
+                    implementation: 'Real-time position tracking and trend analysis'
+                }
+            },
+
+            oldPositionManagement: {
+                actionsPerformed: oldPositionResult.actionsPerformed,
+                oldPositionsChecked: oldPositionResult.oldPositionsChecked,
+                totalPositions: oldPositionResult.totalPositions,
+                positionsDetails: oldPositionResult.positionsDetails || []
+            },
+
+            summary: {
+                totalActions: pnlMonitoringResult.actionsPerformed + oldPositionResult.actionsPerformed,
+                pnlBasedActions: pnlMonitoringResult.actionsPerformed,
+                ageBasedActions: oldPositionResult.actionsPerformed
+            }
+        });
+
+    } catch (err: any) {
+        console.error('❌ Manual PnL monitoring error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
