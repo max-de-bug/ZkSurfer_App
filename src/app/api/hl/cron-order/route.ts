@@ -1666,7 +1666,7 @@ async function getPositionsWithROE() {
 // ——— SIMPLIFIED POSITION MONITORING WITH IMMEDIATE PROFIT TARGETS ————————————————————————————————————————
 async function monitorAllPositionsPnL() {
     try {
-        console.log('💰 SIMPLIFIED MONITORING: Immediate profit targets + age-based rules...');
+        console.log('💰 CORRECT AGE-BASED MONITORING: Stop loss only for new positions...');
 
         const positions = await getPositionsWithROE();
         
@@ -1694,32 +1694,23 @@ async function monitorAllPositionsPnL() {
                 closed: false
             };
 
-            // 🎯 PRIORITY RULE: IMMEDIATE PROFIT/LOSS TARGETS (applies to ALL positions regardless of age)
-            const pnlDecision = pnlTracker.updatePosition(coin, unrealizedPnl);
-
-            // Check if immediate action is needed (profit targets or stop loss)
-            if (pnlDecision.shouldClose) {
-                console.log(`   🎯 IMMEDIATE ACTION: ${coin} - ${pnlDecision.reason}`);
-                result.action = pnlDecision.action;
-                result.reason = pnlDecision.reason;
+            // 🎯 PRIORITY RULE 1: MAX PROFIT TARGET - $100 (applies to ALL positions regardless of age)
+            if (unrealizedPnl >= MAX_PROFIT_PER_TRADE) {
+                console.log(`   🎯 MAX PROFIT RULE: ${unrealizedPnl.toFixed(2)} ≥ ${MAX_PROFIT_PER_TRADE} → IMMEDIATE CLOSE`);
+                result.action = 'MAX_PROFIT';
+                result.reason = `MAX_PROFIT_${unrealizedPnl.toFixed(2)}`;
                 
-                const isBuy = size < 0; // If short, buy to close
-                const closeResult = await guaranteedInstantClose(
-                    coin, 
-                    size, 
-                    isBuy, 
-                    result.reason
-                );
+                const isBuy = size < 0;
+                const closeResult = await guaranteedInstantClose(coin, size, isBuy, result.reason);
 
                 if (closeResult.success) {
-                    console.log(`   ✅ Successfully closed position: ${coin}`);
+                    console.log(`   ✅ Successfully closed max profit position: ${coin}`);
                     actionsPerformed++;
                     result.closed = true;
-                    
                     pnlTracker.clearTracker(coin);
                     
                     pushTrade({
-                        id: `immediate_${Date.now()}`,
+                        id: `max_profit_${Date.now()}`,
                         pnl: unrealizedPnl,
                         side: result.reason,
                         size: Math.abs(size),
@@ -1727,42 +1718,63 @@ async function monitorAllPositionsPnL() {
                         leverage: pos.leverage,
                         timestamp: Date.now()
                     });
-                } else {
-                    console.error(`   ❌ Failed to close position: ${coin}`);
-                    result.reason += '_FAILED';
                 }
 
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 monitoringResults.push(result);
-                continue; // Skip age-based rules since we took immediate action
+                continue;
             }
 
-            // ——— AGE-BASED RULES (only apply if no immediate action was taken) ———————————————————————————————————————
+            // 🎯 PRIORITY RULE 2: QUICK PROFIT TARGET - $50 (applies to ALL positions regardless of age)
+            if (unrealizedPnl >= QUICK_PROFIT_TARGET) {
+                console.log(`   💰 QUICK PROFIT RULE: ${unrealizedPnl.toFixed(2)} ≥ ${QUICK_PROFIT_TARGET} → IMMEDIATE CLOSE`);
+                result.action = 'PROFIT_TAKE';
+                result.reason = `QUICK_PROFIT_${unrealizedPnl.toFixed(2)}`;
+                
+                const isBuy = size < 0;
+                const closeResult = await guaranteedInstantClose(coin, size, isBuy, result.reason);
+
+                if (closeResult.success) {
+                    console.log(`   ✅ Successfully closed quick profit position: ${coin}`);
+                    actionsPerformed++;
+                    result.closed = true;
+                    pnlTracker.clearTracker(coin);
+                    
+                    pushTrade({
+                        id: `quick_profit_${Date.now()}`,
+                        pnl: unrealizedPnl,
+                        side: result.reason,
+                        size: Math.abs(size),
+                        avgPrice: pos.currentPrice,
+                        leverage: pos.leverage,
+                        timestamp: Date.now()
+                    });
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                monitoringResults.push(result);
+                continue;
+            }
+
+            // ——— AGE-BASED RULES WITH CORRECT STOP LOSS LOGIC ———————————————————————————————————————
             if (isOlderThanOneHour) {
+                // ——— OLD POSITIONS (>1 HOUR): NO STOP LOSS, LET RECOVER ———————————————————————————————————————
                 if (unrealizedPnl < 0) {
-                    // OLD + NEGATIVE PnL = HOLD
-                    console.log(`   🔒 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + NEGATIVE PnL → HOLD (wait for recovery)`);
+                    console.log(`   🔒 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + NEGATIVE PnL → HOLD (no stop loss, let recover)`);
                     result.action = 'HOLD';
                     result.reason = `OLD_NEGATIVE_HOLD_${unrealizedPnl.toFixed(2)}`;
                 } else {
-                    // OLD + POSITIVE PnL = CLOSE
-                    console.log(`   💰 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + POSITIVE PnL → CLOSE (take profits)`);
+                    console.log(`   💰 OLD POSITION RULE: ${positionAgeHours.toFixed(1)}h old + POSITIVE PnL → CLOSE (take any profit)`);
                     result.action = 'PROFIT_TAKE';
                     result.reason = `OLD_POSITIVE_CLOSE_${unrealizedPnl.toFixed(2)}`;
                     
-                    const isBuy = size < 0; // If short, buy to close
-                    const closeResult = await guaranteedInstantClose(
-                        coin, 
-                        size, 
-                        isBuy, 
-                        result.reason
-                    );
+                    const isBuy = size < 0;
+                    const closeResult = await guaranteedInstantClose(coin, size, isBuy, result.reason);
 
                     if (closeResult.success) {
                         console.log(`   ✅ Successfully closed old profitable position: ${coin}`);
                         actionsPerformed++;
                         result.closed = true;
-                        
                         pnlTracker.clearTracker(coin);
                         
                         pushTrade({
@@ -1774,28 +1786,60 @@ async function monitorAllPositionsPnL() {
                             leverage: pos.leverage,
                             timestamp: Date.now()
                         });
-                    } else {
-                        console.error(`   ❌ Failed to close old position: ${coin}`);
-                        result.reason += '_FAILED';
                     }
 
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             } else {
-                // NEW POSITION + NO IMMEDIATE ACTION = CONTINUE MONITORING
-                console.log(`   ⏱️ NEW POSITION: ${positionAgeHours.toFixed(1)}h old → Continue monitoring for profit targets`);
-                result.action = pnlDecision.action;
-                result.reason = pnlDecision.reason;
+                // ——— NEW POSITIONS (<1 HOUR): APPLY STOP LOSS AT -$20 ———————————————————————————————————————
+                console.log(`   ⏱️ NEW POSITION: ${positionAgeHours.toFixed(1)}h old → Apply stop loss rule`);
+                
+                // 🛑 STOP LOSS FOR NEW POSITIONS ONLY
+                if (unrealizedPnl <= -MAX_LOSS_PER_TRADE) {
+                    console.log(`   🛑 NEW POSITION STOP LOSS: ${coin} at ${unrealizedPnl.toFixed(2)} → IMMEDIATE CLOSE`);
+                    result.action = 'STOP_LOSS';
+                    result.reason = `NEW_STOP_LOSS_${unrealizedPnl.toFixed(2)}`;
+                    
+                    const isBuy = size < 0;
+                    const closeResult = await guaranteedInstantClose(coin, size, isBuy, result.reason);
+
+                    if (closeResult.success) {
+                        console.log(`   ✅ Successfully executed stop loss on new position: ${coin}`);
+                        actionsPerformed++;
+                        result.closed = true;
+                        pnlTracker.clearTracker(coin);
+                        
+                        pushTrade({
+                            id: `new_stop_${Date.now()}`,
+                            pnl: unrealizedPnl,
+                            side: result.reason,
+                            size: Math.abs(size),
+                            avgPrice: pos.currentPrice,
+                            leverage: pos.leverage,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        console.error(`   ❌ Failed to execute stop loss: ${coin}`);
+                        result.reason += '_FAILED';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    // NEW POSITION WITHIN ACCEPTABLE LOSS RANGE
+                    console.log(`   📈 NEW POSITION OK: ${unrealizedPnl.toFixed(2)} > -${MAX_LOSS_PER_TRADE} → Continue monitoring`);
+                    result.action = 'MONITOR';
+                    result.reason = `NEW_MONITORING_${unrealizedPnl.toFixed(2)}`;
+                }
             }
 
             monitoringResults.push(result);
         }
 
-        console.log(`\n💰 SIMPLIFIED MONITORING COMPLETE: ${actionsPerformed} actions on ${positions.length} positions`);
+        console.log(`\n💰 CORRECT AGE-BASED MONITORING COMPLETE: ${actionsPerformed} actions on ${positions.length} positions`);
         return { actionsPerformed, monitoringResults };
 
     } catch (error) {
-        console.error('❌ Error in simplified monitoring:', error);
+        console.error('❌ Error in age-based monitoring:', error);
         return { actionsPerformed: 0, monitoringResults: [], error };
     }
 }
