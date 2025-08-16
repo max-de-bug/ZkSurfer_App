@@ -41,19 +41,26 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
   const endpoint = process.env.NEXT_PUBLIC_PAST_PREDICTION_API;
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY;
   if (!endpoint) {
     return NextResponse.json(
       { error: "NEXT_PUBLIC_PAST_PREDICTION_API is not defined" },
       { status: 500 }
     );
   }
+  if (!apiKey) {
+      return NextResponse.json({ error: "PREDICTION_API_KEY is not defined" }, { status: 500 });
+    }
 
   try {
     // 1. disable fetch caching
     const upstream = await fetch(endpoint, {
       method: "GET",
       cache: "no-store",
-      headers: { accept: "application/json" },
+       headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json"
+      }
     });
 
     if (!upstream.ok) {
