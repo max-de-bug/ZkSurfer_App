@@ -174,6 +174,61 @@ import { useTradingStore } from '@/stores/trading-store';
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 
+import { z } from "zod";
+
+// --- small helpers ---
+const KEY_CHARS = /^[A-Za-z0-9_-]+$/;      // relax/tighten as needed
+const HEX40 = /^[0-9a-fA-F]{40}$/;
+const HEX40_WITH_0X = /^0x[0-9a-fA-F]{40}$/;
+
+const KeySchema = z.string()
+  .trim()
+  .length(107, "Must be exactly 107 characters.")
+  .regex(KEY_CHARS, "Invalid characters.");
+
+const WalletSchema = z.string()
+  .trim()
+  // if 40 hex without 0x, auto-prefix it
+  .transform(v => (HEX40.test(v) && !v.startsWith("0x")) ? `0x${v}` : v)
+  .refine(v => HEX40_WITH_0X.test(v), "Wallet must be 0x + 40 hex (42 chars).");
+
+const percentStr = z.string().trim().refine(v => {
+  const n = Number(v); return Number.isFinite(n) && n >= 0 && n <= 100;
+}, "Enter a % between 0 and 100");
+
+const usdStr = z.string().trim().refine(v => {
+  const n = Number(v); return Number.isFinite(n) && n >= 0;
+}, "Must be a non-negative number");
+
+// Step 1 schema (secrets)
+const CredsSchema = z.object({
+  wallet: WalletSchema,
+  apiKey: KeySchema,
+  apiSecret: KeySchema,
+});
+
+// Step 2 schema (risk config)
+const RiskCfgSchema = z.object({
+  aumPct: percentStr,
+  pctPerTrade: percentStr,
+  maxDailyLossUsd: usdStr,
+  maxLossPerTradeUsd: usdStr,
+  expectedDailyProfitUsd: usdStr,
+  useLeverage: z.boolean(),
+  levMin: z.number(),
+  levMax: z.number(),
+}).superRefine((v, ctx) => {
+  if (v.useLeverage) {
+    if (!(v.levMin > 0)) {
+      ctx.addIssue({ path: ["levMin"], code: z.ZodIssueCode.custom, message: "Must be > 0" });
+    }
+    if (!(v.levMax >= v.levMin)) {
+      ctx.addIssue({ path: ["levMax"], code: z.ZodIssueCode.custom, message: "Must be ≥ Min" });
+    }
+  }
+});
+
+
 const assets = ['Bitcoin', 'Ethereum', 'Solana', 'Cardano'] as const;
 type Asset = typeof assets[number];
 
@@ -221,6 +276,35 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
   const [submitting, setSubmitting] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
 
+  const [credsErrors, setCredsErrors] = useState<Partial<Record<keyof typeof creds, string>>>({});
+const [cfgErrors, setCfgErrors] = useState<Partial<Record<keyof typeof cfg, string>>>({});
+const [info, setInfo] = useState<string>(""); // optional: to show auto-fix messages
+
+
+function validateStep1AndGoNext() {
+  setCredsErrors({});
+  setInfo("");
+
+  const result = CredsSchema.safeParse(creds);
+  if (!result.success) {
+    const fe = result.error.flatten().fieldErrors;
+    setCredsErrors({
+      wallet: fe.wallet?.[0],
+      apiKey: fe.apiKey?.[0],
+      apiSecret: fe.apiSecret?.[0],
+    });
+    return; // stay on step 1
+  }
+
+  // apply normalized values (wallet may be auto-prefixed with 0x)
+  if (!creds.wallet.trim().startsWith("0x") && result.data.wallet.startsWith("0x")) {
+    setInfo("Added missing 0x prefix to wallet.");
+  }
+  setCreds(result.data);
+  setStep(2);
+}
+
+
   const [creds, setCreds] = useState({
     wallet: '',
     apiKey: '',
@@ -260,31 +344,70 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
     positiveUsdOk(cfg.expectedDailyProfitUsd) &&
     (!cfg.useLeverage || (cfg.levMin > 0 && cfg.levMax >= cfg.levMin))
 
-  async function handleEnableCopy() {
-    if (!step1Valid || !step2Valid) return
-    setSubmitting(true)
-    try {
-      // 🔐 IMPORTANT: send to a server route that stores these securely (DB/KMS),
-      // never localStorage.
-      const res = await fetch('/api/copy-trade/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creds, cfg })
-      })
+  // async function handleEnableCopy() {
+  //   if (!step1Valid || !step2Valid) return
+  //   setSubmitting(true)
+  //   try {
+  //     // 🔐 IMPORTANT: send to a server route that stores these securely (DB/KMS),
+  //     // never localStorage.
+  //     const res = await fetch('/api/copy-trade/setup', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ creds, cfg })
+  //     })
 
-      if (!res.ok) throw new Error('Setup failed')
-      // optional: toast
-      setShowCopyWizard(false)
-    } catch (e) {
-      console.error(e)
-      alert('Failed to enable copy trading. Check server logs.')
-    } finally {
-      setSubmitting(false)
-    }
+  //     if (!res.ok) throw new Error('Setup failed')
+  //     // optional: toast
+  //     setShowCopyWizard(false)
+  //   } catch (e) {
+  //     console.error(e)
+  //     alert('Failed to enable copy trading. Check server logs.')
+  //   } finally {
+  //     setSubmitting(false)
+  //   }
+  // }
+
+  async function handleEnableCopy() {
+  // clear old errors
+  setCfgErrors({});
+  setInfo("");
+
+  // validate step 2 with Zod
+  const result = RiskCfgSchema.safeParse(cfg);
+  if (!result.success) {
+    const fe = result.error.flatten().fieldErrors;
+    setCfgErrors({
+      aumPct: fe.aumPct?.[0],
+      pctPerTrade: fe.pctPerTrade?.[0],
+      maxDailyLossUsd: fe.maxDailyLossUsd?.[0],
+      maxLossPerTradeUsd: fe.maxLossPerTradeUsd?.[0],
+      expectedDailyProfitUsd: fe.expectedDailyProfitUsd?.[0],
+      levMin: fe.levMin?.[0],
+      levMax: fe.levMax?.[0],
+    });
+    return;
   }
 
+  setSubmitting(true);
+  try {
+    const res = await fetch('/api/copy-trade/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creds, cfg: result.data })
+    });
+    if (!res.ok) throw new Error('Setup failed');
+    setShowCopyWizard(false);
+  } catch (e) {
+    console.error(e);
+    alert('Failed to enable copy trading. Check server logs.');
+  } finally {
+    setSubmitting(false);
+  }
+}
+
+
   return (
-    <div className={clsx('bg-gray-900 text-white p-6 rounded-lg w-80 h-full space-y-4', className)}>
+    <div className={clsx('bg-gray-900 text-white p-6 rounded-lg w-full max-w-md md:w-80 h-full space-y-4 mx-auto md:mx-0', className)}>
       {/* =============== Copy ZkAGI Trade card =============== */}
       <div className="rounded-lg border border-gray-700 bg-gray-850 p-4">
         <div className="flex items-start justify-between">
@@ -317,34 +440,66 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-xs text-gray-400">HyperLiquid Wallet Address</label>
-                  <input
+                  {/* <input
                     value={creds.wallet}
                     onChange={e => setCreds(s => ({ ...s, wallet: e.target.value.trim() }))}
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
                     placeholder="0x…"
-                  />
+                  /> */}
+                  <input
+  value={creds.wallet}
+  onChange={e => setCreds(s => ({ ...s, wallet: e.target.value.trim() }))}
+  className={clsx(
+    "w-full bg-gray-800 border rounded px-3 py-2 text-sm",
+    credsErrors.wallet ? "border-red-600" : "border-gray-700"
+  )}
+  placeholder="0x…"
+/>
+{credsErrors.wallet && <p className="text-[11px] text-red-500">{credsErrors.wallet}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs text-gray-400">Hyperliquid API Key</label>
-                  <input
+                  {/* <input
                     value={creds.apiKey}
                     onChange={e => setCreds(s => ({ ...s, apiKey: e.target.value.trim() }))}
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
                     placeholder="hlpk_********"
-                  />
+                  /> */}
+                  <input
+  value={creds.apiKey}
+  onChange={e => setCreds(s => ({ ...s, apiKey: e.target.value.trim() }))}
+  className={clsx(
+    "w-full bg-gray-800 border rounded px-3 py-2 text-sm",
+    credsErrors.apiKey ? "border-red-600" : "border-gray-700"
+  )}
+  placeholder="hlpk_********"
+/>
+{credsErrors.apiKey && <p className="text-[11px] text-red-500">{credsErrors.apiKey}</p>}
+
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs text-gray-400">Hyperliquid API Private Key</label>
                   <div className="flex gap-2">
-                    <input
+                    {/* <input
                       type={showSecret ? 'text' : 'password'}
                       value={creds.apiSecret}
                       onChange={e => setCreds(s => ({ ...s, apiSecret: e.target.value }))}
                       className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
                       placeholder="••••••••"
-                    />
+                    /> */}
+                    <input
+  type={showSecret ? 'text' : 'password'}
+  value={creds.apiSecret}
+  onChange={e => setCreds(s => ({ ...s, apiSecret: e.target.value }))}
+  className={clsx(
+    "flex-1 bg-gray-800 border rounded px-3 py-2 text-sm",
+    credsErrors.apiSecret ? "border-red-600" : "border-gray-700"
+  )}
+  placeholder="••••••••"
+/>
+
                     <button
                       type="button"
                       onClick={() => setShowSecret(v => !v)}
@@ -352,7 +507,11 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
                     >
                       {showSecret ? 'Hide' : 'Show'}
                     </button>
+                    
                   </div>
+                  {credsErrors.apiSecret && <p className="text-[11px] text-red-500">{credsErrors.apiSecret}</p>}
+
+{info && <p className="text-[11px] text-emerald-500">{info}</p>}
                 </div>
 
                 <div className="flex gap-2">
@@ -363,18 +522,37 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
                   >
                     Cancel
                   </button>
-                  <button
+                  {/* <button
                     className="flex-1 px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-sm"
                     disabled={!step1Valid}
                     onClick={() => setStep(2)}
                     type="button"
                   >
                     Next
-                  </button>
+                  </button> */}
+                  <button
+  className="flex-1 px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-sm"
+  // keep your existing simple non-empty guard if you like:
+  disabled={!creds.wallet || !creds.apiKey || !creds.apiSecret}
+  onClick={validateStep1AndGoNext}
+  type="button"
+>
+  Next
+</button>
+
                 </div>
-                <p className="text-[10px] text-gray-500">
-                  We’ll send these to a secure TEE storage.
-                </p>
+               <p className="text-[10px] text-gray-500">
+  The system is configured to store credentials and keys on a TEE,{' '}
+  <a
+    href=""
+    target="_blank"
+    rel="noopener noreferrer"
+    className="underline text-blue-400"
+  >
+    read more. 
+  </a>
+</p>
+
               </div>
             )}
 
@@ -383,7 +561,7 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="text-xs text-gray-400">% of Portfolio (AUM)</label>
-                    <input
+                    {/* <input
                       inputMode="decimal"
                       value={cfg.aumPct}
                       onChange={e => setCfg(s => ({ ...s, aumPct: e.target.value }))}
@@ -392,7 +570,19 @@ const PredictionPanel: React.FC<PredictionPanelProps> = ({ className }) => {
                         percentOk(cfg.aumPct) ? 'border-gray-700' : 'border-red-600'
                       )}
                       placeholder="e.g. 50"
-                    />
+                    /> */}
+                    <input
+  inputMode="decimal"
+  value={cfg.aumPct}
+  onChange={e => setCfg(s => ({ ...s, aumPct: e.target.value }))}
+  className={clsx(
+    "w-full bg-gray-800 border rounded px-3 py-2 text-sm",
+    cfgErrors.aumPct ? "border-red-600" : "border-gray-700"
+  )}
+  placeholder="e.g. 50"
+/>
+{cfgErrors.aumPct && <p className="text-[11px] text-red-500">{cfgErrors.aumPct}</p>}
+
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-400">% of AUM per Trade</label>
