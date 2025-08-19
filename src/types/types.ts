@@ -125,7 +125,12 @@ export interface FullReportData extends ReportData {
   // Keep backward compatibility
   forecastNext3Days?: ForecastPoint[];
   priceHistoryLast7Days?: PriceHistoryPoint[];
-  forecastTodayHourly?: HourlyForecast[];
+  // forecastTodayHourly?: HourlyForecast[];
+  forecastTodayHourly: {
+    BTC: HourlyForecast[];
+    ETH: HourlyForecast[];
+    SOL: HourlyForecast[];
+  };
 }
 
 // ===== UTILITY TYPES FOR CHART COMPONENTS =====

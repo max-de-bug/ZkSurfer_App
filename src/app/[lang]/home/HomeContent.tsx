@@ -633,6 +633,31 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 confidence_90: h.confidence_90,
             }));
 
+                const mapHourlyForAsset = (arr: any[] = []): HourlyForecast[] =>
+        arr.map(h => ({
+            time: h.time,
+            signal: h.signal,
+            entry_price: h.entry_price,
+            stop_loss: h.stop_loss,
+            take_profit: h.take_profit,
+            forecast_price: h.forecast_price,
+            current_price: h.current_price,
+            deviation_percent: h.deviation_percent,
+            accuracy_percent: h.accuracy_percent,
+            risk_reward_ratio: h.risk_reward_ratio,
+            sentiment_score: h.sentiment_score,
+            confidence_50: h.confidence_50,
+            confidence_80: h.confidence_80,
+            confidence_90: h.confidence_90,
+        }));
+
+
+            const forecastTodayHourly = {
+        BTC: mapHourlyForAsset(raw.forecast_today_hourly?.BTC || []),
+        ETH: mapHourlyForAsset(raw.forecast_today_hourly?.ETH || []),
+        SOL: mapHourlyForAsset(raw.forecast_today_hourly?.SOL || [])
+    };
+
         const report: FullReportData = {
             predictionAccuracy: dummyReportData.predictionAccuracy,
             predictionSeries: dummyReportData.predictionSeries,
@@ -651,7 +676,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 macro: mapMacroNews(today.macro_news),
             },
 
-            forecastTodayHourly: mapHourly(raw.forecast_today_hourly),
+            forecastTodayHourly: forecastTodayHourly,
         };
 
         setReportData(report);
@@ -2353,7 +2378,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
         return new TextEncoder().encode(str).length;
     }
 
-    const transformPastDataToCurrentFormat = (pastData: PastPredictionData): FullReportData => { const allNews = [...pastData.crypto_news, ...pastData.macro_news]; const sentimentScores = allNews.map(item => item.sentimentScore).filter((score): score is number => score !== undefined && score !== null); const avgSentiment = sentimentScores.length > 0 ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length : 2.5; const getMarketSentiment = (score: number): 'bullish' | 'bearish' => { return score > 3.2 ? 'bullish' : 'bearish'; }; const getVolatility = (): 'low' | 'moderate' | 'high' => { return 'moderate'; }; return { predictionAccuracy: 85, predictionSeries: [], priceStats: [], marketSentiment: getMarketSentiment(avgSentiment), avoidTokens: [], newsImpact: [{ title: allNews[0]?.title || "No major news", sentiment: avgSentiment > 3.2 ? 'bullish' : avgSentiment < 1.6 ? 'bearish' : 'neutral' }], volatility: getVolatility(), liquidity: "high", trendingNews: [], whatsNew: [{ text: `Historical report from ${new Date(pastData.fetched_date).toLocaleDateString()}` }], recommendations: [], todaysNews: { crypto: pastData.crypto_news.map(item => ({ news_id: item.news_id, title: item.title, link: item.link, analysis: item.analysis, sentimentScore: item.sentimentScore || 2.5, sentimentTag: item.sentimentTag || 'neutral', advice: item.advice || 'Hold', reason: item.reason || '', rationale: item.rationale || '' })), macro: pastData.macro_news.map(item => ({ news_id: item.news_id, title: item.title, link: item.link, description: item.description || '', analysis: item.analysis, sentimentScore: item.sentimentScore || 2.5, sentimentTag: item.sentimentTag || 'neutral', advice: item.advice || 'Hold', reason: item.reason || '', rationale: item.rationale || '' })) }, forecastNext3Days: [], priceHistoryLast7Days: [] }; };
 
     const handleTweetCommand = async (message: string) => {
         const { selectedTicker } = useTickerStore.getState();

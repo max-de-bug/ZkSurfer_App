@@ -5725,11 +5725,20 @@ interface ForecastData {
   overall_accuracy_percent?: number | string;
 }
 
+// interface PriceChartProps {
+//   priceHistory?: PriceData[];
+//   forecast?: ForecastData[];
+//   hourlyForecast?: HourlyForecast[];
+//   className?: string;
+// }
+
 interface PriceChartProps {
   priceHistory?: PriceData[];
   forecast?: ForecastData[];
   hourlyForecast?: HourlyForecast[];
   className?: string;
+  selectedAsset?: 'BTC' | 'SOL' | 'ETH';
+  onAssetChange?: (asset: 'BTC' | 'SOL' | 'ETH') => void;
 }
 
 interface TooltipData {
@@ -5986,10 +5995,13 @@ const PriceChart: React.FC<PriceChartProps> = ({
       confidence_90: [116344.86, 117220.08]
     }
   ],
+  selectedAsset: propSelectedAsset,
+  onAssetChange
 }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'TODAY' | 'PAST_7D' | 'NEXT_3D'>('TODAY');
   const [selectedSubTimeframe, setSelectedSubTimeframe] = useState<'3D' | '7D'>('3D');
-  const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>('BTC');
+  // const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>('BTC');
+    const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>(propSelectedAsset || 'BTC');
   const [tooltip, setTooltip] = useState<TooltipData>({ x: 0, y: 0, data: null, visible: false, type: 'chart' });
   const [isMobile, setIsMobile] = useState(false);
   const [candlestickData, setCandlestickData] = useState<CandlestickData[]>([]);
@@ -6001,6 +6013,13 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
 
   const nextForecast = hourlyForecast?.at(-1) ?? null;
+
+   const handleAssetChange = (asset: 'BTC' | 'SOL' | 'ETH') => {
+    setSelectedAsset(asset);
+    if (onAssetChange) {
+      onAssetChange(asset);
+    }
+  };
 
 
   function formatDollar(n: number) {
@@ -7454,7 +7473,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
     <div className={`bg-[#0a1628] rounded-lg p-4 ${className}`}>
       {/* Controls Section */}
       <div className="flex justify-between items-center mb-4 gap-2">
-        <select
+        {/* <select
           value={selectedAsset}
           onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'SOL' | 'ETH')}
           className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm min-w-0 flex-shrink-0"
@@ -7462,7 +7481,16 @@ const PriceChart: React.FC<PriceChartProps> = ({
           <option value="BTC">BTC</option>
           <option value="SOL" disabled>SOL (Soon)</option>
           <option value="ETH" disabled>ETH (Soon)</option>
-        </select>
+        </select> */}
+         <select
+    value={selectedAsset}
+    onChange={(e) => handleAssetChange(e.target.value as 'BTC' | 'SOL' | 'ETH')}
+    className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm min-w-0 flex-shrink-0"
+  >
+    <option value="BTC">BTC</option>
+    <option value="SOL">SOL</option>
+    <option value="ETH">ETH</option>
+  </select>
 
         <SegmentedControl
           options={[

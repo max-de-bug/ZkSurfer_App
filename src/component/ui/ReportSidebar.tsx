@@ -55,7 +55,12 @@ interface PastPredictionData {
         reason?: string;
         rationale?: string;
     }>;
-    hourlyForecast?: HourlyEntry[];
+    // hourlyForecast?: HourlyEntry[];
+    hourlyForecast?: HourlyEntry[] | {
+        BTC: HourlyEntry[];
+        ETH: HourlyEntry[];
+        SOL: HourlyEntry[];
+    };
 }
 
 interface ReportSidebarProps {
@@ -70,6 +75,9 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const [btcPrice, setBtcPrice] = useState<number | null>(null);
     const [btcChange, setBtcChange] = useState<number | null>(null);
     const [loadingBtc, setLoadingBtc] = useState(true);
+
+    const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'ETH' | 'SOL'>('BTC');
+
 
 
 //     const BTC_ASSET_ID = 0;          // <-- replace with real id (see /meta call)
@@ -269,6 +277,31 @@ function calculateDynamicLeverage(dailyProfit: number, dailyLoss: number, signal
             return 'moderate';
         };
 
+        let forecastTodayHourly: { BTC: HourlyEntry[]; ETH: HourlyEntry[]; SOL: HourlyEntry[] };
+
+        if (Array.isArray(pastData.hourlyForecast)) {
+        // Old format - put it in BTC by default
+        forecastTodayHourly = {
+            BTC: pastData.hourlyForecast,
+            ETH: [],
+            SOL: []
+        };
+    } else if (pastData.hourlyForecast && typeof pastData.hourlyForecast === 'object') {
+        // New format - use as is
+        forecastTodayHourly = {
+            BTC: pastData.hourlyForecast.BTC || [],
+            ETH: pastData.hourlyForecast.ETH || [],
+            SOL: pastData.hourlyForecast.SOL || []
+        };
+    } else {
+        // No data
+        forecastTodayHourly = {
+            BTC: [],
+            ETH: [],
+            SOL: []
+        };
+    }
+
         return {
             predictionAccuracy: 85, // Default for past data
             predictionSeries: [],
@@ -317,7 +350,8 @@ function calculateDynamicLeverage(dailyProfit: number, dailyLoss: number, signal
             },
             forecastNext3Days: [],
             priceHistoryLast7Days: [],
-            forecastTodayHourly: pastData.hourlyForecast || [],
+            // forecastTodayHourly: pastData.hourlyForecast || [],
+             forecastTodayHourly: forecastTodayHourly,
         };
     };
 
@@ -328,7 +362,8 @@ function calculateDynamicLeverage(dailyProfit: number, dailyLoss: number, signal
             : data as FullReportData
         : null;
 
-const hourlyFc = reportData?.forecastTodayHourly ?? [];
+// const hourlyFc = reportData?.forecastTodayHourly ?? [];
+const hourlyFc = reportData?.forecastTodayHourly?.[selectedAsset] ?? [];
 
     useEffect(() => {
         const checkMobile = () => {
@@ -341,8 +376,11 @@ const hourlyFc = reportData?.forecastTodayHourly ?? [];
     }, []);
 
     useEffect(() => {
+         const coinId = selectedAsset === 'BTC' ? 'bitcoin' : 
+                   selectedAsset === 'ETH' ? 'ethereum' : 
+                   'solana';
         fetch(
-            'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinId}`
         )
             .then(r => r.json())
             .then((arr: any[]) => {
@@ -477,7 +515,10 @@ const formattedAccuracyDisplay =
   try {
     setPlacing(true);
     // const slot = hourlyFc.find(h => h.signal !== 'HOLD') ?? hourlyFc[0];
-    const slot = hourlyFc[hourlyFc.length - 1];
+            const assetHourlyFc = reportData?.forecastTodayHourly?.[selectedAsset] ?? [];
+        const slot = assetHourlyFc[assetHourlyFc.length - 1];
+
+    //const slot = hourlyFc[hourlyFc.length - 1];
 
     if (!slot) return;
 
@@ -626,6 +667,15 @@ const payload: PlaceOrderBody = {
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
+                         <select
+        value={selectedAsset}
+        onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'ETH' | 'SOL')}
+        className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+    >
+        <option value="BTC">BTC</option>
+        <option value="ETH">ETH</option>
+        <option value="SOL">SOL</option>
+    </select>
  <Link
       href="/predictions"
       target="_blank"
@@ -668,7 +718,10 @@ const payload: PlaceOrderBody = {
                                 <PriceChart
                                     priceHistory={reportData.priceHistoryLast7Days || []}
                                     forecast={reportData.forecastNext3Days || []}
-                                    hourlyForecast={reportData.forecastTodayHourly || []}
+                                    // hourlyForecast={reportData.forecastTodayHourly || []}
+                                    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] || []}
+    selectedAsset={selectedAsset}
+    onAssetChange={setSelectedAsset}
                                 />
                             ) : (
                                 // <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
@@ -694,10 +747,14 @@ const payload: PlaceOrderBody = {
   {/* Table on the right */}
   <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
     <span className="text-sm text-gray-300">Hourly Breakdown</span>
-    <HourlyPredictionsTable
+    {/* <HourlyPredictionsTable
       hourlyForecast={reportData.forecastTodayHourly ?? []}
       className="mt-2"
-    />
+    /> */}
+    <HourlyPredictionsTable
+    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
+    className="mt-2"
+/>
   </div>
 </section>
 
@@ -756,12 +813,17 @@ const payload: PlaceOrderBody = {
     </div>
      {!isPastData(data) && reportData.forecastTodayHourly && (
         <div>
-        <HourlyPredictionsTable 
+        {/* <HourlyPredictionsTable 
             hourlyForecast={reportData.forecastTodayHourly}
             className="mt-4"
-        />
+        /> */}
+        <HourlyPredictionsTable
+    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
+    className="mt-4"
+/>
          <TradingIntegration
-        hourlyForecast={hourlyFc}
+        // hourlyForecast={hourlyFc}
+            hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
         onTradesUpdate={setTrades}
       />
         </div>
