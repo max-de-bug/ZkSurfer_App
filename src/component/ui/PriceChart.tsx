@@ -5749,6 +5749,49 @@ interface TooltipData {
   type?: 'chart' | 'info' | 'trade';
 }
 
+// helpers
+const ASSET_TO_BINANCE: Record<'BTC'|'ETH'|'SOL', string> = {
+  BTC: 'BTCUSDT',
+  ETH: 'ETHUSDT',
+  SOL: 'SOLUSDT',
+};
+
+const fetchRealCandles = async (
+  asset: 'BTC'|'ETH'|'SOL',
+  setDataSource?: (src: 'real' | 'fallback') => void
+): Promise<CandlestickData[]> => {
+  try {
+    const symbol = ASSET_TO_BINANCE[asset];
+    const res = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=60`
+    );
+    if (!res.ok) throw new Error(`Binance returned ${res.status}`);
+    const raw = (await res.json()) as any[][];
+    setDataSource?.('real');
+    return raw.map(([ts, open, high, low, close, volume]) => ({
+      timestamp: ts,
+      open: +open, high: +high, low: +low, close: +close, volume: +volume,
+    }));
+  } catch (err) {
+    console.error('Failed to fetch candles, falling back:', err);
+    setDataSource?.('fallback');
+    return generateFallbackData();
+  }
+};
+
+const fetchCurrentPrice = async (asset: 'BTC'|'ETH'|'SOL'): Promise<number> => {
+  const symbol = ASSET_TO_BINANCE[asset];
+  const res = await fetch(
+    `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+  );
+  if (!res.ok) throw new Error(`Binance ticker returned ${res.status}`);
+  const json = (await res.json()) as { price: string };
+  return parseFloat(json.price);
+};
+
+
+
+
 // Enhanced PnL calculation for trading markers
 const calculateTradePnL = (currentIndex: number, hourlyForecast: HourlyForecast[]) => {
   if (currentIndex >= hourlyForecast.length - 1) {
@@ -6001,7 +6044,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const [selectedTimeframe, setSelectedTimeframe] = useState<'TODAY' | 'PAST_7D' | 'NEXT_3D'>('TODAY');
   const [selectedSubTimeframe, setSelectedSubTimeframe] = useState<'3D' | '7D'>('3D');
   // const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>('BTC');
-    const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SOL' | 'ETH'>(propSelectedAsset || 'BTC');
+  const selectedAsset = propSelectedAsset!;
   const [tooltip, setTooltip] = useState<TooltipData>({ x: 0, y: 0, data: null, visible: false, type: 'chart' });
   const [isMobile, setIsMobile] = useState(false);
   const [candlestickData, setCandlestickData] = useState<CandlestickData[]>([]);
@@ -6014,12 +6057,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
   const nextForecast = hourlyForecast?.at(-1) ?? null;
 
-   const handleAssetChange = (asset: 'BTC' | 'SOL' | 'ETH') => {
-    setSelectedAsset(asset);
-    if (onAssetChange) {
-      onAssetChange(asset);
-    }
-  };
+  const handleAssetChange = (asset: 'BTC'|'SOL'|'ETH') => onAssetChange?.(asset);
 
 
   function formatDollar(n: number) {
@@ -6114,6 +6152,40 @@ const PriceChart: React.FC<PriceChartProps> = ({
       document.body.style.overflow = 'unset';
     };
   }, [isChartMaximized]);
+
+  // candles + current price load on mount AND when selectedAsset changes
+useEffect(() => {
+  let isCancelled = false;
+  let priceTimer: number | undefined;
+
+  const bootstrap = async () => {
+    setIsLoadingData(true);
+
+    const candles = await fetchRealCandles(selectedAsset, setDataSource);
+    if (!isCancelled) {
+      setCandlestickData(candles);
+      if (candles.length > 0) setCurrentPrice(candles[candles.length - 1].close);
+      setIsLoadingData(false);
+    }
+
+    // start live price polling for THIS asset
+    const tick = async () => {
+      try {
+        const live = await fetchCurrentPrice(selectedAsset);
+        if (!isCancelled) setCurrentPrice(live);
+      } catch {}
+    };
+    priceTimer = window.setInterval(tick, 10_000) as unknown as number;
+  };
+
+  bootstrap();
+
+  return () => {
+    isCancelled = true;
+    if (priceTimer) window.clearInterval(priceTimer);
+  };
+}, [selectedAsset]);
+
 
   // Get simplified date format (MM/DD)
   const getSimpleDate = (dateStr: string) => {
@@ -6467,7 +6539,8 @@ const PriceChart: React.FC<PriceChartProps> = ({
     });
 
     // Add key levels to price range
-    const keyLevels = getKeyLevels(currentPrice);
+    // const keyLevels = getKeyLevels(currentPrice);
+    const keyLevels = getKeyLevels(currentPrice, candlestickData);
     prices.push(keyLevels.support, keyLevels.resistance, keyLevels.breakoutLevel, keyLevels.invalidationLevel);
 
     const minPrice = Math.min(...prices) * 0.998;
