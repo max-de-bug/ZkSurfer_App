@@ -866,6 +866,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [isGeneratedImage, setIsGeneratedImage] = useState(false);
     const [useCustomPrompt, setUseCustomPrompt] = useState(false);
 
     const handleTradeModeChange = (mode: 'automation' | 'authentication') => {
@@ -1260,27 +1261,27 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         { name: 'Nemotron-4', enabled: false }
     ];
 
-    useEffect(() => {
-        if (memeData) {
-            setIsLoading(false);
-            setFormData({
-                ...formData,
-                name: memeData.name,
-                description: memeData.description,
-                imageBase64: memeData.base64Image,
-                seed: memeData.seed,
-                walletAddress: memeData.wallet,
-                prompt: memeData.prompt
-            });
-        } else {
-            const timer = setTimeout(() => {
-                if (!memeData) {
-                    router.push('/home');
-                }
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [memeData, router]);
+    // useEffect(() => {
+    //     if (memeData) {
+    //         setIsLoading(false);
+    //         setFormData({
+    //             ...formData,
+    //             name: memeData.name,
+    //             description: memeData.description,
+    //             imageBase64: memeData.base64Image,
+    //             seed: memeData.seed,
+    //             walletAddress: memeData.wallet,
+    //             prompt: memeData.prompt
+    //         });
+    //     } else {
+    //         const timer = setTimeout(() => {
+    //             if (!memeData) {
+    //                 router.push('/home');
+    //             }
+    //         }, 1000);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [memeData, router]);
 
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -2938,6 +2939,7 @@ Example Output Structure:
                     ...prev,
                     imageBase64: reader.result as string,
                 }));
+                setIsGeneratedImage(false);
             };
             reader.readAsDataURL(file);
         }
@@ -2999,6 +3001,7 @@ Example Output Structure:
                     ...prev,
                     imageBase64,
                 }));
+                setIsGeneratedImage(true);
             } else {
                 toast.error("Failed to generate image.");
             }
@@ -3016,6 +3019,7 @@ Example Output Structure:
             ...prev,
             imageBase64: ''
         }));
+        setIsGeneratedImage(false);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -3148,7 +3152,7 @@ Example Output Structure:
                                                                 aria-disabled={isGeneratingImage}
                                                             >
                                                             
-                                                                {isGeneratingImage ? 'Generating...' : (formData.imageBase64 ? 'Regenerate Image' : 'Generate image')}
+                                                                {isGeneratingImage ? 'Generating...' : (isGeneratedImage ? 'Regenerate Image' : 'Generate image')}
                                                             </button>
                                                         </div>
                                                     </div>
