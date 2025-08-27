@@ -4,7 +4,7 @@ interface TickerInfo {
     description: string;
     memecoin_address: null;
     coin_name: string;
-    image_base64: string;
+    image_base64: string; // generated image stored here
     training_data: any[];
     urls: string[];
     seed: number;

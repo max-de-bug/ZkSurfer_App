@@ -208,7 +208,7 @@ const VideoEditModal: FC<VideoEditModalProps> = ({
     async function trim() {
         const response = await fetch(videoUrl);
         const buf = await response.arrayBuffer();
-        // here you’d ideally use ffmpeg.wasm or server-side trim
+        // here you'd ideally use ffmpeg.wasm or server-side trim
         // for demo, we just slice the array:
         const slice = buf.slice(
             (start / duration) * buf.byteLength,
@@ -483,6 +483,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     // const [activeMobileTab, setActiveMobileTab] = useState<'terminal' | 'prediction'>('terminal');
 
+    const { tickerInfo } = useTickerStore();
 
     const normalizeSentiment = (score: number): 'bearish' | 'neutral' | 'bullish' => {
         if (score <= 1.6) return 'bearish';
@@ -3164,7 +3165,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 return;
             }
 
-            // 2. Show the user’s own message in the chat window
+            // 2. Show the user's own message in the chat window
             const userMessage: Message = {
                 role: 'user',
                 content: fullMessage,
@@ -3714,7 +3715,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                     // // --- Begin Translation Integration ---
                     // const targetLang = getUserTargetLanguage();
                     // if (targetLang) {
-                    //     // If the user’s browser indicates one of the supported languages,
+                    //     // If the user's browser indicates one of the supported languages,
                     //     // call the translation helper.
                     //     const translatedText = await translateText(finalEvent.content, targetLang);
 
@@ -4041,7 +4042,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                         }
                     }
 
-                    // Flush any remaining text if it didn’t end with a newline.
+                    // Flush any remaining text if it didn't end with a newline.
                     if (buffer.length > 0) {
                         accumulatedContent += buffer;
                         setDisplayMessages((prevMessages) => {
@@ -4712,7 +4713,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                 const raw = String(message.content).trim()
                 let thoughtStr: string | null = null
 
-                // only parse if it starts with “{” and ends with “}”
+                // only parse if it starts with "{" and ends with "}"
                 if (raw.startsWith('{') && raw.endsWith('}')) {
                     try {
                         parsed = JSON.parse(raw)
@@ -5250,14 +5251,17 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                         >
 
                                                             <div className="flex items-center space-x-2">
-                                                                <span
-                                                                    className={`inline-block w-3 h-3 rounded-full ${status === null
-                                                                        ? 'bg-gray-500'
-                                                                        : status === true
-                                                                            ? 'bg-green-500'
-                                                                            : 'bg-red-500'
-                                                                        }`}
-                                                                />
+                                                                {tickerInfo[ticker]?.image_base64 ? (
+                                                                    <img
+                                                                        src={`data:image/png;base64,${tickerInfo[ticker].image_base64}`}
+                                                                        alt={ticker}
+                                                                        className="w-8 h-8 rounded-full border border-gray-400 object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-8 h-8 rounded-full bg-gray-700 border border-gray-400 flex items-center justify-center text-xs text-gray-400">
+                                                                        <span>{ticker[0]}</span>
+                                                                    </div>
+                                                                )}
                                                                 <span>{ticker}</span>
                                                             </div>
 
@@ -5360,7 +5364,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                     className="p-1 rounded-full hover:bg-gray-800"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation(); // stop row onClick
-                                                                        // Toggle this agent’s pop-up:
+                                                                        // Toggle this agent's pop-up:
                                                                         setShowAgentOptions((prev) => (prev === ticker ? null : ticker));
                                                                     }}
                                                                 >
@@ -5684,13 +5688,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                             }
 
                                             const walletAddress = rawPubkey.toString();
-                                            // 2) re-check subscription in your store so the app "knows" they’re paid
+                                            // 2) re-check subscription in your store so the app "knows" they're paid
                                             await checkSubscription(walletAddress)
 
                                             // 3) directly show the report panel
                                             // openReport()
 
-                                            // 4) (fallback) if your UI still doesn’t render, do a full reload:
+                                            // 4) (fallback) if your UI still doesn't render, do a full reload:
                                             // window.location.reload()
                                             // or
                                             // router.reload()
@@ -5878,7 +5882,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                     onClick={() => {
                                                                         setWan2Choice('with');
                                                                         setShowImgToVideoPopup(false);
-                                                                        // The user typed /img-to-video, we’ll let them finish the prompt
+                                                                        // The user typed /img-to-video, we'll let them finish the prompt
                                                                         // or we can do it automatically:
                                                                         // setInputMessage('/img-to-video with Wan2.0 ');
                                                                         // Optionally show the video length modal right away:
@@ -6116,12 +6120,12 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                                 }
 
                                                                 const walletAddress = rawPubkey.toString();
-                                                                // 2) re-check subscription in your store so the app "knows" they’re paid
+                                                                // 2) re-check subscription in your store so the app "knows" they're paid
                                                                 await checkSubscription(walletAddress)
                                                                 // 3) directly show the report panel
                                                                 // openReport()
 
-                                                                // 4) (fallback) if your UI still doesn’t render, do a full reload:
+                                                                // 4) (fallback) if your UI still doesn't render, do a full reload:
                                                                 // window.location.reload()
                                                                 // or
                                                                 // router.reload()
@@ -6180,7 +6184,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             </div>
                         )}
                     </div >
-                    {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
+                    {/* ┌──────────────  "NEWS" SIDEBAR ───────────────┐ */}
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
                         <NewsSidebar />
                     </div> */}

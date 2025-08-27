@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemeStore } from '@/stores/meme-store';
@@ -19,6 +19,7 @@ import { useSearchParams } from 'next/navigation';
 import { useModelStore } from '@/stores/useModel-store';
 import { z } from "zod";
 import { Dictionary } from '@/app/i18n/types';
+import Image from 'next/image';
 
 export interface MemeLaunchPageProps {
     dictionary: Dictionary;
@@ -864,6 +865,8 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     });
     const [characterJson, setCharacterJson] = useState(null);
     const [editableJson, setEditableJson] = useState<any>(null);
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [useCustomPrompt, setUseCustomPrompt] = useState(false);
 
     const handleTradeModeChange = (mode: 'automation' | 'authentication') => {
         setTradeMode(mode); // This is your local state for the toggle
@@ -1257,27 +1260,27 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         { name: 'Nemotron-4', enabled: false }
     ];
 
-    useEffect(() => {
-        if (memeData) {
-            setIsLoading(false);
-            setFormData({
-                ...formData,
-                name: memeData.name,
-                description: memeData.description,
-                imageBase64: memeData.base64Image,
-                seed: memeData.seed,
-                walletAddress: memeData.wallet,
-                prompt: memeData.prompt
-            });
-        } else {
-            const timer = setTimeout(() => {
-                if (!memeData) {
-                    router.push('/home');
-                }
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [memeData, router]);
+    // useEffect(() => {
+    //     if (memeData) {
+    //         setIsLoading(false);
+    //         setFormData({
+    //             ...formData,
+    //             name: memeData.name,
+    //             description: memeData.description,
+    //             imageBase64: memeData.base64Image,
+    //             seed: memeData.seed,
+    //             walletAddress: memeData.wallet,
+    //             prompt: memeData.prompt
+    //         });
+    //     } else {
+    //         const timer = setTimeout(() => {
+    //             if (!memeData) {
+    //                 router.push('/home');
+    //             }
+    //         }, 1000);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [memeData, router]);
 
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -1921,7 +1924,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
     ): Promise<string> => {
         return new Promise((resolve, reject) => {
             // Create an image to load the base64 string
-            const img = new Image();
+            const img = new window.Image();
             img.src = base64Image;
 
             img.onload = () => {
@@ -1954,7 +1957,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                 resolve(compressedBase64);
             };
 
-            img.onerror = (error) => {
+            img.onerror = (error: unknown) => {
                 reject(error);
             };
         });
@@ -2161,38 +2164,38 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
             // --- COINLAUNCH API CALL ---
             // Build the payload for coinLaunch using the processed PDF texts and other form data
-            const apiPayload = {
-                coin_name: formData.name,
-                memecoin_address: null,
-                ticker: formData.ticker,
-                description: formData.description,
-                urls: formData.trainingUrls,
-                training_data: {
-                    pdfs: pdfTexts,
-                    images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
-                    training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
-                },
-                wallet_address: formData.walletAddress,
-                image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
-                seed: formData.seed,
-                user_prompt: formData.prompt,
-            };
+            // const apiPayload = {
+            //     coin_name: formData.name,
+            //     memecoin_address: null,
+            //     ticker: formData.ticker,
+            //     description: formData.description,
+            //     urls: formData.trainingUrls,
+            //     training_data: {
+            //         pdfs: pdfTexts,
+            //         images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+            //         training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+            //     },
+            //     wallet_address: formData.walletAddress,
+            //     image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+            //     seed: formData.seed,
+            //     user_prompt: formData.prompt,
+            // };
 
-            // Now call the coinLaunch API
-            const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
-                body: JSON.stringify(apiPayload)
-            });
+            // // Now call the coinLaunch API
+            // const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+            //     body: JSON.stringify(apiPayload)
+            // });
 
-            if (!response.ok) {
-                const errorMsg = `API call failed: ${response.statusText}`;
-                toast.error(errorMsg);
-                throw new Error(errorMsg);
-            }
+            // if (!response.ok) {
+            //     const errorMsg = `API call failed: ${response.statusText}`;
+            //     toast.error(errorMsg);
+            //     throw new Error(errorMsg);
+            // }
 
-            const result = await response.json();
-            toast.success(`Agent "${formData.name}" data has been successfully added!`);
+            // const result = await response.json();
+            // toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
 
             // const apiPayload = {
@@ -2318,7 +2321,7 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
                 description: formData.description,
                 memecoin_address: null,
                 coin_name: formData.name,
-                image_base64: formData.imageBase64,
+                image_base64: formData.imageBase64, // generated image
                 training_data: [
                     { type: 'pdfs', content: pdfTexts },
                     { type: 'images', content: formData.trainingImages.map((file) => URL.createObjectURL(file)) },
@@ -2926,6 +2929,98 @@ Example Output Structure:
         }
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData((prev) => ({
+                    ...prev,
+                    imageBase64: reader.result as string,
+                }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleGenerateImage = async () => {
+        try {
+            setIsGeneratingImage(true);
+            // Use custom prompt if checkbox is checked, otherwise use agent name or default
+            const prompt = useCustomPrompt && formData.prompt 
+                ? formData.prompt 
+                : formData.name || "A cool AI agent avatar";
+            const seed = formData.seed ? Number(formData.seed) : undefined;
+            // You may want to get credits and apiKey from your store, or set defaults
+            const { credits, apiKey, selectedModel } = useModelStore.getState();
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    directCommand: { prompt, seed },
+                    selectedModel,
+                    credits,
+                    apiKey,
+                }),
+            });
+
+            if (!response.body) throw new Error("No response body");
+
+            // Stream the response and extract the image
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let imageBase64 = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+
+                // Look for the final payload (type: 'img')
+                if (chunk.includes('"type":"img"')) {
+                    try {
+                        // Extract the JSON object from the chunk
+                        const match = chunk.match(/{.*}/);
+                        if (match) {
+                            const data = JSON.parse(match[0]);
+                            if (data.content) {
+                                imageBase64 = data.content;
+                            }
+                        }
+                    } catch (err) {
+                        // Ignore parse errors for non-image chunks
+                    }
+                }
+            }
+
+            if (imageBase64) {
+                setFormData(prev => ({
+                    ...prev,
+                    imageBase64,
+                }));
+            } else {
+                toast.error("Failed to generate image.");
+            }
+        } catch (err) {
+            toast.error("Error generating image.");
+            console.error(err);
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    };
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const handleRemoveImage = () => {
+        setFormData((prev) => ({
+            ...prev,
+            imageBase64: ''
+        }));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <div className="relative">
             {isRefreshing && (
@@ -2963,6 +3058,119 @@ Example Output Structure:
                                             <div className="mx-4 space-y-5 border-2 border-[#B9B9B9] rounded-lg bg-[#343B4F] p-4">
                                                 <div className="text-[#7E7CCF] font-ttfirs text-xl">
                                                     AGENT INFORMATION
+                                                </div>
+                                                <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg min-h-32 flex flex-col justify-between">
+                                                
+                                                   <div className='flex items-center justify-between mb-2'>
+                                                        <div>
+                                                            <label className="block text-sm">Agent Image</label>
+                                                            <p className="text-xs text-[#B9B9B9] font-ttfirs italic">Upload an image for your agent</p>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                id="useCustomPrompt"
+                                                                checked={useCustomPrompt}
+                                                                onChange={(e) => setUseCustomPrompt(e.target.checked)}
+                                                                className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                                            />
+                                                            <label 
+                                                                htmlFor="useCustomPrompt" 
+                                                                className="text-sm text-gray-300 cursor-pointer"
+                                                            >
+                                                                Use custom prompt for image generation
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-row items-center justify-between gap-4">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                            className="bg-[#09090B] border border-[#B9B9B9] text-gray-300 px-4 py-2 rounded-lg hover:bg-[#1a1a1a] hover:border-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition-all duration-200"
+                                                        >
+                                                            {formData.imageBase64 ? "Change Image" : "Upload Image"}
+                                                        </button>
+                                                        <input
+                                                            ref={fileInputRef}
+                                                            id="agent-image-input"
+                                                            type="file"
+                                                            name="image"
+                                                            accept="image/*"
+                                                            onChange={handleImageUpload}
+                                                            className="hidden"
+                                                        />
+                                                        <div className="relative group">
+                                                            <div className="flex justify-center items-center h-24 w-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden border-2 border-gray-600 shadow-lg hover:border-gray-400 transition-all duration-300 hover:shadow-xl hover:shadow-gray-500/20">
+                                                                {isGeneratingImage ? (
+                                                                    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-10" aria-label="Generating image" role="status">
+                                                                        <span className="h-6 w-6 block rounded-full border-2 border-t-white border-white/30 border-solid animate-spin"></span>
+                                                                    </div>
+                                                                ) : formData.imageBase64 ? (
+                                                                    <img
+                                                                        src={formData.imageBase64}
+                                                                        alt="Agent Preview"
+                                                                        className="h-24 w-24 object-cover rounded-xl"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex items-center justify-center h-full w-full">
+                                                                        <div className="text-gray-500 text-xs text-center">
+                                                                            <div className="w-8 h-8 border-2 border-gray-500 border-dashed rounded-lg mx-auto mb-1"></div>
+                                                                            No Agent Image
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {formData.imageBase64 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleRemoveImage}
+                                                                    aria-label="Remove image"
+                                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            )}
+                                                        
+                                                        </div>
+                                                        <div className="flex flex-col space-y-2">
+                                                            {/* Custom Prompt Checkbox and Input */}
+                                                            <div className="flex items-center space-x-2">
+                                                            
+                                                            <button
+                                                                onClick={handleGenerateImage}
+                                                                className={`bg-[#09090B] border border-[#B9B9B9] text-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition-all duration-200 flex items-center justify-center gap-2 ${
+                                                                    isGeneratingImage 
+                                                                    ? 'opacity-50 cursor-not-allowed' 
+                                                                    : 'hover:bg-[#1a1a1a] hover:border-gray-400 hover:text-white'
+                                                                }`}
+                                                                disabled={isGeneratingImage}
+                                                                aria-busy={isGeneratingImage}
+                                                                aria-disabled={isGeneratingImage}
+                                                            >
+                                                            
+                                                                {isGeneratingImage ? 'Generating...' : (formData.imageBase64 ? 'Regenerate Image' : 'Generate image')}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                            </div>
+                                                            
+                                                            {useCustomPrompt && (
+                                                                <div className="space-y-2">
+                                                                    <label className="block text-xs text-[#B9B9B9] font-ttfirs">
+                                                                        Custom Image Prompt
+                                                                    </label>
+                                                                    <textarea
+                                                                        name="prompt"
+                                                                        value={formData.prompt}
+                                                                        onChange={handleChange}
+                                                                        placeholder="Describe the image you want to generate (e.g., 'A fierce tiger with cyberpunk elements, digital art style')"
+                                                                        className="w-full bg-gray-800/50 rounded-lg p-3 border border-gray-700 text-sm resize-none"
+                                                                        rows={3}
+                                                                        disabled={isGeneratingImage}
+                                                                    />
+                                                                </div>
+                                                            )}
+
                                                 </div>
                                                 <div className="bg-[#09090B] border border-[#B9B9B9] p-4 rounded-lg">
                                                     <label className="block text-sm">Agent Name</label>
