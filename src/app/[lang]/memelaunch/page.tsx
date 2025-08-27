@@ -1260,27 +1260,27 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
         { name: 'Nemotron-4', enabled: false }
     ];
 
-    // useEffect(() => {
-    //     if (memeData) {
-    //         setIsLoading(false);
-    //         setFormData({
-    //             ...formData,
-    //             name: memeData.name,
-    //             description: memeData.description,
-    //             imageBase64: memeData.base64Image,
-    //             seed: memeData.seed,
-    //             walletAddress: memeData.wallet,
-    //             prompt: memeData.prompt
-    //         });
-    //     } else {
-    //         const timer = setTimeout(() => {
-    //             if (!memeData) {
-    //                 router.push('/home');
-    //             }
-    //         }, 1000);
-    //         return () => clearTimeout(timer);
-    //     }
-    // }, [memeData, router]);
+    useEffect(() => {
+        if (memeData) {
+            setIsLoading(false);
+            setFormData({
+                ...formData,
+                name: memeData.name,
+                description: memeData.description,
+                imageBase64: memeData.base64Image,
+                seed: memeData.seed,
+                walletAddress: memeData.wallet,
+                prompt: memeData.prompt
+            });
+        } else {
+            const timer = setTimeout(() => {
+                if (!memeData) {
+                    router.push('/home');
+                }
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [memeData, router]);
 
     const handleTwitterCredentialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -2085,39 +2085,39 @@ const MemeLaunchPageContent = ({ searchParams, dictionary }: { searchParams: URL
 
             // --- COINLAUNCH API CALL ---
             // Build the payload for coinLaunch using the processed PDF texts and other form data
-            // const apiPayload = {
-            //     coin_name: formData.name,
-            //     memecoin_address: null,
-            //     ticker: formData.ticker,
-            //     description: formData.description,
-            //     urls: formData.trainingUrls,
-            //     training_data: {
-            //         pdfs: pdfTexts,
-            //         images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
-            //         training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
-            //     },
-            //     wallet_address: formData.walletAddress,
-            //     image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
-            //     // formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
-            //     seed: formData.seed,
-            //     user_prompt: formData.prompt,
-            // };
+            const apiPayload = {
+                coin_name: formData.name,
+                memecoin_address: null,
+                ticker: formData.ticker,
+                description: formData.description,
+                urls: formData.trainingUrls,
+                training_data: {
+                    pdfs: pdfTexts,
+                    images: formData.trainingImages.map((file) => URL.createObjectURL(file)),
+                    training_urls: formData.trainingUrls.filter(url => url.trim() !== '')
+                },
+                wallet_address: formData.walletAddress,
+                image_base64: compressedImageBase64.replace(/^data:image\/\w+;base64,/, ''),
+                // formData.imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+                seed: formData.seed,
+                user_prompt: formData.prompt,
+            };
 
-            // // Now call the coinLaunch API
-            // const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
-            //     body: JSON.stringify(apiPayload)
-            // });
+            // Now call the coinLaunch API
+            const response = await fetch('https://zynapse.zkagi.ai/api/coinLaunch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': 'zk-123321' },
+                body: JSON.stringify(apiPayload)
+            });
 
-            // if (!response.ok) {
-            //     const errorMsg = `API call failed: ${response.statusText}`;
-            //     toast.error(errorMsg);
-            //     throw new Error(errorMsg);
-            // }
+            if (!response.ok) {
+                const errorMsg = `API call failed: ${response.statusText}`;
+                toast.error(errorMsg);
+                throw new Error(errorMsg);
+            }
 
-            // const result = await response.json();
-            // toast.success(`Agent "${formData.name}" data has been successfully added!`);
+            const result = await response.json();
+            toast.success(`Agent "${formData.name}" data has been successfully added!`);
 
             // --- SWAP API CALL ---
             if ((agentType === 'super-agent' || agentType === 'micro-agent') && Array.isArray(formData.trade) &&
