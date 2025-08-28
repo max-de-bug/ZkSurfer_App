@@ -833,10 +833,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
     let content;
     const agents = Array.isArray(tickersData) ? tickersData : [];
-    const isMockLoading = process.env.NODE_ENV === 'development'
-        && typeof window !== 'undefined'
-        && new URLSearchParams(window.location.search).has('mockLoading');
-    const showLoading = isMockLoading || isTickersLoading || (walletAddress && tickersData === undefined);
+    const showLoading = isTickersLoading || (walletAddress && tickersData === undefined);
 
     // Sidebar Agents pagination (SWR Infinite)
     const AGENTS_PAGE_SIZE = 20;
@@ -869,38 +866,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const isAgentsLoadingMore = isAgentsValidating && pagesLength > 0;
     const agentsReachedEnd = pagesLength > 0 && lastCount < AGENTS_PAGE_SIZE;
 
-    // Development-only mock for agents pagination when ?mockAgents is present
-    const enableMockAgents = typeof window !== 'undefined'
-        && process.env.NODE_ENV === 'development'
-        && new URLSearchParams(window.location.search).has('mockAgents');
-
-    const [mockAgentsPageCount, setMockAgentsPageCount] = useState(1);
-    const MOCK_TOTAL_AGENTS = 47;
-    const mockAllAgents = React.useMemo(() => {
-        return Array.from({ length: MOCK_TOTAL_AGENTS }).map((_, idx) => ({
-            ticker: `MOCK_${idx + 1}`,
-            status: idx % 3 === 0 ? null : idx % 2 === 0,
-        }));
-    }, []);
-    const mockAgentsList = React.useMemo(() => {
-        const end = mockAgentsPageCount * AGENTS_PAGE_SIZE;
-        return mockAllAgents.slice(0, Math.min(end, mockAllAgents.length));
-    }, [mockAllAgents, mockAgentsPageCount]);
-    const mockAgentsReachedEnd = mockAgentsList.length >= mockAllAgents.length;
-
-    // Effective values (mock vs real)
-    const effectiveAgentsList = enableMockAgents ? mockAgentsList : agentsList;
-    const effectiveAgentsReachedEnd = enableMockAgents ? mockAgentsReachedEnd : agentsReachedEnd;
-    const isAgentsLoadingInitialEffective = enableMockAgents ? false : (isAgentsLoadingInitial || isMockLoading);
-    const isAgentsLoadingMoreEffective = enableMockAgents ? false : isAgentsLoadingMore;
-
-    const handleLoadMoreAgents = () => {
-        if (enableMockAgents) {
-            setMockAgentsPageCount(prev => prev + 1);
-        } else {
-            setAgentsSize(agentsSize + 1);
-        }
-    };
+    // Loading and pagination state for agents (no mocks)
 
     useEffect(() => {
         if (!wallet.connected) {
@@ -5342,13 +5308,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     <div className="text-gray-500 text-sm text-center p-4 italic">No agents created yet</div>
                                                 )} */}
 
-                                                {isAgentsLoadingInitialEffective ? (
+                                                {isAgentsLoadingInitial ? (
                                                     <div className="flex items-center justify-center p-4" role="status" aria-label="Loading agents">
                                                         <CircularProgress size={20} thickness={4} />
                                                         <span className="sr-only">Loading...</span>
                                                     </div>
-                                                ) : effectiveAgentsList && effectiveAgentsList.length > 0 ? (
-                                                    effectiveAgentsList.map(({ ticker, status }: { ticker: string; status: boolean | null }) => (
+                                                ) : agentsList && agentsList.length > 0 ? (
+                                                    agentsList.map(({ ticker, status }: { ticker: string; status: boolean | null }) => (
                                                         <div
                                                             key={ticker}
                                                             className={`relative cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center justify-between ${status === null ? 'cursor-not-allowed' : ''
@@ -5415,14 +5381,14 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                                     </div>
                                                 )}
 
-                                                {!effectiveAgentsReachedEnd && effectiveAgentsList.length > 0 && (
+                                                {!agentsReachedEnd && agentsList.length > 0 && (
                                                     <button
                                                         className="mt-2 w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white disabled:opacity-60 hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                        onClick={handleLoadMoreAgents}
-                                                        disabled={isAgentsLoadingMoreEffective}
+                                                        onClick={() => setAgentsSize(agentsSize + 1)}
+                                                        disabled={isAgentsLoadingMore}
                                                         aria-label="Load more agents"
                                                     >
-                                                        {isAgentsLoadingMoreEffective ? (
+                                                        {isAgentsLoadingMore ? (
                                                             <span className="inline-flex items-center gap-2">
                                                                 <CircularProgress size={14} thickness={4} /> Loading…
                                                             </span>
