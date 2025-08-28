@@ -480,22 +480,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const walletAddress = wallet.publicKey ? wallet.publicKey.toString() : '';
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Coins pagination (SWR Infinite)
-    const PAGE_SIZE = 20;
-    const getCoinsKey = (pageIndex: number, previousPageData: any) => {
-        if (previousPageData && previousPageData.data && previousPageData.data.length === 0) return null; // reached end
-        if (!walletAddress) return null;
-        return [`https://zynapse.zkagi.ai/api/coins?page=${pageIndex + 1}&limit=${PAGE_SIZE}`, apiKey, walletAddress];
-    };
-    const { data: coinsPages, isLoading: isCoinsLoading, isValidating: isCoinsValidating, size: coinsSize, setSize: setCoinsSize, error: coinsError } = useSWRInfinite(
-        getCoinsKey,
-        ([url, key, addr]) => fetcher(url, key, addr),
-        { revalidateOnMount: true, revalidateIfStale: true, keepPreviousData: true }
-    );
-    const coins = (coinsPages ?? []).flatMap((p: any) => p?.data ?? []);
-    const isCoinsLoadingInitial = isCoinsLoading && (coinsPages?.length ?? 0) === 0;
-    const isCoinsLoadingMore = isCoinsValidating && (coinsPages?.length ?? 0) > 0;
-    const coinsReachedEnd = (coinsPages?.length ?? 0) > 0 && ((coinsPages?.[coinsPages.length - 1]?.data?.length ?? 0) < PAGE_SIZE);
+    // Coins pagination removed
 
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportData, setReportData] = useState<FullReportData | PastPredictionData | null>(null);
@@ -823,9 +808,6 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     const { data: tickersData, isLoading: isTickersLoading } = useSWR(
         walletAddress ? [AGENTS_API_URL, apiKey, walletAddress] : null,
       async ([url, key, addr]) => {
-        if (process.env.NODE_ENV === 'development') {
-          await sleep(10000); // simulate 2s latency
-        }
         return fetcher(url, key, addr);
       },
       { refreshInterval: 15000 }
