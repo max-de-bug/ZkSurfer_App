@@ -5,6 +5,29 @@ import { FullReportData } from '@/types/types';
 import NewsCard from '@/component/ui/NewsCard';
 import Gauge from '@/component/ui/Gauge';
 import PriceChart from '@/component/ui/PriceChart';
+import HourlyPredictionsTable from './HourelyForecast';
+import { Trade, TradingIntegration } from './TradingIntegration';
+import { getOrderStatus, placeTestOrder } from '@/lib/hyperLiquidClient';
+import { PlaceOrderBody } from '@/lib/hlTypes';
+import Link from 'next/link';
+
+
+interface HourlyEntry {
+  time: string;                       // e.g. "2025-07-17T00:00:00+00:00"
+  signal: 'LONG' | 'SHORT' | 'HOLD';
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  forecast_price: number;
+  current_price: number;
+  deviation_percent: number;
+  accuracy_percent: number;
+  risk_reward_ratio: number;
+  sentiment_score: number;
+  confidence_50: [number, number];
+  confidence_80: [number, number];
+  confidence_90: [number, number];
+}
 
 // New interface for past prediction data
 interface PastPredictionData {
@@ -32,6 +55,12 @@ interface PastPredictionData {
         reason?: string;
         rationale?: string;
     }>;
+    // hourlyForecast?: HourlyEntry[];
+    hourlyForecast?: HourlyEntry[] | {
+        BTC: HourlyEntry[];
+        ETH: HourlyEntry[];
+        SOL: HourlyEntry[];
+    };
 }
 
 interface ReportSidebarProps {
@@ -47,10 +76,159 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     const [btcChange, setBtcChange] = useState<number | null>(null);
     const [loadingBtc, setLoadingBtc] = useState(true);
 
+    const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'ETH' | 'SOL'>('BTC');
+
+
+
+//     const BTC_ASSET_ID = 0;          // <-- replace with real id (see /meta call)
+// const USD_CAP = 100;             // max notional you want to risk
+// const LOT_SIZE = 0.001;          // adjust to HL tick/lot size for BTC
+// const roundLot = (x: number) => (Math.floor(x / LOT_SIZE) * LOT_SIZE).toFixed(3);
+
+// function calcSize(price: number) {
+//   return roundLot(USD_CAP / price); // simple $ cap sizing
+// }
+
+const BTC_ASSET_ID = 0;
+const USD_CAP = 600;             // Your $100 test amount
+const LOT_SIZE = 0.00001;        // Use very small lot size (5 decimals)
+const MIN_ORDER_SIZE = 0.0001;   // Hyperliquid minimum (ensure this is correct)
+
+// 🎯 Dynamic leverage based on performance
+const [dayPnL, setDayPnL] = useState({ profit: 0, loss: 0 });
+
+const roundLot = (x: number) => {
+  // Calculate lots and ensure we get at least the minimum
+  const lots = Math.max(Math.floor(x / LOT_SIZE), Math.ceil(MIN_ORDER_SIZE / LOT_SIZE));
+  return lots * LOT_SIZE;
+};
+
+
+// useEffect(() => {
+//   async function loadTrades() {
+//     try {
+//       const wallet = process.env.NEXT_PUBLIC_HL_MAIN_WALLET!;
+//       const res = await fetch(`/api/hl/trades?wallet=${wallet}`);
+//       const { trades, summary } = await res.json();
+//       console.log('HP trade history', trades);
+//       console.log('HP trade summary', summary);
+      
+//       // Extract daily P&L for dynamic leverage calculation
+//       if (summary) {
+//   setDayPnL({
+//     profit: summary.realizedPnl ? Math.max(0, summary.realizedPnl) : 0,
+//     loss: summary.realizedLoss || 0
+//   });
+// }
+//     } catch (e) {
+//       console.error('Failed to load trades', e);
+//     }
+//   }
+//   loadTrades();
+// }, []);
+
+// function calcSize(price: number) {
+//   const rawSize = USD_CAP / price;
+//   const size = roundLot(rawSize);
+//   return size.toFixed(5); // 5 decimals for precision
+// }
+
+const BASE_USD_CAP = 500
+
+// function calcSize(price: number, leverage: number = 1) {
+//   const effectiveCapital = BASE_USD_CAP * leverage;
+//   const rawSize = effectiveCapital / price;
+//   const size = roundLot(rawSize);
+//   return size.toFixed(5);
+// }
+
+const [availableMargin, setAvailableMargin] = useState<number>(0);
+
+useEffect(() => {
+  async function loadMargin() {
+    try {
+      const res = await fetch('/api/hl/margin');
+      const json = await res.json();
+      setAvailableMargin(json.availableMargin);
+    } catch (e) {
+      console.error('could not load margin', e);
+    }
+  }
+  loadMargin();
+}, []);
+
+
+function calcSize(price: number, leverage: number = 1) {
+  // 1) maximum notional you can open on‑chain
+  const maxNotional = availableMargin * leverage;
+
+  // 2) cap by your strategy’s base USD cap
+  const strategyNotional = Math.min(BASE_USD_CAP * leverage, maxNotional);
+
+  // 3) convert dollars to coins
+  const rawSize = strategyNotional / price;
+  const lots = roundLot(rawSize);
+  return lots.toFixed(5);
+}
+
+
+
+
+function getRiskMetrics(price: number, size: string, leverage: number) {
+  const sizeNum = parseFloat(size);
+  const notionalValue = sizeNum * price;
+  const actualRisk = notionalValue / leverage;
+  const requiredMargin = actualRisk;
+  
+  return {
+    notionalValue,
+    actualRisk,
+    requiredMargin,
+    leverage
+  };
+}
+
+// Calculate dynamic leverage based on daily performance
+function calculateDynamicLeverage(dailyProfit: number, dailyLoss: number, signalConfidence?: number) {
+  const baseLeverage = 10; // Your preferred base leverage
+  
+  // Rule 1: If close to daily target ($100), reduce leverage to preserve gains
+  if (dailyProfit >= 80) {
+    return Math.max(5, baseLeverage - 5); // Reduce to 5x when close to target
+  }
+  
+  // Rule 2: If significant daily loss, reduce leverage to limit risk
+  if (dailyLoss >= 100) {
+    return Math.max(3, baseLeverage - 7); // Reduce to 3x when loss is high
+  }
+  
+  // Rule 3: If doing well (profit > 40), slightly increase leverage
+  if (dailyProfit >= 40 && dailyLoss <= 20) {
+    return Math.min(15, baseLeverage + 5); // Increase to 15x when performing well
+  }
+  
+  // Rule 4: If early in day and no major losses, use base leverage
+  if (dailyLoss <= 30) {
+    return baseLeverage; // Stay at 10x
+  }
+  
+  // Rule 5: If moderate losses, slightly reduce leverage
+  if (dailyLoss >= 50 && dailyLoss < 100) {
+    return Math.max(7, baseLeverage - 3); // Reduce to 7x
+  }
+  
+  // Default to base leverage
+  return baseLeverage;
+}
+
      const [latest, setLatest] = useState<{
     deviation_percent?: number | string;
     overall_accuracy_percent?: number | string;
   } | null>(null);
+
+    const [trades, setTrades] = useState<Trade[]>([]);
+
+     const [placing, setPlacing] = useState(false);
 
   // 2️⃣ Fetch it once on mount
   useEffect(() => {
@@ -99,6 +277,31 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
             return 'moderate';
         };
 
+        let forecastTodayHourly: { BTC: HourlyEntry[]; ETH: HourlyEntry[]; SOL: HourlyEntry[] };
+
+        if (Array.isArray(pastData.hourlyForecast)) {
+        // Old format - put it in BTC by default
+        forecastTodayHourly = {
+            BTC: pastData.hourlyForecast,
+            ETH: [],
+            SOL: []
+        };
+    } else if (pastData.hourlyForecast && typeof pastData.hourlyForecast === 'object') {
+        // New format - use as is
+        forecastTodayHourly = {
+            BTC: pastData.hourlyForecast.BTC || [],
+            ETH: pastData.hourlyForecast.ETH || [],
+            SOL: pastData.hourlyForecast.SOL || []
+        };
+    } else {
+        // No data
+        forecastTodayHourly = {
+            BTC: [],
+            ETH: [],
+            SOL: []
+        };
+    }
+
         return {
             predictionAccuracy: 85, // Default for past data
             predictionSeries: [],
@@ -146,7 +349,9 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
                 }))
             },
             forecastNext3Days: [],
-            priceHistoryLast7Days: []
+            priceHistoryLast7Days: [],
+            // forecastTodayHourly: pastData.hourlyForecast || [],
+             forecastTodayHourly: forecastTodayHourly,
         };
     };
 
@@ -156,6 +361,9 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
             ? transformPastDataToCurrentFormat(data)
             : data as FullReportData
         : null;
+
+// const hourlyFc = reportData?.forecastTodayHourly ?? [];
+const hourlyFc = reportData?.forecastTodayHourly?.[selectedAsset] ?? [];
 
     useEffect(() => {
         const checkMobile = () => {
@@ -168,8 +376,11 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
     }, []);
 
     useEffect(() => {
+         const coinId = selectedAsset === 'BTC' ? 'bitcoin' : 
+                   selectedAsset === 'ETH' ? 'ethereum' : 
+                   'solana';
         fetch(
-            'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinId}`
         )
             .then(r => r.json())
             .then((arr: any[]) => {
@@ -233,6 +444,7 @@ const ReportSidebar: FC<ReportSidebarProps> = ({ isOpen, onClose, data }) => {
         .map(n => Number(n.sentimentScore))
   // keep only real, finite numbers (drops NaN, Infinity, undefined)
   .filter(score => Number.isFinite(score));
+
 
     const avgSentiment = allScores.length > 0
         ? allScores.reduce((s, a) => s + a, 0) / allScores.length
@@ -298,6 +510,125 @@ const formattedAccuracyDisplay =
       : '';
 
 
+
+     const handleManualTrade = async () => {
+  try {
+    setPlacing(true);
+    // const slot = hourlyFc.find(h => h.signal !== 'HOLD') ?? hourlyFc[0];
+            const assetHourlyFc = reportData?.forecastTodayHourly?.[selectedAsset] ?? [];
+        const slot = assetHourlyFc[assetHourlyFc.length - 1];
+
+    //const slot = hourlyFc[hourlyFc.length - 1];
+
+    if (!slot) return;
+
+    const dynamicLeverage = calculateDynamicLeverage(dayPnL.profit, dayPnL.loss, slot.confidence_90?.[1]);
+    console.log(`🎯 Dynamic Leverage: ${dynamicLeverage}x (Profit: $${dayPnL.profit}, Loss: $${dayPnL.loss})`);
+
+    const TICK_SIZE = 1; // or use 0.1 or 0.01 if you confirm with /meta
+    const roundedPrice = Math.round(slot.forecast_price / TICK_SIZE) * TICK_SIZE;
+    const size = calcSize(roundedPrice, dynamicLeverage);
+    const riskMetrics = getRiskMetrics(roundedPrice, size, dynamicLeverage);
+
+
+const payload: PlaceOrderBody = {
+  asset: BTC_ASSET_ID,
+  side: slot.signal,                           // "LONG" | "SHORT"
+  price: roundedPrice,                         // 👈 use tick-corrected price
+  size: calcSize(roundedPrice, dynamicLeverage),                // recalc size if you want
+  takeProfit: slot.take_profit && Math.round(Number(slot.take_profit) / TICK_SIZE) * TICK_SIZE,
+  stopLoss: slot.stop_loss && Math.round(Number(slot.stop_loss) / TICK_SIZE) * TICK_SIZE,
+  leverage: dynamicLeverage
+};
+
+    // const payload: PlaceOrderBody = {
+    //   asset: BTC_ASSET_ID,
+    //   side: slot.signal,                           // "LONG" | "SHORT"
+    //   price: slot.forecast_price,
+    //   size: calcSize(slot.forecast_price),         // <= capped by USD_CAP
+    //   takeProfit: slot.take_profit?.toString(),
+    //   stopLoss:  slot.stop_loss?.toString()
+    // };
+
+    const res = await fetch('/api/hl/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'HL order failed');
+
+    const status0 = json.response.data.statuses[0];
+    const oid = status0.resting?.oid ?? status0.filled?.oid;
+
+    const trade: Trade = {
+      id: String(oid),
+      timestamp: Date.now(),
+      signal: slot.signal,
+      entryPrice: slot.forecast_price,
+      status: 'open'
+    };
+    setTrades(t => [...t, trade]);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setPlacing(false);
+  }
+};
+
+// useEffect(() => {
+//   const iv = setInterval(async () => {
+//     try {
+//       const res = await fetch('/api/hl/pnl');
+//       if (!res.ok) {
+//         console.error('PnL fetch failed:', res.status);
+//         return;
+//       }
+//       const data = await res.json();
+//       console.log('[PnL]', data);
+//     } catch (e) {
+//       console.error('PnL parse error:', e);
+//     }
+//   }, 10_000);
+//   return () => clearInterval(iv);
+// }, []);
+
+
+
+// useEffect(() => {
+//   let timer: NodeJS.Timeout;
+
+//   const scheduleTopOfHour = () => {
+//     const now = new Date();
+//     const msLeft =
+//       (60 - now.getUTCMinutes()) * 60_000 -
+//       now.getUTCSeconds() * 1_000 -
+//       now.getUTCMilliseconds();
+
+//     timer = setTimeout(async () => {
+//       try {
+//         // Call your cancel endpoint
+//         await fetch('/api/hl/cancel-open', { method: 'POST' });
+//         // Optionally close positions here with another endpoint if filled but still open
+//         // await fetch('/api/hl/close', { method: 'POST' });
+
+//         // Mark local trades as closed if you want to sync UI instantly
+//         setTrades(ts => ts.map(t => t.status === 'open' ? { ...t, status: 'closed' } : t));
+//       } catch (e) {
+//         console.error('cancel-open failed', e);
+//       }
+
+//       scheduleTopOfHour();
+//     }, msLeft);
+//   };
+
+//   scheduleTopOfHour();
+//   return () => clearTimeout(timer);
+// }, []);
+
+
+
     return (
         <>
             {/* overlay */}
@@ -310,7 +641,7 @@ const formattedAccuracyDisplay =
             <div
                 ref={panelRef}
                 className={`
-                    fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-3/5'} bg-[#0a1628] 
+                    fixed inset-y-0 right-0 ${isMobile ? 'w-full' : 'w-5/6'} bg-[#0a1628] 
                     transform transition-transform duration-300 ease-in-out
                     ${isOpen ? 'translate-x-0' : 'translate-x-full'}
                     flex flex-col shadow-xl z-50 text-white
@@ -336,6 +667,25 @@ const formattedAccuracyDisplay =
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
+                         <select
+        value={selectedAsset}
+        onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'ETH' | 'SOL')}
+        className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+    >
+        <option value="BTC">BTC</option>
+        <option value="ETH">ETH</option>
+        <option value="SOL">SOL</option>
+    </select>
+ <Link
+      href="/predictions"
+      target="_blank"
+      className="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700
+                 text-white font-semibold shadow-sm focus:outline-none focus:ring-2
+                 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-[#0a1628]"
+    >
+      Place Trade
+    </Link>
+                        
                         <div className="text-right">
                             <h2 className="text-lg font-bold">{getReportTitle()}</h2>
                             <p className="text-sm text-gray-400">{getCurrentDate()}</p>
@@ -368,17 +718,46 @@ const formattedAccuracyDisplay =
                                 <PriceChart
                                     priceHistory={reportData.priceHistoryLast7Days || []}
                                     forecast={reportData.forecastNext3Days || []}
+                                    // hourlyForecast={reportData.forecastTodayHourly || []}
+                                    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] || []}
+    selectedAsset={selectedAsset}
+    onAssetChange={setSelectedAsset}
                                 />
                             ) : (
-                                <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
-                                    <div className="text-center">
-                                        <div className="text-4xl mb-2">📊</div>
-                                        <p className="text-gray-400 text-sm">Historical Report</p>
-                                        <p className="text-xs text-gray-500">
-                                            {new Date(data.fetched_date).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
+                                // <div className="h-40 flex items-center justify-center bg-gray-800/50 rounded-lg">
+                                //     <div className="text-center">
+                                //         <div className="text-4xl mb-2">📊</div>
+                                //         <p className="text-gray-400 text-sm">Historical Report</p>
+                                //         <p className="text-xs text-gray-500">
+                                //             {new Date(data.fetched_date).toLocaleDateString()}
+                                //         </p>
+                                //     </div>
+                                // </div>
+                                <section className="">
+  {/* Chart on the left */}
+  {/* <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
+    <span className="text-sm text-gray-300">Today’s Hourly Forecast</span>
+    <PriceChart
+      priceHistory={reportData.priceHistoryLast7Days}
+      forecast={reportData.forecastNext3Days}
+      hourlyForecast={reportData.forecastTodayHourly}
+    />
+  </div> */}
+
+  {/* Table on the right */}
+  <div className="col-span-1 bg-[#1a2332] rounded-lg p-4">
+    <span className="text-sm text-gray-300">Hourly Breakdown</span>
+    {/* <HourlyPredictionsTable
+      hourlyForecast={reportData.forecastTodayHourly ?? []}
+      className="mt-2"
+    /> */}
+    <HourlyPredictionsTable
+    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
+    className="mt-2"
+/>
+  </div>
+</section>
+
                             )}
                         </div>
 
@@ -404,6 +783,14 @@ const formattedAccuracyDisplay =
         </div>
     </div>
 
+    {/* <button
+  onClick={handleManualTrade}
+  disabled={placing}
+  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded disabled:opacity-50"
+>
+  {placing ? 'Placing…' : 'Test Trade (HL Testnet)'}
+</button> */}
+
     {/* MARKET SENTIMENT */}
     <div className="bg-[#1a2332] rounded-lg p-4 text-center flex flex-col justify-center min-h-[120px]">
         <div className="text-3xl">{marketEmoji}</div>
@@ -424,6 +811,23 @@ const formattedAccuracyDisplay =
             size={280}
         />
     </div>
+     {!isPastData(data) && reportData.forecastTodayHourly && (
+        <div>
+        {/* <HourlyPredictionsTable 
+            hourlyForecast={reportData.forecastTodayHourly}
+            className="mt-4"
+        /> */}
+        <HourlyPredictionsTable
+    hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
+    className="mt-4"
+/>
+         <TradingIntegration
+        // hourlyForecast={hourlyFc}
+            hourlyForecast={reportData.forecastTodayHourly?.[selectedAsset] ?? []}
+        onTradesUpdate={setTrades}
+      />
+        </div>
+    )}
 </div>
                         {/* 4 Cards - Right Side */}
                         {/* <div className={`flex-1 ${isMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 grid-rows-2 gap-4 h-full'}`}>
@@ -475,7 +879,7 @@ const formattedAccuracyDisplay =
                         {/* Left Column - News Impact & Trending News */}
                         <div className="flex-[2] space-y-6">
                             {/* News Impact */}
-                            <div>
+                            {/* <div>
                                 <div className="flex items-center space-x-2 mb-4">
                                     <span className="text-lg">📢</span>
                                     <h3 className="font-bold">
@@ -484,7 +888,7 @@ const formattedAccuracyDisplay =
                                 </div>
 
                                 <div className={`${isMobile ? 'grid grid-cols-1 gap-2 mb-4' : 'grid grid-cols-4 gap-4 mb-4 h-16'}`}>
-                                    {/* Main News Card */}
+                                  
                                     <div className="col-span-2 bg-[#1a2332] rounded-lg p-4 h-full flex items-center justify-between">
                                         <TwoLineTitle>
                                             {reportData.newsImpact[0].title.toUpperCase()}
@@ -494,7 +898,7 @@ const formattedAccuracyDisplay =
                                         </span>
                                     </div>
 
-                                    {/* Volatility & Liquidity Cards */}
+                    
                                     <div className="bg-[#1a2332] rounded-lg p-4 text-center">
                                         <div className="text-gray-300 text-xs mb-2">VOLATILITY</div>
                                         <div className="text-white font-bold text-lg">{reportData.volatility.toUpperCase()}</div>
@@ -505,10 +909,10 @@ const formattedAccuracyDisplay =
                                         <div className="text-white font-bold text-lg">{reportData.liquidity.toUpperCase()}</div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Trending News */}
-                            <section className="mt-10">
+                            <section className="">
                                 <div className="flex items-center space-x-2 my-4">
                                     <span className="text-lg">🚀</span>
                                     <h3 className="font-bold">

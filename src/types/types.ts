@@ -125,6 +125,12 @@ export interface FullReportData extends ReportData {
   // Keep backward compatibility
   forecastNext3Days?: ForecastPoint[];
   priceHistoryLast7Days?: PriceHistoryPoint[];
+  // forecastTodayHourly?: HourlyForecast[];
+  forecastTodayHourly: {
+    BTC: HourlyForecast[];
+    ETH: HourlyForecast[];
+    SOL: HourlyForecast[];
+  };
 }
 
 // ===== UTILITY TYPES FOR CHART COMPONENTS =====
@@ -196,3 +202,37 @@ export const transformApiResponse = (apiData: ApiResponse): Partial<FullReportDa
     },
   };
 };
+
+export interface HourlyForecast {
+  /** ISO timestamp of the forecast */
+  time: string;                 // e.g. "2025-07-15T08:00:00+00:00"
+
+  /** Your trading signal */
+  signal: 'LONG' | 'SHORT' | 'HOLD';
+
+  /** Prices for the alert (nullable when signal is HOLD) */
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+
+  /** The predicted price at that hour */
+  forecast_price: number;
+  /** The actual “current” price when the forecast was made */
+  current_price: number;
+
+  /** How far off the forecast was (can be `"N/A"` or numeric) */
+  deviation_percent: number | string;
+  /** Model’s confidence in its own accuracy (can be `"N/A"` or numeric) */
+  accuracy_percent: number | string;
+
+  /** Risk:Reward ratio for that forecast */
+  risk_reward_ratio: number;
+
+  /** Internal sentiment score driving the signal */
+  sentiment_score: number;
+
+  /** Confidence intervals around the forecast price */
+  confidence_50: [number, number];
+  confidence_80: [number, number];
+  confidence_90: [number, number];
+}
