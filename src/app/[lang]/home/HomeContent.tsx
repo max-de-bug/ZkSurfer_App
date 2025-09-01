@@ -6641,28 +6641,31 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                 </div>
                             </div>
                         )}
-                        {isMobile && (
-                            <div className="flex bg-[#08121f] border-b border-gray-600">
-                                <button
-                                    className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${activeMobileTab === 'zkterminal'
-                                        ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
-                                        : 'text-gray-400 hover:text-white'
-                                        }`}
-                                    onClick={() => setActiveMobileTab('zkterminal')}
-                                >
-                                    ZkTerminal
-                                </button>
-                                <button
-                                    className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${activeMobileTab === 'prediction'
-                                        ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
-                                        : 'text-gray-400 hover:text-white'
-                                        }`}
-                                    onClick={() => setActiveMobileTab('prediction')}
-                                >
-                                    Prediction
-                                </button>
-                            </div>
-                        )}
+                       {isMobile && (
+  <div className="fixed bottom-0 left-0 right-0 flex bg-[#08121f] border-t border-gray-600 z-50">
+    <button
+      className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+        activeMobileTab === 'zkterminal'
+          ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+          : 'text-gray-400 hover:text-white'
+      }`}
+      onClick={() => setActiveMobileTab('zkterminal')}
+    >
+      ZkTerminal
+    </button>
+    <button
+      className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+        activeMobileTab === 'prediction'
+          ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+          : 'text-gray-400 hover:text-white'
+      }`}
+      onClick={() => setActiveMobileTab('prediction')}
+    >
+      Prediction
+    </button>
+  </div>
+)}
+
                     </div >
                     {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">
