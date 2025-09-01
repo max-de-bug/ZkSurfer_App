@@ -337,6 +337,7 @@
 // export default config;
 
 import withSerwist from "@serwist/next";
+import { createCivicAuthPlugin } from "@civic/auth/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -402,7 +403,8 @@ const nextConfig = {
     NEXT_PUBLIC_STRIPE_SECRET_KEY:process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY,
     NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET:process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET,
     NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID:process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
-    NEXT_PUBLIC_STRIPE_YEARLY_PRICE_ID:process.env.NEXT_PUBLIC_STRIPE_YEARLY_PRICE_ID
+    NEXT_PUBLIC_STRIPE_YEARLY_PRICE_ID:process.env.NEXT_PUBLIC_STRIPE_YEARLY_PRICE_ID,
+    NEXT_PUBLIC_CIVIC_CLIENT_ID: process.env.NEXT_PUBLIC_CIVIC_CLIENT_ID,
   },
   experimental: {
     esmExternals: "loose",
@@ -551,6 +553,11 @@ const nextConfig = {
 const serwistConfig = withSerwist({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
+});
+
+const withCivicAuth = createCivicAuthPlugin({
+  clientId: process.env.NEXT_PUBLIC_CIVIC_CLIENT_ID || "",
+  enableSolanaWalletAdapter: true,
 });
 
 // Merge both configurations and export
