@@ -441,6 +441,8 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { CustomWalletModalProvider } from "./ui/CustomWalletModalProvider";
 import { MagicWalletAdapter, MagicWalletName } from "./MagicWalletAdapter";
 import { CivicAuthProvider } from "@civic/auth-web3/react";
+import type { WalletName } from "@solana/wallet-adapter-base";
+
 
 require("@solana/wallet-adapter-react-ui/styles.css");
 
@@ -500,6 +502,8 @@ const WalletInitializer = () => {
     const desired = adapterWalletName || zkLast;
     if (!desired) return;
 
+    const asWalletName = (name: string) => name as unknown as WalletName;
+
     const interval = setInterval(() => {
       if (retryCount > 15) {
         clearInterval(interval);
@@ -521,7 +525,8 @@ const WalletInitializer = () => {
           : desired;
 
         console.log(`Auto-selecting ${toSelect}`);
-        select(toSelect);
+      select(toSelect === MagicWalletName ? MagicWalletName : asWalletName(toSelect));
+
 
         // If Magic, seed its public key fast (optional)
         if (toSelect === MagicWalletName) {
@@ -633,7 +638,6 @@ export default function AppWalletProvider({
           <CustomWalletModalProvider>
             <CivicAuthProvider
               clientId={process.env.NEXT_PUBLIC_CIVIC_CLIENT_ID || ""}
-              enableSolanaWalletAdapter
             >
               {children}
             </CivicAuthProvider>
