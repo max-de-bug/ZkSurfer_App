@@ -6278,7 +6278,8 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                                     />
                                 )} */}
 
-                                <footer className="w-full py-6 flex justify-center px-2 sticky top-0 bg-[#08121F]">
+                                <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]  z-40
+             md:bottom-0 bottom-[calc(env(safe-area-inset-bottom)+3.5rem)]">
                                     <div className="bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full">
                                         <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
 
@@ -6642,7 +6643,9 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
                             </div>
                         )}
                        {isMobile && (
-  <div className="fixed bottom-0 left-0 right-0 flex bg-[#08121f] border-t border-gray-600 z-50">
+  <div className="fixed bottom-0 left-0 right-0 h-14  /* 3.5rem = 56px */
+                      flex bg-[#08121f] border-t border-gray-600 z-40
+                      pb-[env(safe-area-inset-bottom)]">
     <button
       className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
         activeMobileTab === 'zkterminal'
@@ -6665,6 +6668,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
     </button>
   </div>
 )}
+
 
                     </div >
                     {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
