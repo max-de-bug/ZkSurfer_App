@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Type definitions
 interface HourlyForecast {
@@ -75,13 +75,14 @@ interface DatabasePayload {
   win_rate: number;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Security check
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
+export async function GET(request: NextRequest) {
   try {
+    // Security check
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
     console.log('Starting daily cumulative calculation...');
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -100,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       previousBalances
     );
 
-    // Step 4: Prepare payload for backend API (matches their expected format)
+    // Step 4: Prepare payload for backend API
     const dbPayload: DatabasePayload = {
       date: today,
       timestamp: new Date().toISOString(),
@@ -131,12 +132,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total_trades: cumulativeResult.total_trades
     });
 
-    // Step 5: Send to backend API using their exact format
+    // Step 5: Send to backend API
     const dbResponse = await fetch(process.env.DATABASE_API_URL!, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': process.env.DATABASE_API_KEY! // Using their api-key header format
+        'api-key': process.env.DATABASE_API_KEY!
       },
       body: JSON.stringify(dbPayload)
     });
@@ -149,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dbResult = await dbResponse.json();
     console.log('Successfully stored daily cumulative data to backend');
 
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       message: 'Daily cumulative data calculated and stored successfully',
       date: today,
@@ -168,11 +169,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in daily cumulative calculation:', error);
     
-    res.status(500).json({
+    return NextResponse.json({
       success: false,
       message: 'Failed to calculate and store daily cumulative data',
       error: errorMessage
-    });
+    }, { status: 500 });
   }
 }
 
@@ -184,10 +185,10 @@ async function getPreviousDayBalances(currentDate: string): Promise<BalanceSet> 
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    // Fetch from backend API using their exact format
+    // Fetch from backend API
     const response = await fetch(`${process.env.DATABASE_GET_API_URL}?date=${yesterdayStr}`, {
       headers: {
-        'api-key': process.env.DATABASE_API_KEY! // Using their api-key header format
+        'api-key': process.env.DATABASE_API_KEY!
       }
     });
 
@@ -225,8 +226,6 @@ async function fetchTodayPrediction(): Promise<{ BTC: HourlyForecast[]; ETH: Hou
   const response = await fetch(`${process.env.INTERNAL_API_URL}/api/today-prediction`, {
     headers: {
       'Content-Type': 'application/json'
-      // Add authorization header if your internal API requires it
-      // 'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`
     }
   });
 
@@ -238,7 +237,7 @@ async function fetchTodayPrediction(): Promise<{ BTC: HourlyForecast[]; ETH: Hou
   return data.forecast_today_hourly;
 }
 
-// Calculate today's cumulative (same logic as historical but for today)
+// Calculate today's cumulative
 async function calculateTodayCumulative(
   forecastData: { BTC: HourlyForecast[]; ETH: HourlyForecast[]; SOL: HourlyForecast[] },
   targetDate: string,
@@ -325,7 +324,7 @@ async function calculateTradePnL(
     return { status: 'pending' };
   }
 
-  // For today's calculation, we need to check if the hour has passed
+  // For today's calculation, check if the hour has passed
   const now = new Date();
   const forecastTime = new Date(currentForecast.time);
   const nextHourTime = new Date(forecastTime.getTime() + 60 * 60 * 1000);

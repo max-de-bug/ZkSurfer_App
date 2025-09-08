@@ -1,6 +1,6 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Type definitions (same as before)
+// Type definitions
 interface HourlyForecast {
   time: string;
   signal: 'LONG' | 'SHORT' | 'HOLD';
@@ -74,24 +74,21 @@ interface DatabasePayload {
   win_rate: number;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Security check
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
-
+export async function POST(request: NextRequest) {
   try {
+    // Security check
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
     console.log('Starting one-time historical backfill...');
 
     // Step 1: Fetch past 30 days prediction data
     const pastPredictions = await fetchPastPredictions();
     
     if (!pastPredictions || pastPredictions.length === 0) {
-      return res.status(200).json({
+      return NextResponse.json({
         success: true,
         message: 'No historical data found to process',
         processedCount: 0
@@ -126,7 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           currentBalances
         );
 
-        // Step 5: Prepare payload for backend API (matches their expected format)
+        // Step 5: Prepare payload for backend API
         const dbPayload: DatabasePayload = {
           date: targetDate,
           timestamp: new Date(targetDate + 'T12:30:00.000Z').toISOString(),
@@ -148,12 +145,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           win_rate: cumulativeResult.win_rate
         };
 
-        // Step 6: Send to backend API using their exact format
+        // Step 6: Send to backend API
         const dbResponse = await fetch(process.env.DATABASE_API_URL!, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'api-key': process.env.DATABASE_API_KEY! // Using their api-key header format
+            'api-key': process.env.DATABASE_API_KEY!
           },
           body: JSON.stringify(dbPayload)
         });
@@ -183,7 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`Historical backfill completed. Processed: ${processedCount}, Skipped: ${skippedCount}`);
 
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       message: 'Historical backfill completed',
       processedCount,
@@ -194,11 +191,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Historical backfill failed:', error);
-    res.status(500).json({
+    return NextResponse.json({
       success: false,
       message: 'Historical backfill failed',
       error: errorMessage
-    });
+    }, { status: 500 });
   }
 }
 
@@ -294,7 +291,7 @@ async function calculateDailyCumulativeForDate(
   return results;
 }
 
-// Calculate individual trade PnL (simplified version)
+// Calculate individual trade PnL
 async function calculateTradePnL(
   hourlyForecast: HourlyForecast[],
   currentIndex: number,
