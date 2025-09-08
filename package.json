@@ -99,7 +99,7 @@
     "rpc-websockets": "^5.0.0",
     "sharp": "^0.33.5",
     "shepherd.js": "^14.5.1",
-    "solana-agent-kit": "^1.4.8",
+    "solana-agent-kit": "^2.0.1",
     "sonner": "^1.7.0",
     "stripe": "^18.4.0",
     "swr": "^2.2.5",
