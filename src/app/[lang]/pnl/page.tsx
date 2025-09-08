@@ -1,6 +1,9 @@
+
+
 // 'use client'
 
-// import React, { useEffect, useState } from 'react'
+// import React, { useEffect, useMemo, useState } from 'react'
+// import useSWR from 'swr'
 // import {
 //   LineChart,
 //   Line,
@@ -12,7 +15,7 @@
 //   AreaChart,
 //   Area,
 // } from 'recharts'
-// import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp, Maximize2, X } from 'lucide-react'
+// import { TrendingDown, TrendingUp, Maximize2, X } from 'lucide-react'
 
 // // -------------------------------------------------------------
 // // Types
@@ -43,154 +46,415 @@
 //   cumulativePercent: number
 //   volume: number
 //   trades: TokenTradeData[]
+//   totalCumulativePnL?: number // Total cumulative from API
 // }
 
-// interface ApiConfig {
-//   baseUrl: string
-//   endpoints: {
-//     cumulativePnL: string
-//     chartData: string
-//     tokenData: string
+// // Prediction API types
+// interface HourlyForecast {
+//   time: string
+//   signal: 'LONG' | 'SHORT'
+//   entry_price: number
+//   stop_loss: number
+//   take_profit: number
+//   forecast_price: number
+//   current_price: number
+//   deviation_percent: number
+//   accuracy_percent: number
+//   risk_reward_ratio: number
+//   sentiment_score: number
+//   confidence_50: [number, number]
+//   confidence_80: [number, number]
+//   confidence_90: [number, number]
+// }
+
+// interface PredictionAPIResponse {
+//   forecast_today_hourly: Record<string, HourlyForecast[]>
+// }
+
+// // -------------------------------------------------------------
+// // External DB endpoints
+// // -------------------------------------------------------------
+// const DB_BASE = 'https://zynapse.zkagi.ai/daily-cumulative'
+// const DB_ALL_URL = `${DB_BASE}/all`
+// const DB_MONTH_URL = `${DB_BASE}/month`
+// const DB_GET_URL = `${DB_BASE}/get`
+// const DB_API_KEY = 'zk-123321'
+
+// // -------------------------------------------------------------
+// // Helpers (IST date/time, normalizers, pivot)
+// // -------------------------------------------------------------
+// const IST = 'Asia/Kolkata'
+
+// const istNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: IST }))
+// const istYYYYMMDD = (d: Date) => {
+//   const y = d.getFullYear()
+//   const m = String(d.getMonth() + 1).padStart(2, '0')
+//   const day = String(d.getDate()).padStart(2, '0')
+//   return `${y}-${m}-${day}`
+// }
+// const istMonthMM = (d = istNow()) => String(d.getMonth() + 1).padStart(2, '0')
+
+// type RawRow = Record<string, any>
+
+// const numberish = (...c: any[]) => {
+//   for (const x of c) {
+//     if (typeof x === 'number' && !Number.isNaN(x)) return x
+//     if (typeof x === 'string' && x.trim() !== '' && !Number.isNaN(+x)) return +x
 //   }
+//   return undefined
 // }
 
-// // -------------------------------------------------------------
-// // API config (ready for backend integration)
-// // -------------------------------------------------------------
-// const apiConfig: ApiConfig = {
-//   baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yourapp.com',
-//   endpoints: {
-//     cumulativePnL: '/api/pnl/cumulative',
-//     chartData: '/api/pnl/chart',
-//     tokenData: '/api/tokens/pnl',
-//   },
-// }
+// const TOKENS_DEF = [
+//   { key: 'btc', sym: 'BTC' },
+//   { key: 'eth', sym: 'ETH' },
+//   { key: 'sol', sym: 'SOL' },
+// ]
 
-// // -------------------------------------------------------------
-// // Dummy generators (used as fallback)
-// // -------------------------------------------------------------
-// const generateDummyChartData = (timeFrame: TimeFrame): PnLData[] => {
-//   const now = new Date()
-//   const data: PnLData[] = []
+// // Turn API records into TokenData[] with proper starting balances
+// function pivotPortfolioRecordsToTokens(
+//   rows: RawRow[], 
+//   startBalances?: Record<'BTC'|'ETH'|'SOL', number>
+// ): TokenData[] {
+//   const sorted = [...rows].sort(
+//     (a, b) => new Date(a.date ?? a.timestamp ?? 0).getTime() - new Date(b.date ?? b.timestamp ?? 0).getTime(),
+//   )
 
-//   if (timeFrame === 'daily') {
-//     for (let i = 23; i >= 0; i--) {
-//       data.push({
-//         timestamp: new Date(now.getTime() - i * 3600_000).toISOString(),
-//         value: Math.random() * 1000 - 500,
-//       })
-//     }
-//   } else if (timeFrame === 'monthly') {
-//     for (let i = 29; i >= 0; i--) {
-//       data.push({
-//         timestamp: new Date(now.getTime() - i * 86_400_000).toISOString(),
-//         value: Math.random() * 5000 - 2500,
-//       })
-//     }
-//   } else {
-//     for (let i = 364; i >= 0; i--) {
-//       data.push({
-//         timestamp: new Date(now.getTime() - i * 86_400_000).toISOString(),
-//         value: Math.random() * 10000 - 5000,
-//       })
-//     }
-//   }
-//   return data
-// }
+//   return TOKENS_DEF.map(({ key, sym }) => {
+//     const trades: TokenTradeData[] = sorted.map((r, idx) => {
+//       const endBalance = numberish(r[`${key}_ending_balance`]) ?? 100
+//       const tokenCumulative = numberish(r[`${key}_cumulative`]) ?? 0
+      
+//       // Calculate start balance
+//       let startBalance: number
+//       if (idx === 0) {
+//         // First record: use provided start balance or default to 100
+//         startBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+//       } else {
+//         // Subsequent records: use previous day's end balance
+//         const prevRecord = sorted[idx - 1]
+//         startBalance = numberish(prevRecord[`${key}_ending_balance`]) ?? 100
+//       }
+      
+//       const dailyGain = endBalance - startBalance
+//       const dailyPct = startBalance !== 0 ? (dailyGain / startBalance) * 100 : 0
+      
+//       // For monthly/all-time, cumulative return is based on original 100 investment
+//       // For this period's calculation, it's based on the period start
+//       const periodStartBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+//       const cumulativeReturn = ((endBalance - periodStartBalance) / periodStartBalance) * 100
 
-// const generateDummyTokenTrades = (timeFrame: TimeFrame): TokenTradeData[] => {
-//   const days = timeFrame === 'daily' ? 1 : timeFrame === 'monthly' ? 30 : 90
-//   const trades: TokenTradeData[] = []
-//   let bal = 100
-//   for (let i = 0; i < days; i++) {
-//     const r = (Math.random() - 0.5) * 0.1 // -5%..+5%
-//     const startBalance = bal
-//     const endBalance = startBalance * (1 + r)
-//     const dailyGain = endBalance - startBalance
-//     const cumulativeReturn = ((endBalance - 100) / 100) * 100
-//     const d = new Date()
-//     d.setDate(d.getDate() - (days - 1 - i))
-//     trades.push({
-//       day: i + 1,
-//       date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-//       trades: Math.floor(Math.random() * 30) + 10,
-//       dailyPnLPercent: r * 100,
-//       startBalance,
-//       endBalance,
-//       dailyGain,
-//       cumulativeReturn,
+//       const t = new Date(r.date ?? r.timestamp ?? new Date())
+//       const label = t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: IST })
+
+//       return {
+//         day: idx + 1,
+//         date: label,
+//         trades: Math.max(1, Math.floor(numberish(r.total_trades) ?? 1)),
+//         dailyPnLPercent: dailyPct,
+//         startBalance: startBalance,
+//         endBalance: endBalance,
+//         dailyGain: dailyGain,
+//         cumulativeReturn: cumulativeReturn,
+//       }
 //     })
-//     bal = endBalance
-//   }
-//   return trades
+
+//     const last = trades[trades.length - 1]
+//     const lastRow = sorted[sorted.length - 1]
+//     const periodStartBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+    
+//     // Get total cumulative PnL from API
+//     const totalCumulativePnL = numberish(lastRow?.[`${key}_cumulative`]) ?? 0
+    
+//     return {
+//       symbol: sym,
+//       price: 0,
+//       cumulativePnL: last ? last.endBalance - periodStartBalance : 0,
+//       cumulativePercent: last ? ((last.endBalance - periodStartBalance) / periodStartBalance) * 100 : 0,
+//       volume: 0,
+//       trades,
+//       totalCumulativePnL, // Total cumulative from start of trading
+//     }
+//   })
 // }
 
-// const generateDummyTokenData = (timeFrame: TimeFrame): TokenData[] => {
-//   return [
-//     { symbol: 'BTC', price: 68_027.84 } as const,
-//     { symbol: 'ETH', price: 8_238.17 } as const,
-//     { symbol: 'SOL', price: 44_201.47 } as const,
-//   ].map((t) => {
-//     const trades = generateDummyTokenTrades(timeFrame)
+// // Aggregate chart from per-token trades (sum daily gains)
+// function aggregateChartFromTokens(tokens: TokenData[], from?: Date, to?: Date): PnLData[] {
+//   const sums = new Map<string, number>()
+//   tokens.forEach((t) =>
+//     t.trades.forEach((tr) => {
+//       sums.set(tr.date, (sums.get(tr.date) || 0) + tr.dailyGain)
+//     }),
+//   )
+
+//   // If a fixed day range is given, iterate day-by-day in IST
+//   if (from && to) {
+//     const out: PnLData[] = []
+//     const d = new Date(from)
+//     while (d <= to) {
+//       const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: IST })
+//       const ts = new Date(
+//         new Date(d.toLocaleString('en-US', { timeZone: IST })).toISOString(),
+//       ).toISOString()
+//       out.push({ timestamp: ts, value: sums.get(label) ?? 0 })
+//       d.setDate(d.getDate() + 1)
+//     }
+//     return out
+//   }
+
+//   // Otherwise just map known labels to a rough timestamp (this year)
+//   const year = istNow().getFullYear()
+//   return Array.from(sums.entries()).map(([label, v]) => {
+//     const parsed = new Date(`${label} ${year}`)
+//     return { timestamp: isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString(), value: v }
+//   })
+// }
+
+// // Convert forecast data to hourly trades starting from yesterday's final balance
+// function convertForecastToHourlyTrades(
+//   fth: Record<string, HourlyForecast[]>,
+//   prevBalances: Record<'BTC'|'ETH'|'SOL', number>
+// ): TokenData[] {
+//   const symbols = ['BTC', 'ETH', 'SOL'] as const
+  
+//   return symbols.map((sym) => {
+//     const rows = fth[sym] ?? []
+//     const dayStartBalance = prevBalances[sym] ?? 100 // Yesterday's final balance
+    
+//     const trades: TokenTradeData[] = rows.map((row, idx) => {
+//       // Calculate hourly return
+//       const ret = (row.forecast_price - row.entry_price) / (row.entry_price || 1)
+      
+//       // Each hour starts from yesterday's final balance (not compounding)
+//       const start = dayStartBalance
+//       const end = start * (1 + ret)
+//       const gain = end - start
+      
+//       // Cumulative return is relative to day's starting point
+//       const cumulativeReturn = ((end - dayStartBalance) / dayStartBalance) * 100
+      
+//       const t = new Date(row.time)
+//       const label = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      
+//       return {
+//         day: idx + 1,
+//         date: label,
+//         trades: 1,
+//         dailyPnLPercent: ret * 100, // This hour's return percentage
+//         startBalance: start, // Always yesterday's final balance
+//         endBalance: end, // Start + this hour's gain/loss
+//         dailyGain: gain, // This hour's gain/loss in dollars
+//         cumulativeReturn, // Cumulative return since start of day
+//       }
+//     })
+    
+//     const lastPrice = rows.length ? rows[rows.length - 1].current_price : 0
 //     const last = trades[trades.length - 1]
+    
 //     return {
-//       ...t,
+//       symbol: sym,
+//       price: lastPrice,
+//       cumulativePnL: last ? last.endBalance - dayStartBalance : 0,
+//       cumulativePercent: last ? last.cumulativeReturn : 0,
+//       volume: 0,
 //       trades,
-//       volume: Math.random() * 1_000_000,
-//       cumulativePnL: last ? last.dailyGain * 1000 : Math.random() * 10_000 - 5000,
-//       cumulativePercent: last ? last.cumulativeReturn : Math.random() * 20 - 10,
 //     }
 //   })
 // }
 
 // // -------------------------------------------------------------
-// // API functions (fallback to dummy on failure)
+// // External DB fetchers (updated to use real API)
 // // -------------------------------------------------------------
-// const fetchCumulativePnL = async (timeFrame: TimeFrame): Promise<number> => {
+// async function fetchAllTimeFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
 //   try {
-//     const r = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.cumulativePnL}?timeFrame=${timeFrame}`)
-//     const data = await r.json()
-//     return data.cumulative
-//   } catch {
-//     return Math.random() * 50_000 - 25_000
+//     const r = await fetch(DB_ALL_URL, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const json = await r.json()
+//     const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
+    
+//     if (!Array.isArray(rows) || rows.length === 0) {
+//       throw new Error('No data received from API')
+//     }
+    
+//     const tokens = pivotPortfolioRecordsToTokens(rows)
+//     const chart = aggregateChartFromTokens(tokens)
+//     return { tokens, chart }
+//   } catch (e) {
+//     console.error('fetchAllTimeFromDB error:', e)
+//     throw e
 //   }
 // }
 
-// const fetchChartData = async (timeFrame: TimeFrame, page = 1, limit = 100): Promise<PnLData[]> => {
+// // Get the last day of previous month's ending balances
+// async function fetchPrevMonthEndBalances(): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
+//   const now = istNow()
+//   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+//   const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+//   const date = istYYYYMMDD(lastDayOfPrevMonth)
+  
 //   try {
-//     const r = await fetch(
-//       `${apiConfig.baseUrl}${apiConfig.endpoints.chartData}?timeFrame=${timeFrame}&page=${page}&limit=${limit}`,
-//     )
-//     const data = await r.json()
-//     return data.chartData
-//   } catch {
-//     return generateDummyChartData(timeFrame)
+//     const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const row = await r.json() as RawRow
+//     return {
+//       BTC: numberish(row.btc_ending_balance) ?? 100,
+//       ETH: numberish(row.eth_ending_balance) ?? 100,
+//       SOL: numberish(row.sol_ending_balance) ?? 100,
+//     }
+//   } catch (e) {
+//     console.error('fetchPrevMonthEndBalances error:', e)
+//     return { BTC: 100, ETH: 100, SOL: 100 }
 //   }
 // }
 
-// const fetchTokenData = async (
-//   timeFrame: TimeFrame,
-//   page = 1,
-//   limit = 10,
-// ): Promise<{ data: TokenData[]; total: number }> => {
+// async function fetchMonthlyFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
+//   const mm = istMonthMM()
+//   const monthUrl = `${DB_MONTH_URL}?month=${encodeURIComponent(mm)}`
+//   const nowI = istNow()
+//   const start = new Date(nowI.getFullYear(), nowI.getMonth(), 1)
+//   const end = new Date(nowI.getFullYear(), nowI.getMonth(), nowI.getDate())
+
 //   try {
-//     const r = await fetch(
-//       `${apiConfig.baseUrl}${apiConfig.endpoints.tokenData}?timeFrame=${timeFrame}&page=${page}&limit=${limit}`,
-//     )
-//     const data = await r.json()
-//     return { data: data.tokens, total: data.total }
-//   } catch {
-//     return { data: generateDummyTokenData(timeFrame), total: 3 }
+//     // Get previous month's ending balances first
+//     const prevMonthBalances = await fetchPrevMonthEndBalances()
+//     console.log('Previous month ending balances:', prevMonthBalances)
+
+//     const r = await fetch(monthUrl, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const json = await r.json()
+//     const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
+    
+//     if (!Array.isArray(rows) || rows.length === 0) {
+//       // Fallback: filter /all to the current IST month
+//       const allData = await fetchAllTimeFromDB()
+//       const currentMonth = istMonthMM()
+//       const filteredRows = allData.tokens.length > 0 ? 
+//         (allData.tokens[0]?.trades || [])
+//           .map((_, i) => {
+//             const anyToken = allData.tokens[0]
+//             const tradeData = anyToken?.trades[i]
+//             if (!tradeData) return null
+            
+//             // Parse the date from the trade to check if it's current month
+//             const label = tradeData.date
+//             const parsed = new Date(`${label} ${istNow().getFullYear()}`)
+//             const m = String(parsed.getMonth() + 1).padStart(2, '0')
+            
+//             if (m !== currentMonth) return null
+            
+//             // Create synthetic row from trade data
+//             const row: RawRow = {
+//               date: parsed.toISOString(),
+//               btc_ending_balance: allData.tokens.find(t => t.symbol === 'BTC')?.trades[i]?.endBalance,
+//               eth_ending_balance: allData.tokens.find(t => t.symbol === 'ETH')?.trades[i]?.endBalance,
+//               sol_ending_balance: allData.tokens.find(t => t.symbol === 'SOL')?.trades[i]?.endBalance,
+//               total_trades: tradeData.trades,
+//             }
+//             return row
+//           })
+//           .filter(Boolean) as RawRow[]
+//         : []
+        
+//       if (filteredRows.length === 0) {
+//         throw new Error('No monthly data available')
+//       }
+      
+//       const tokens = pivotPortfolioRecordsToTokens(filteredRows, prevMonthBalances)
+//       const chart = aggregateChartFromTokens(tokens, start, end)
+//       return { tokens, chart }
+//     }
+    
+//     const tokens = pivotPortfolioRecordsToTokens(rows, prevMonthBalances)
+//     const chart = aggregateChartFromTokens(tokens, start, end)
+//     return { tokens, chart }
+//   } catch (e) {
+//     console.error('fetchMonthlyFromDB error:', e)
+//     throw e
 //   }
 // }
 
+// // Daily: fetch yesterday's ending balances (IST) for BTC/ETH/SOL
+// async function fetchPrevDayStartBalances(): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
+//   const y = istNow()
+//   y.setDate(y.getDate() - 1)
+//   const date = istYYYYMMDD(y)
+//   try {
+//     const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const row = await r.json() as RawRow
+//     return {
+//       BTC: numberish(row.btc_ending_balance) ?? 100,
+//       ETH: numberish(row.eth_ending_balance) ?? 100,
+//       SOL: numberish(row.sol_ending_balance) ?? 100,
+//     }
+//   } catch (e) {
+//     console.error('fetchPrevDayStartBalances error:', e)
+//     return { BTC: 100, ETH: 100, SOL: 100 }
+//   }
+// }
+
+// // Get latest data for cumulative totals
+// async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+//   const yesterday = istNow()
+//   yesterday.setDate(yesterday.getDate() - 1)
+//   const date = istYYYYMMDD(yesterday)
+  
+//   try {
+//     const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const row = await r.json() as RawRow
+//     return {
+//       BTC: numberish(row.btc_cumulative) ?? 0,
+//       ETH: numberish(row.eth_cumulative) ?? 0,
+//       SOL: numberish(row.sol_cumulative) ?? 0,
+//       portfolio: numberish(row.portfolio_cumulative_pnl) ?? 0,
+//     }
+//   } catch (e) {
+//     console.error('fetchLatestCumulativeTotals error:', e)
+//     return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 }
+//   }
+// }
+
+// // SWR fetcher for prediction API
+// const swrFetcher = (url: string) =>
+//   fetch(url, {
+//     method: 'GET',
+//     cache: 'no-store',
+//     headers: {
+//       'Cache-Control': 'no-cache, no-store, must-revalidate',
+//       Pragma: 'no-cache',
+//       Expires: '0',
+//     },
+//   }).then((r) => {
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     return r.json()
+//   })
+
 // // -------------------------------------------------------------
-// // Small UI bits
+// // UI Components
 // // -------------------------------------------------------------
-// const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame) => void }> = ({
-//   timeFrame,
-//   onChange,
-// }) => (
+// const tokenColors: Record<string, string> = { BTC: '#F7931A', ETH: '#627EEA', SOL: '#14F195' }
+
+// const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame) => void }> = ({ timeFrame, onChange }) => (
 //   <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
 //     {(['daily', 'monthly', 'all-time'] as TimeFrame[]).map((v) => (
 //       <button
@@ -206,40 +470,54 @@
 //   </div>
 // )
 
-// // -------------------------------------------------------------
-// // Pretty cumulative card (3 tiles, no donut)
-// // -------------------------------------------------------------
-// const tokenColors: Record<string, string> = { BTC: '#F7931A', ETH: '#627EEA', SOL: '#14F195' }
-
-// const CumulativePnLCard: React.FC<{ timeFrame: TimeFrame; tokenData?: TokenData[]; value?: number }> = ({
+// const CumulativePnLCard: React.FC<{ 
+//   timeFrame: TimeFrame; 
+//   tokenData?: TokenData[]; 
+//   value?: number;
+//   cumulativeTotals?: Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number };
+// }> = ({
 //   timeFrame,
 //   tokenData = [],
 //   value = 0,
+//   cumulativeTotals,
 // }) => {
-//   // Total = sum of token cumulative if available; else use provided value
 //   const total = tokenData.length ? tokenData.reduce((s, t) => s + (t?.cumulativePnL || 0), 0) : value
 
-//   // Aggregate % from balances (fallback to avg of token %s)
-//   const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
-//   const endSum = tokenData.reduce((s, t) => {
-//     const last = t.trades?.[t.trades.length - 1]
-//     return s + (last ? last.endBalance : 100 * (1 + (t.cumulativePercent ?? 0) / 100))
-//   }, 0)
-//   const aggPct = tokenData.length ? ((endSum - baseSum) / baseSum) * 100 : 0
+//   // For percentage calculation, we need to be careful since cumulative values are already totals
+//   const { aggPct } = useMemo(() => {
+//     if (timeFrame === 'daily') {
+//       // Daily: calculate percentage based on yesterday's vs current balances
+//       const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
+//       const endSum = tokenData.reduce((s, t) => {
+//         const last = t.trades?.[t.trades.length - 1]
+//         return s + (last ? last.endBalance : 100)
+//       }, 0)
+//       return { aggPct: tokenData.length && baseSum > 0 ? ((endSum - baseSum) / baseSum) * 100 : 0 }
+//     } else {
+//       // Monthly/All-time: use portfolio cumulative from API
+//       // The total cumulative is already a dollar amount, convert to percentage
+//       const totalInvested = 300 // 3 tokens × $100 initial each
+//       return { aggPct: totalInvested > 0 ? (total / totalInvested) * 100 : 0 }
+//     }
+//   }, [tokenData, timeFrame, total])
 
 //   const isPositive = total >= 0
 //   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n))
 //   const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
-//   // sparkline data for each token
 //   const spark = (t?: TokenData) =>
-//     t?.trades?.map((tr, i) => ({ x: i, y: tr.cumulativeReturn })) ??
-//     Array.from({ length: 20 }, (_, i) => ({ x: i, y: (Math.random() - 0.5) * 10 }))
+//     t?.trades?.map((tr, i) => ({ x: i, y: timeFrame === 'daily' ? tr.cumulativeReturn : tr.cumulativeReturn })) ?? []
 
 //   return (
 //     <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700 h-full">
-//       {/* Headline */}
-//       <h3 className="text-sm font-medium text-gray-400">Cumulative PnL ({timeFrame})</h3>
+//       <h3 className="text-sm font-medium text-gray-400">
+//         Cumulative PnL ({timeFrame})
+//         {cumulativeTotals && (
+//           <span className="ml-2 text-xs text-gray-500">
+//             Total till yesterday: ${cumulativeTotals.portfolio.toFixed(2)}
+//           </span>
+//         )}
+//       </h3>
 //       <div className="flex items-end mt-3 space-x-3">
 //         {isPositive ? <TrendingUp className="w-6 h-6 text-green-500" /> : <TrendingDown className="w-6 h-6 text-red-500" />}
 //         <span className={`text-4xl font-extrabold tracking-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
@@ -249,27 +527,33 @@
 //         <span className={`text-lg font-semibold ${aggPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(aggPct)}</span>
 //       </div>
 
-//       {/* 3 evenly spaced tiles */}
 //       <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
 //         {(['BTC', 'ETH', 'SOL'] as const).map((sym) => {
 //           const t = tokenData.find((x) => x.symbol.toUpperCase() === sym)
 //           const val = t?.cumulativePnL ?? 0
-//           const pct = t?.cumulativePercent ?? 0
+//           const pct = timeFrame === 'daily' ? (t?.cumulativePercent ?? 0) : val // For monthly/all-time, cumulative is already the total value
 //           const pos = val >= 0
 //           const gid = `grad-${sym}-${timeFrame}`
+
+//           // Show total cumulative if available
+//           const totalCumulative = cumulativeTotals?.[sym] ?? 0
 
 //           return (
 //             <div key={sym} className="rounded-xl border border-gray-700 bg-gray-900/40 p-4 flex flex-col justify-between min-h-[120px]">
 //               <div className="flex items-center justify-between">
 //                 <span className="text-xs uppercase tracking-widest text-gray-400">{sym}</span>
-//                 <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(pct)}</span>
+//                 <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+//                   {timeFrame === 'daily' ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : `${pct.toFixed(2)}`}
+//                 </span>
 //               </div>
-
 //               <div className={`mt-2 text-xl font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>
-//                 {pos ? '+' : ''}
-//                 {fmtMoney(val)}
+//                 {pos ? '+' : ''}${Math.abs(val).toFixed(2)}
 //               </div>
-
+//               {cumulativeTotals && (
+//                 <div className="text-xs text-gray-500">
+//                   Total: ${totalCumulative.toFixed(2)}
+//                 </div>
+//               )}
 //               <div className="mt-3 h-10">
 //                 <ResponsiveContainer width="100%" height="100%">
 //                   <AreaChart data={spark(t)} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
@@ -291,9 +575,6 @@
 //   )
 // }
 
-// // -------------------------------------------------------------
-// // Chart card
-// // -------------------------------------------------------------
 // const PnLChart: React.FC<{ data: PnLData[]; timeFrame: TimeFrame }> = ({ data, timeFrame }) => {
 //   const fmtX = (ts: string) => {
 //     const d = new Date(ts)
@@ -319,7 +600,7 @@
 //               ]}
 //               contentStyle={{
 //                 backgroundColor: '#1F2937',
-//                 border: '1px solid #374151',   // ✅ fixed string
+//                 border: '1px solid #374151',
 //                 borderRadius: 8,
 //                 color: 'white',
 //               }}
@@ -332,20 +613,11 @@
 //   )
 // }
 
-// // -------------------------------------------------------------
-// // Token table (mini summary cards removed)
-// // -------------------------------------------------------------
-// const TokenTableModal: React.FC<{
-//   tokenData: TokenData
-//   timeFrame: TimeFrame
-//   onClose: () => void
-// }> = ({ tokenData, timeFrame, onClose }) => {
-//   const [displayPage, setDisplayPage] = useState(1)
-//   const itemsPerPage = 10
-//   const totalItems = tokenData.trades.length
-//   const totalDisplayPages = Math.ceil(totalItems / itemsPerPage)
-//   const currentTrades = tokenData.trades.slice((displayPage - 1) * itemsPerPage, displayPage * itemsPerPage)
-
+// const TokenTableModal: React.FC<{ tokenData: TokenData; timeFrame: TimeFrame; onClose: () => void }> = ({
+//   tokenData,
+//   timeFrame,
+//   onClose,
+// }) => {
 //   return (
 //     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
 //       <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 w-full max-w-6xl max-h-[90vh] overflow-hidden">
@@ -361,87 +633,49 @@
 //         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
 //           <div className="overflow-x-auto">
 //             <table className="w-full text-sm">
-//               <thead>
+//               <thead className="sticky top-0 bg-gray-800">
 //                 <tr className="border-b border-gray-700 text-gray-400">
-//                   <th className="text-left py-3">Day</th>
-//                   <th className="text-left py-3">Date</th>
+//                   <th className="text-left py-3">Step</th>
+//                   <th className="text-left py-3">Time</th>
 //                   <th className="text-left py-3">Trades</th>
-//                   <th className="text-left py-3">Daily P&amp;L %</th>
+//                   <th className="text-left py-3">Return %</th>
 //                   <th className="text-left py-3">Start Balance</th>
 //                   <th className="text-left py-3">End Balance</th>
-//                   <th className="text-left py-3">Daily Gain $</th>
-//                   <th className="text-left py-3">Cumulative Return %</th>
+//                   <th className="text-left py-3">Gain $</th>
+//                   <th className="text-left py-3">Cumulative %</th>
 //                 </tr>
 //               </thead>
 //               <tbody>
-//                 {currentTrades.map((tr, i) => (
+//                 {tokenData.trades.map((tr, i) => (
 //                   <tr key={i} className="border-b border-gray-700 hover:bg-gray-700/50">
 //                     <td className="py-3 text-gray-300">{tr.day}</td>
 //                     <td className="py-3 text-gray-300">{tr.date}</td>
 //                     <td className="py-3 text-gray-300">{tr.trades}</td>
 //                     <td className={`py-3 font-semibold ${tr.dailyPnLPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-//                       {tr.dailyPnLPercent >= 0 ? '+' : ''}
-//                       {tr.dailyPnLPercent.toFixed(3)}%
+//                       {tr.dailyPnLPercent >= 0 ? '+' : ''}{tr.dailyPnLPercent.toFixed(3)}%
 //                     </td>
 //                     <td className="py-3 text-gray-300">${tr.startBalance.toFixed(2)}</td>
 //                     <td className="py-3 text-gray-300">${tr.endBalance.toFixed(2)}</td>
 //                     <td className={`py-3 font-semibold ${tr.dailyGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-//                       {tr.dailyGain >= 0 ? '+' : ''}
-//                       ${tr.dailyGain.toFixed(2)}
+//                       {tr.dailyGain >= 0 ? '+' : ''}${tr.dailyGain.toFixed(2)}
 //                     </td>
 //                     <td className={`py-3 font-semibold ${tr.cumulativeReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-//                       {tr.cumulativeReturn >= 0 ? '+' : ''}
-//                       {tr.cumulativeReturn.toFixed(2)}%
+//                       {tr.cumulativeReturn >= 0 ? '+' : ''}{tr.cumulativeReturn.toFixed(2)}%
 //                     </td>
 //                   </tr>
 //                 ))}
 //               </tbody>
 //             </table>
 //           </div>
-
-//           {totalDisplayPages > 1 && (
-//             <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
-//               <button
-//                 onClick={() => setDisplayPage(displayPage - 1)}
-//                 disabled={displayPage === 1}
-//                 className="flex items-center px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-//               >
-//                 <ChevronLeft className="w-4 h-4 mr-1" />
-//                 Previous
-//               </button>
-//               <span className="text-sm text-gray-400">
-//                 Page {displayPage} of {totalDisplayPages}
-//               </span>
-//               <button
-//                 onClick={() => setDisplayPage(displayPage + 1)}
-//                 disabled={displayPage === totalDisplayPages}
-//                 className="flex items-center px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-//               >
-//                 Next
-//                 <ChevronRight className="w-4 h-4 ml-1" />
-//               </button>
-//             </div>
-//           )}
 //         </div>
 //       </div>
 //     </div>
 //   )
 // }
 
-// const TokenTable: React.FC<{
-//   tokenData: TokenData
-//   timeFrame: TimeFrame
-//   currentPage: number
-//   totalPages: number
-//   onPageChange: (p: number) => void
-// }> = ({ tokenData, timeFrame }) => {
-//   const [displayPage, setDisplayPage] = useState(1)
+// const TokenTable: React.FC<{ tokenData: TokenData; timeFrame: TimeFrame }> = ({ tokenData, timeFrame }) => {
 //   const [isMaximized, setIsMaximized] = useState(false)
-//   const itemsPerPage = 3
-//   const totalItems = tokenData.trades.length
-//   const totalDisplayPages = Math.ceil(totalItems / itemsPerPage)
 //   const showMaximize = timeFrame === 'monthly' || timeFrame === 'all-time'
-//   const currentTrades = tokenData.trades.slice((displayPage - 1) * itemsPerPage, displayPage * itemsPerPage)
 
 //   return (
 //     <>
@@ -451,11 +685,7 @@
 //           <div className="flex items-center space-x-2">
 //             <span className="text-sm text-gray-400">${tokenData.price.toLocaleString()}</span>
 //             {showMaximize && (
-//               <button
-//                 onClick={() => setIsMaximized(true)}
-//                 className="text-gray-400 hover:text-white p-1"
-//                 title="Maximize"
-//               >
+//               <button onClick={() => setIsMaximized(true)} className="text-gray-400 hover:text-white p-1" title="Maximize">
 //                 <Maximize2 className="w-4 h-4" />
 //               </button>
 //             )}
@@ -463,70 +693,41 @@
 //         </div>
 
 //         <div className="flex-1 overflow-y-auto">
-//           <table className="w-full text-xs">
+//           <table className="w-full text-xs table-fixed">
 //             <thead className="sticky top-0 bg-gray-800">
 //               <tr className="border-b border-gray-700 text-gray-400">
-//                 <th className="text-left py-2">Day</th>
-//                 <th className="text-left py-2">Date</th>
-//                 <th className="text-left py-2">Trades</th>
-//                 <th className="text-left py-2">Daily P&amp;L %</th>
-//                 <th className="text-left py-2 hidden sm:table-cell">Start Balance</th>
-//                 <th className="text-left py-2 hidden sm:table-cell">End Balance</th>
-//                 <th className="text-left py-2">Daily Gain $</th>
-//                 <th className="text-left py-2 hidden md:table-cell">Cumulative Return %</th>
+//                 <th className="text-left py-2 w-12">Step</th>
+//                 <th className="text-left py-2 w-24">Time</th>
+//                 <th className="text-left py-2 w-16">Trades</th>
+//                 <th className="text-left py-2 w-20">Return %</th>
+//                 <th className="text-left py-2 hidden sm:table-cell w-24">Start Bal</th>
+//                 <th className="text-left py-2 hidden sm:table-cell w-24">End Bal</th>
+//                 <th className="text-left py-2 w-20">Gain $</th>
+//                 <th className="text-left py-2 hidden md:table-cell w-24">Cum. %</th>
 //               </tr>
 //             </thead>
 //             <tbody>
-//               {currentTrades.map((tr, i) => (
+//               {tokenData.trades.map((tr, i) => (
 //                 <tr key={i} className="border-b border-gray-700 hover:bg-gray-700/50">
 //                   <td className="py-2 text-gray-300">{tr.day}</td>
 //                   <td className="py-2 text-gray-300">{tr.date}</td>
 //                   <td className="py-2 text-gray-300">{tr.trades}</td>
 //                   <td className={`py-2 font-semibold ${tr.dailyPnLPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-//                     {tr.dailyPnLPercent >= 0 ? '+' : ''}
-//                     {tr.dailyPnLPercent.toFixed(3)}%
+//                     {tr.dailyPnLPercent >= 0 ? '+' : ''}{tr.dailyPnLPercent.toFixed(3)}%
 //                   </td>
 //                   <td className="py-2 text-gray-300 hidden sm:table-cell">${tr.startBalance.toFixed(2)}</td>
 //                   <td className="py-2 text-gray-300 hidden sm:table-cell">${tr.endBalance.toFixed(2)}</td>
 //                   <td className={`py-2 font-semibold ${tr.dailyGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-//                     {tr.dailyGain >= 0 ? '+' : ''}
-//                     ${tr.dailyGain.toFixed(2)}
+//                     {tr.dailyGain >= 0 ? '+' : ''}${tr.dailyGain.toFixed(2)}
 //                   </td>
-//                   <td
-//                     className={`py-2 font-semibold hidden md:table-cell ${
-//                       tr.cumulativeReturn >= 0 ? 'text-green-400' : 'text-red-400'
-//                     }`}
-//                   >
-//                     {tr.cumulativeReturn >= 0 ? '+' : ''}
-//                     {tr.cumulativeReturn.toFixed(2)}%
+//                   <td className={`py-2 font-semibold hidden md:table-cell ${tr.cumulativeReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+//                     {tr.cumulativeReturn >= 0 ? '+' : ''}{tr.cumulativeReturn.toFixed(2)}%
 //                   </td>
 //                 </tr>
 //               ))}
 //             </tbody>
 //           </table>
 //         </div>
-
-//         {totalDisplayPages > 1 && (
-//           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
-//             <button
-//               onClick={() => setDisplayPage(displayPage - 1)}
-//               disabled={displayPage === 1}
-//               className="flex items-center px-3 py-1 text-sm text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-//             >
-//               <ChevronLeft className="w-4 h-4 mr-1" />
-//               Prev
-//             </button>
-//             <span className="text-sm text-gray-400">Page {displayPage} of {totalDisplayPages}</span>
-//             <button
-//               onClick={() => setDisplayPage(displayPage + 1)}
-//               disabled={displayPage === totalDisplayPages}
-//               className="flex items-center px-3 py-1 text-sm text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-//             >
-//               Next
-//               <ChevronRight className="w-4 h-4 ml-1" />
-//             </button>
-//           </div>
-//         )}
 //       </div>
 
 //       {isMaximized && (
@@ -537,29 +738,52 @@
 // }
 
 // // -------------------------------------------------------------
-// // Main page
+// // Main Dashboard
 // // -------------------------------------------------------------
 // const PnLDashboard: React.FC = () => {
-//   const [timeFrame, setTimeFrame] = useState<TimeFrame>('daily')
+//   const [timeFrame, setTimeFrame] = useState<TimeFrame>('all-time')
 //   const [cumulativePnL, setCumulativePnL] = useState<number>(0)
 //   const [chartData, setChartData] = useState<PnLData[]>([])
 //   const [tokenData, setTokenData] = useState<TokenData[]>([])
-//   const [currentPage, setCurrentPage] = useState(1)
-//   const [totalPages, setTotalPages] = useState(1)
 //   const [loading, setLoading] = useState(false)
+//   const [error, setError] = useState<string | null>(null)
+//   const [cumulativeTotals, setCumulativeTotals] = useState<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }>()
 
-//   const loadData = async (newTimeFrame: TimeFrame, page = 1) => {
+//   // Fetch prediction data for daily view
+//   const { data: prediction, error: predictionError, isLoading: predictionLoading } = useSWR<PredictionAPIResponse>(
+//     timeFrame === 'daily' ? '/api/today-prediction' : null,
+//     swrFetcher,
+//     { revalidateOnFocus: false, revalidateOnReconnect: true, shouldRetryOnError: true }
+//   )
+
+//   // Load cumulative totals for display
+//   useEffect(() => {
+//     fetchLatestCumulativeTotals().then(setCumulativeTotals).catch(console.error)
+//   }, [])
+
+//   const loadData = async (frame: TimeFrame) => {
 //     setLoading(true)
+//     setError(null)
 //     try {
-//       const [cum, chart, tokens] = await Promise.all([
-//         fetchCumulativePnL(newTimeFrame),
-//         fetchChartData(newTimeFrame, page),
-//         fetchTokenData(newTimeFrame, page),
-//       ])
-//       setCumulativePnL(cum)
-//       setChartData(chart)
-//       setTokenData(tokens.data)
-//       setTotalPages(Math.ceil(tokens.total / 10))
+//       if (frame === 'monthly') {
+//         const { tokens, chart } = await fetchMonthlyFromDB()
+//         setTokenData(tokens)
+//         setChartData(chart)
+//         setCumulativePnL(tokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+//       } else if (frame === 'all-time') {
+//         const { tokens, chart } = await fetchAllTimeFromDB()
+//         setTokenData(tokens)
+//         setChartData(chart)
+//         setCumulativePnL(tokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+//       } else {
+//         // Daily view handled by useEffect below
+//         setTokenData([])
+//         setChartData([])
+//         setCumulativePnL(0)
+//       }
+//     } catch (e) {
+//       console.error('Error loading data:', e)
+//       setError(e instanceof Error ? e.message : 'Failed to load data')
 //     } finally {
 //       setLoading(false)
 //     }
@@ -567,8 +791,46 @@
 
 //   useEffect(() => {
 //     loadData(timeFrame)
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [timeFrame])
+
+//   // Handle daily prediction data
+//   useEffect(() => {
+//     if (timeFrame !== 'daily') return
+//     if (!prediction?.forecast_today_hourly) return
+
+//     let cancelled = false
+    
+//     ;(async () => {
+//       try {
+//         // Get yesterday's final balances
+//         const prevBalances = await fetchPrevDayStartBalances()
+//         console.log('Previous day balances:', prevBalances)
+        
+//         // Convert forecast to hourly trades
+//         const newTokens = convertForecastToHourlyTrades(
+//           prediction.forecast_today_hourly,
+//           prevBalances
+//         )
+        
+//         // Create chart data from forecasts
+//         const syntheticChart: PnLData[] = (prediction.forecast_today_hourly['BTC'] ?? []).map((r) => ({
+//           timestamp: r.time,
+//           value: (r.forecast_price - r.entry_price) * 100, // Scaled for visualization
+//         }))
+        
+//         if (cancelled) return
+        
+//         setTokenData(newTokens)
+//         setChartData(syntheticChart)
+//         setCumulativePnL(newTokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+//       } catch (e) {
+//         console.error('Error processing daily prediction data:', e)
+//         setError('Failed to process daily prediction data')
+//       }
+//     })()
+
+//     return () => { cancelled = true }
+//   }, [prediction, timeFrame])
 
 //   return (
 //     <div className="min-h-screen bg-gray-900">
@@ -579,32 +841,44 @@
 //           <TimeFrameToggle timeFrame={timeFrame} onChange={setTimeFrame} />
 //         </div>
 
-//         {/* Loading */}
-//         {loading && (
+//         {(loading || (timeFrame === 'daily' && predictionLoading)) && (
 //           <div className="text-center py-4">
 //             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+//             <p className="text-gray-400 mt-2">
+//               {timeFrame === 'daily' ? 'Loading hourly predictions...' : 'Loading real data...'}
+//             </p>
 //           </div>
 //         )}
 
-//         {/* Top Row (no fixed heights so no dead space) */}
-//         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-//           <CumulativePnLCard timeFrame={timeFrame} tokenData={tokenData} value={cumulativePnL} />
-//           <PnLChart data={chartData} timeFrame={timeFrame} />
-//         </div>
+//         {(error || (timeFrame === 'daily' && predictionError)) && (
+//           <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-6">
+//             <div className="text-red-400 text-sm">
+//               Error: {error || (predictionError instanceof Error ? predictionError.message : 'Failed to load predictions')}
+//             </div>
+//           </div>
+//         )}
 
-//         {/* Bottom Row */}
-//         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-//           {tokenData.map((t) => (
-//             <TokenTable
-//               key={t.symbol}
-//               tokenData={t}
-//               timeFrame={timeFrame}
-//               currentPage={currentPage}
-//               totalPages={totalPages}
-//               onPageChange={setCurrentPage}
-//             />
-//           ))}
-//         </div>
+//         {!loading && !error && !(timeFrame === 'daily' && predictionLoading) && (
+//           <>
+//             {/* Top Row */}
+//             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+//               <CumulativePnLCard 
+//                 timeFrame={timeFrame} 
+//                 tokenData={tokenData} 
+//                 value={cumulativePnL} 
+//                 cumulativeTotals={cumulativeTotals}
+//               />
+//               <PnLChart data={chartData} timeFrame={timeFrame} />
+//             </div>
+
+//             {/* Bottom Row */}
+//             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+//               {tokenData.map((t) => (
+//                 <TokenTable key={t.symbol} tokenData={t} timeFrame={timeFrame} />
+//               ))}
+//             </div>
+//           </>
+//         )}
 //       </div>
 //     </div>
 //   )
@@ -612,10 +886,9 @@
 
 // export default PnLDashboard
 
-
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import {
   LineChart,
@@ -628,7 +901,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts'
-import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp, Maximize2, X } from 'lucide-react'
+import { TrendingDown, TrendingUp, Maximize2, X } from 'lucide-react'
 
 // -------------------------------------------------------------
 // Types
@@ -659,22 +932,13 @@ interface TokenData {
   cumulativePercent: number
   volume: number
   trades: TokenTradeData[]
+  totalCumulativePnL?: number // Total cumulative from API
 }
 
-interface ApiConfig {
-  baseUrl: string
-  endpoints: {
-    cumulativePnL: string
-    chartData: string
-    tokenData: string
-  }
-}
-
-/** ---- Today-prediction API minimal typing (we only use forecast_today_hourly) ---- */
-type Signal = 'LONG' | 'SHORT'
+// Prediction API types
 interface HourlyForecast {
   time: string
-  signal: Signal
+  signal: 'LONG' | 'SHORT'
   entry_price: number
   stop_loss: number
   take_profit: number
@@ -688,147 +952,402 @@ interface HourlyForecast {
   confidence_80: [number, number]
   confidence_90: [number, number]
 }
+
 interface PredictionAPIResponse {
   forecast_today_hourly: Record<string, HourlyForecast[]>
 }
 
 // -------------------------------------------------------------
-// API config (ready for backend integration)
+// External DB endpoints
 // -------------------------------------------------------------
-const apiConfig: ApiConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yourapp.com',
-  endpoints: {
-    cumulativePnL: '/api/pnl/cumulative',
-    chartData: '/api/pnl/chart',
-    tokenData: '/api/tokens/pnl',
-  },
+const DB_BASE = 'https://zynapse.zkagi.ai/daily-cumulative'
+const DB_ALL_URL = `${DB_BASE}/all`
+const DB_MONTH_URL = `${DB_BASE}/month`
+const DB_GET_URL = `${DB_BASE}/get`
+const DB_API_KEY = 'zk-123321'
+
+// -------------------------------------------------------------
+// Helpers (IST date/time, normalizers, pivot)
+// -------------------------------------------------------------
+const IST = 'Asia/Kolkata'
+
+const istNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: IST }))
+const istYYYYMMDD = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
+const istMonthMM = (d = istNow()) => String(d.getMonth() + 1).padStart(2, '0')
 
-// -------------------------------------------------------------
-// Dummy generators (used as fallback)
-// -------------------------------------------------------------
-const generateDummyChartData = (timeFrame: TimeFrame): PnLData[] => {
-  const now = new Date()
-  const data: PnLData[] = []
+type RawRow = Record<string, any>
 
-  if (timeFrame === 'daily') {
-    for (let i = 23; i >= 0; i--) {
-      data.push({
-        timestamp: new Date(now.getTime() - i * 3600_000).toISOString(),
-        value: Math.random() * 1000 - 500,
-      })
-    }
-  } else if (timeFrame === 'monthly') {
-    for (let i = 29; i >= 0; i--) {
-      data.push({
-        timestamp: new Date(now.getTime() - i * 86_400_000).toISOString(),
-        value: Math.random() * 5000 - 2500,
-      })
-    }
-  } else {
-    for (let i = 364; i >= 0; i--) {
-      data.push({
-        timestamp: new Date(now.getTime() - i * 86_400_000).toISOString(),
-        value: Math.random() * 10000 - 5000,
-      })
-    }
+const numberish = (...c: any[]) => {
+  for (const x of c) {
+    if (typeof x === 'number' && !Number.isNaN(x)) return x
+    if (typeof x === 'string' && x.trim() !== '' && !Number.isNaN(+x)) return +x
   }
-  return data
+  return undefined
 }
 
-const generateDummyTokenTrades = (timeFrame: TimeFrame): TokenTradeData[] => {
-  const days = timeFrame === 'daily' ? 1 : timeFrame === 'monthly' ? 30 : 90
-  const trades: TokenTradeData[] = []
-  let bal = 100
-  for (let i = 0; i < days; i++) {
-    const r = (Math.random() - 0.5) * 0.1 // -5%..+5%
-    const startBalance = bal
-    const endBalance = startBalance * (1 + r)
-    const dailyGain = endBalance - startBalance
-    const cumulativeReturn = ((endBalance - 100) / 100) * 100
-    const d = new Date()
-    d.setDate(d.getDate() - (days - 1 - i))
-    trades.push({
-      day: i + 1,
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      trades: Math.floor(Math.random() * 30) + 10,
-      dailyPnLPercent: r * 100,
-      startBalance,
-      endBalance,
-      dailyGain,
-      cumulativeReturn,
+const TOKENS_DEF = [
+  { key: 'btc', sym: 'BTC' },
+  { key: 'eth', sym: 'ETH' },
+  { key: 'sol', sym: 'SOL' },
+]
+
+// Turn API records into TokenData[] with proper starting balances
+function pivotPortfolioRecordsToTokens(
+  rows: RawRow[], 
+  startBalances?: Record<'BTC'|'ETH'|'SOL', number>
+): TokenData[] {
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.date ?? a.timestamp ?? 0).getTime() - new Date(b.date ?? b.timestamp ?? 0).getTime(),
+  )
+
+  return TOKENS_DEF.map(({ key, sym }) => {
+    const trades: TokenTradeData[] = sorted.map((r, idx) => {
+      const endBalance = numberish(r[`${key}_ending_balance`]) ?? 100
+      const tokenCumulative = numberish(r[`${key}_cumulative`]) ?? 0
+      
+      // Calculate start balance
+      let startBalance: number
+      if (idx === 0) {
+        // First record: use provided start balance or default to 100
+        startBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+      } else {
+        // Subsequent records: use previous day's end balance
+        const prevRecord = sorted[idx - 1]
+        startBalance = numberish(prevRecord[`${key}_ending_balance`]) ?? 100
+      }
+      
+      const dailyGain = endBalance - startBalance
+      const dailyPct = startBalance !== 0 ? (dailyGain / startBalance) * 100 : 0
+      
+      // For monthly/all-time, cumulative return is based on original 100 investment
+      // For this period's calculation, it's based on the period start
+      const periodStartBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+      const cumulativeReturn = ((endBalance - periodStartBalance) / periodStartBalance) * 100
+
+      const t = new Date(r.date ?? r.timestamp ?? new Date())
+      const label = t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: IST })
+
+      return {
+        day: idx + 1,
+        date: label,
+        trades: Math.max(1, Math.floor(numberish(r.total_trades) ?? 1)),
+        dailyPnLPercent: dailyPct,
+        startBalance: startBalance,
+        endBalance: endBalance,
+        dailyGain: dailyGain,
+        cumulativeReturn: cumulativeReturn,
+      }
     })
-    bal = endBalance
-  }
-  return trades
+
+    const last = trades[trades.length - 1]
+    const lastRow = sorted[sorted.length - 1]
+    const periodStartBalance = startBalances?.[sym as 'BTC'|'ETH'|'SOL'] ?? 100
+    
+    // Get total cumulative PnL from API
+    const totalCumulativePnL = numberish(lastRow?.[`${key}_cumulative`]) ?? 0
+    
+    return {
+      symbol: sym,
+      price: 0,
+      cumulativePnL: last ? last.endBalance - periodStartBalance : 0,
+      cumulativePercent: last ? ((last.endBalance - periodStartBalance) / periodStartBalance) * 100 : 0,
+      volume: 0,
+      trades,
+      totalCumulativePnL, // Total cumulative from start of trading
+    }
+  })
 }
 
-const generateDummyTokenData = (timeFrame: TimeFrame): TokenData[] => {
-  return [
-    { symbol: 'BTC', price: 68_027.84 } as const,
-    { symbol: 'ETH', price: 8_238.17 } as const,
-    { symbol: 'SOL', price: 44_201.47 } as const,
-  ].map((t) => {
-    const trades = generateDummyTokenTrades(timeFrame)
+// Aggregate chart from per-token trades (sum daily gains)
+function aggregateChartFromTokens(tokens: TokenData[], from?: Date, to?: Date): PnLData[] {
+  const sums = new Map<string, number>()
+  tokens.forEach((t) =>
+    t.trades.forEach((tr) => {
+      sums.set(tr.date, (sums.get(tr.date) || 0) + tr.dailyGain)
+    }),
+  )
+
+  // If a fixed day range is given, iterate day-by-day in IST
+  if (from && to) {
+    const out: PnLData[] = []
+    const d = new Date(from)
+    while (d <= to) {
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: IST })
+      const ts = new Date(
+        new Date(d.toLocaleString('en-US', { timeZone: IST })).toISOString(),
+      ).toISOString()
+      out.push({ timestamp: ts, value: sums.get(label) ?? 0 })
+      d.setDate(d.getDate() + 1)
+    }
+    return out
+  }
+
+  // Otherwise just map known labels to a rough timestamp (this year)
+  const year = istNow().getFullYear()
+  return Array.from(sums.entries()).map(([label, v]) => {
+    const parsed = new Date(`${label} ${year}`)
+    return { timestamp: isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString(), value: v }
+  })
+}
+
+// Convert forecast data to hourly trades with proper chaining of balances
+function convertForecastToHourlyTrades(
+  fth: Record<string, HourlyForecast[]>,
+  prevBalances: Record<'BTC'|'ETH'|'SOL', number>
+): TokenData[] {
+  const symbols = ['BTC', 'ETH', 'SOL'] as const
+  
+  return symbols.map((sym) => {
+    const rows = fth[sym] ?? []
+    const dayStartBalance = prevBalances[sym] ?? 100 // Yesterday's final balance
+    
+    // FIXED: Build trades array iteratively to avoid scope issues
+    const trades: TokenTradeData[] = []
+    let currentBalance = dayStartBalance // Track balance as we go
+    
+    rows.forEach((row, idx) => {
+      // Calculate hourly return
+      const ret = (row.forecast_price - row.entry_price) / (row.entry_price || 1)
+      
+      // Start balance is the current running balance
+      const startBalance = currentBalance
+      const end = startBalance * (1 + ret)
+      const gain = end - startBalance
+      
+      // Update current balance for next iteration
+      currentBalance = end
+      
+      // Cumulative return is relative to day's starting point
+      const cumulativeReturn = ((end - dayStartBalance) / dayStartBalance) * 100
+      
+      const t = new Date(row.time)
+      const label = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      
+      trades.push({
+        day: idx + 1,
+        date: label,
+        trades: 1,
+        dailyPnLPercent: ret * 100, // This hour's return percentage
+        startBalance: startBalance,
+        endBalance: end,
+        dailyGain: gain, // This hour's gain/loss in dollars
+        cumulativeReturn, // Cumulative return since start of day
+      })
+    })
+    
+    const lastPrice = rows.length ? rows[rows.length - 1].current_price : 0
     const last = trades[trades.length - 1]
+    
     return {
-      ...t,
+      symbol: sym,
+      price: lastPrice,
+      cumulativePnL: last ? last.endBalance - dayStartBalance : 0,
+      cumulativePercent: last ? last.cumulativeReturn : 0,
+      volume: 0,
       trades,
-      volume: Math.random() * 1_000_000,
-      cumulativePnL: last ? last.dailyGain * 1000 : Math.random() * 10_000 - 5000,
-      cumulativePercent: last ? last.cumulativeReturn : Math.random() * 20 - 10,
     }
   })
 }
 
 // -------------------------------------------------------------
-// API functions (fallback to dummy on failure)
+// External DB fetchers (updated to use real API)
 // -------------------------------------------------------------
-const fetchCumulativePnL = async (timeFrame: TimeFrame): Promise<number> => {
+async function fetchAllTimeFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
   try {
-    const r = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.cumulativePnL}?timeFrame=${timeFrame}`)
-    const data = await r.json()
-    return data.cumulative
-  } catch {
-    return Math.random() * 50_000 - 25_000
+    const r = await fetch(DB_ALL_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'api-key': DB_API_KEY },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const json = await r.json()
+    const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
+    
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error('No data received from API')
+    }
+    
+    const tokens = pivotPortfolioRecordsToTokens(rows)
+    const chart = aggregateChartFromTokens(tokens)
+    return { tokens, chart }
+  } catch (e) {
+    console.error('fetchAllTimeFromDB error:', e)
+    throw e
   }
 }
 
-const fetchChartData = async (timeFrame: TimeFrame, page = 1, limit = 100): Promise<PnLData[]> => {
+// Get the last day of previous month's ending balances
+async function fetchPrevMonthEndBalances(): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
+  const now = istNow()
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+  const date = istYYYYMMDD(lastDayOfPrevMonth)
+  
   try {
-    const r = await fetch(
-      `${apiConfig.baseUrl}${apiConfig.endpoints.chartData}?timeFrame=${timeFrame}&page=${page}&limit=${limit}`,
-    )
-    const data = await r.json()
-    return data.chartData
-  } catch {
-    return generateDummyChartData(timeFrame)
+    const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'api-key': DB_API_KEY },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const row = await r.json() as RawRow
+    return {
+      BTC: numberish(row.btc_ending_balance) ?? 100,
+      ETH: numberish(row.eth_ending_balance) ?? 100,
+      SOL: numberish(row.sol_ending_balance) ?? 100,
+    }
+  } catch (e) {
+    console.error('fetchPrevMonthEndBalances error:', e)
+    return { BTC: 100, ETH: 100, SOL: 100 }
   }
 }
 
-const fetchTokenData = async (
-  timeFrame: TimeFrame,
-  page = 1,
-  limit = 10,
-): Promise<{ data: TokenData[]; total: number }> => {
+async function fetchMonthlyFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
+  const mm = istMonthMM()
+  const monthUrl = `${DB_MONTH_URL}?month=${encodeURIComponent(mm)}`
+  const nowI = istNow()
+  const start = new Date(nowI.getFullYear(), nowI.getMonth(), 1)
+  const end = new Date(nowI.getFullYear(), nowI.getMonth(), nowI.getDate())
+
   try {
-    const r = await fetch(
-      `${apiConfig.baseUrl}${apiConfig.endpoints.tokenData}?timeFrame=${timeFrame}&page=${page}&limit=${limit}`,
-    )
-    const data = await r.json()
-    return { data: data.tokens, total: data.total }
-  } catch {
-    return { data: generateDummyTokenData(timeFrame), total: 3 }
+    // Get previous month's ending balances first
+    const prevMonthBalances = await fetchPrevMonthEndBalances()
+    console.log('Previous month ending balances:', prevMonthBalances)
+
+    const r = await fetch(monthUrl, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'api-key': DB_API_KEY },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const json = await r.json()
+    const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
+    
+    if (!Array.isArray(rows) || rows.length === 0) {
+      // Fallback: filter /all to the current IST month
+      const allData = await fetchAllTimeFromDB()
+      const currentMonth = istMonthMM()
+      const filteredRows = allData.tokens.length > 0 ? 
+        (allData.tokens[0]?.trades || [])
+          .map((_, i) => {
+            const anyToken = allData.tokens[0]
+            const tradeData = anyToken?.trades[i]
+            if (!tradeData) return null
+            
+            // Parse the date from the trade to check if it's current month
+            const label = tradeData.date
+            const parsed = new Date(`${label} ${istNow().getFullYear()}`)
+            const m = String(parsed.getMonth() + 1).padStart(2, '0')
+            
+            if (m !== currentMonth) return null
+            
+            // Create synthetic row from trade data
+            const row: RawRow = {
+              date: parsed.toISOString(),
+              btc_ending_balance: allData.tokens.find(t => t.symbol === 'BTC')?.trades[i]?.endBalance,
+              eth_ending_balance: allData.tokens.find(t => t.symbol === 'ETH')?.trades[i]?.endBalance,
+              sol_ending_balance: allData.tokens.find(t => t.symbol === 'SOL')?.trades[i]?.endBalance,
+              total_trades: tradeData.trades,
+            }
+            return row
+          })
+          .filter(Boolean) as RawRow[]
+        : []
+        
+      if (filteredRows.length === 0) {
+        throw new Error('No monthly data available')
+      }
+      
+      const tokens = pivotPortfolioRecordsToTokens(filteredRows, prevMonthBalances)
+      const chart = aggregateChartFromTokens(tokens, start, end)
+      return { tokens, chart }
+    }
+    
+    const tokens = pivotPortfolioRecordsToTokens(rows, prevMonthBalances)
+    const chart = aggregateChartFromTokens(tokens, start, end)
+    return { tokens, chart }
+  } catch (e) {
+    console.error('fetchMonthlyFromDB error:', e)
+    throw e
   }
 }
 
+// Daily: fetch yesterday's ending balances (IST) for BTC/ETH/SOL
+async function fetchPrevDayStartBalances(): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
+  const y = istNow()
+  y.setDate(y.getDate() - 1)
+  const date = istYYYYMMDD(y)
+  try {
+    const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'api-key': DB_API_KEY },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const row = await r.json() as RawRow
+    return {
+      BTC: numberish(row.btc_ending_balance) ?? 100,
+      ETH: numberish(row.eth_ending_balance) ?? 100,
+      SOL: numberish(row.sol_ending_balance) ?? 100,
+    }
+  } catch (e) {
+    console.error('fetchPrevDayStartBalances error:', e)
+    return { BTC: 100, ETH: 100, SOL: 100 }
+  }
+}
+
+// Get latest data for cumulative totals
+async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+  const yesterday = istNow()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const date = istYYYYMMDD(yesterday)
+  
+  try {
+    const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'api-key': DB_API_KEY },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const row = await r.json() as RawRow
+    return {
+      BTC: numberish(row.btc_cumulative) ?? 0,
+      ETH: numberish(row.eth_cumulative) ?? 0,
+      SOL: numberish(row.sol_cumulative) ?? 0,
+      portfolio: numberish(row.portfolio_cumulative_pnl) ?? 0,
+    }
+  } catch (e) {
+    console.error('fetchLatestCumulativeTotals error:', e)
+    return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 }
+  }
+}
+
+// SWR fetcher for prediction API
+const swrFetcher = (url: string) =>
+  fetch(url, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  }).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    return r.json()
+  })
+
 // -------------------------------------------------------------
-// Small UI bits
+// UI Components
 // -------------------------------------------------------------
-const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame) => void }> = ({
-  timeFrame,
-  onChange,
-}) => (
+const tokenColors: Record<string, string> = { BTC: '#F7931A', ETH: '#627EEA', SOL: '#14F195' }
+
+const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame) => void }> = ({ timeFrame, onChange }) => (
   <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
     {(['daily', 'monthly', 'all-time'] as TimeFrame[]).map((v) => (
       <button
@@ -844,70 +1363,112 @@ const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame)
   </div>
 )
 
-// -------------------------------------------------------------
-// Pretty cumulative card (3 tiles, no donut)
-// -------------------------------------------------------------
-const tokenColors: Record<string, string> = { BTC: '#F7931A', ETH: '#627EEA', SOL: '#14F195' }
-
-const CumulativePnLCard: React.FC<{ timeFrame: TimeFrame; tokenData?: TokenData[]; value?: number }> = ({
+const CumulativePnLCard: React.FC<{ 
+  timeFrame: TimeFrame; 
+  tokenData?: TokenData[]; 
+  value?: number;
+  cumulativeTotals?: Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number };
+}> = ({
   timeFrame,
   tokenData = [],
   value = 0,
+  cumulativeTotals,
 }) => {
-  // Total = sum of token cumulative if available; else use provided value
-  const total = tokenData.length ? tokenData.reduce((s, t) => s + (t?.cumulativePnL || 0), 0) : value
+  // FIXED: Always show all-time cumulative totals and current period's performance
+  const periodTotal = tokenData.length ? tokenData.reduce((s, t) => s + (t?.cumulativePnL || 0), 0) : value
+  const allTimeTotalPnL = cumulativeTotals?.portfolio ?? 0
+  
+  // For display, use all-time total + current period changes for daily/monthly
+  const displayTotal = timeFrame === 'all-time' ? allTimeTotalPnL : allTimeTotalPnL + periodTotal
 
-  // Aggregate % from balances (fallback to avg of token %s)
-  const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
-  const endSum = tokenData.reduce((s, t) => {
-    const last = t.trades?.[t.trades.length - 1]
-    return s + (last ? last.endBalance : 100 * (1 + (t.cumulativePercent ?? 0) / 100))
-  }, 0)
-  const aggPct = tokenData.length ? ((endSum - baseSum) / baseSum) * 100 : 0
+  // Calculate percentage for current period
+  const { aggPct } = useMemo(() => {
+    if (timeFrame === 'daily') {
+      // Daily: calculate percentage based on yesterday's vs current balances
+      const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
+      const endSum = tokenData.reduce((s, t) => {
+        const last = t.trades?.[t.trades.length - 1]
+        return s + (last ? last.endBalance : 100)
+      }, 0)
+      return { aggPct: tokenData.length && baseSum > 0 ? ((endSum - baseSum) / baseSum) * 100 : 0 }
+    } else if (timeFrame === 'monthly') {
+      // Monthly: percentage of the current month's gains
+      const totalInvested = 300 // 3 tokens × $100 initial each
+      return { aggPct: totalInvested > 0 ? (periodTotal / totalInvested) * 100 : 0 }
+    } else {
+      // All-time: percentage of total cumulative
+      const totalInvested = 300 // 3 tokens × $100 initial each
+      return { aggPct: totalInvested > 0 ? (allTimeTotalPnL / totalInvested) * 100 : 0 }
+    }
+  }, [tokenData, timeFrame, periodTotal, allTimeTotalPnL])
 
-  const isPositive = total >= 0
+  const isPositive = displayTotal >= 0
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n))
   const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
-  // sparkline data for each token
   const spark = (t?: TokenData) =>
-    t?.trades?.map((tr, i) => ({ x: i, y: tr.cumulativeReturn })) ??
-    Array.from({ length: 20 }, (_, i) => ({ x: i, y: (Math.random() - 0.5) * 10 }))
+    t?.trades?.map((tr, i) => ({ x: i, y: timeFrame === 'daily' ? tr.cumulativeReturn : tr.cumulativeReturn })) ?? []
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700 h-full">
-      {/* Headline */}
-      <h3 className="text-sm font-medium text-gray-400">Cumulative PnL ({timeFrame})</h3>
+      <h3 className="text-sm font-medium text-gray-400">
+        All-Time Cumulative PnL
+        <span className="ml-2 text-xs text-blue-400">
+          ({timeFrame} view)
+        </span>
+      </h3>
+      
+      {/* FIXED: Show all-time total prominently */}
       <div className="flex items-end mt-3 space-x-3">
         {isPositive ? <TrendingUp className="w-6 h-6 text-green-500" /> : <TrendingDown className="w-6 h-6 text-red-500" />}
         <span className={`text-4xl font-extrabold tracking-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
           {isPositive ? '+' : '-'}
-          {fmtMoney(total)}
+          {fmtMoney(displayTotal)}
         </span>
         <span className={`text-lg font-semibold ${aggPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(aggPct)}</span>
       </div>
 
-      {/* 3 evenly spaced tiles */}
+      {/* Show period-specific info if not all-time */}
+      {timeFrame !== 'all-time' && (
+        <div className="mt-2 text-sm text-gray-400">
+          Period {timeFrame}: {periodTotal >= 0 ? '+' : ''}${Math.abs(periodTotal).toFixed(2)}
+        </div>
+      )}
+
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
         {(['BTC', 'ETH', 'SOL'] as const).map((sym) => {
           const t = tokenData.find((x) => x.symbol.toUpperCase() === sym)
-          const val = t?.cumulativePnL ?? 0
-          const pct = t?.cumulativePercent ?? 0
-          const pos = val >= 0
+          const periodVal = t?.cumulativePnL ?? 0
+          const allTimeVal = cumulativeTotals?.[sym] ?? 0
+          
+          // FIXED: Always show all-time cumulative + current period
+          const displayVal = timeFrame === 'all-time' ? allTimeVal : allTimeVal + periodVal
+          const pct = timeFrame === 'daily' ? (t?.cumulativePercent ?? 0) : 
+                     timeFrame === 'monthly' ? periodVal : 
+                     (allTimeVal / 100) * 100 // All-time percentage relative to $100 start
+          
+          const pos = displayVal >= 0
           const gid = `grad-${sym}-${timeFrame}`
 
           return (
             <div key={sym} className="rounded-xl border border-gray-700 bg-gray-900/40 p-4 flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-gray-400">{sym}</span>
-                <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(pct)}</span>
+                <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {timeFrame === 'daily' ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : 
+                   timeFrame === 'monthly' ? `${periodVal >= 0 ? '+' : ''}${periodVal.toFixed(2)}` :
+                   `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}
+                </span>
               </div>
-
               <div className={`mt-2 text-xl font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>
-                {pos ? '+' : ''}
-                {fmtMoney(val)}
+                {pos ? '+' : ''}${Math.abs(displayVal).toFixed(2)}
               </div>
-
+              <div className="text-xs text-gray-500">
+                {timeFrame !== 'all-time' && (
+                  <>Period: ${Math.abs(periodVal).toFixed(2)}<br/></>
+                )}
+                All-time: ${allTimeVal.toFixed(2)}
+              </div>
               <div className="mt-3 h-10">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={spark(t)} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
@@ -929,9 +1490,6 @@ const CumulativePnLCard: React.FC<{ timeFrame: TimeFrame; tokenData?: TokenData[
   )
 }
 
-// -------------------------------------------------------------
-// Chart card
-// -------------------------------------------------------------
 const PnLChart: React.FC<{ data: PnLData[]; timeFrame: TimeFrame }> = ({ data, timeFrame }) => {
   const fmtX = (ts: string) => {
     const d = new Date(ts)
@@ -970,14 +1528,11 @@ const PnLChart: React.FC<{ data: PnLData[]; timeFrame: TimeFrame }> = ({ data, t
   )
 }
 
-// -------------------------------------------------------------
-// Token table (modal)
-// -------------------------------------------------------------
-const TokenTableModal: React.FC<{
-  tokenData: TokenData
-  timeFrame: TimeFrame
-  onClose: () => void
-}> = ({ tokenData, timeFrame, onClose }) => {
+const TokenTableModal: React.FC<{ tokenData: TokenData; timeFrame: TimeFrame; onClose: () => void }> = ({
+  tokenData,
+  timeFrame,
+  onClose,
+}) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 w-full max-w-6xl max-h-[90vh] overflow-hidden">
@@ -1027,18 +1582,13 @@ const TokenTableModal: React.FC<{
               </tbody>
             </table>
           </div>
-          {/* no pagination */}
         </div>
       </div>
     </div>
   )
 }
 
-
-const TokenTable: React.FC<{
-  tokenData: TokenData
-  timeFrame: TimeFrame
-}> = ({ tokenData, timeFrame }) => {
+const TokenTable: React.FC<{ tokenData: TokenData; timeFrame: TimeFrame }> = ({ tokenData, timeFrame }) => {
   const [isMaximized, setIsMaximized] = useState(false)
   const showMaximize = timeFrame === 'monthly' || timeFrame === 'all-time'
 
@@ -1050,18 +1600,13 @@ const TokenTable: React.FC<{
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-400">${tokenData.price.toLocaleString()}</span>
             {showMaximize && (
-              <button
-                onClick={() => setIsMaximized(true)}
-                className="text-gray-400 hover:text-white p-1"
-                title="Maximize"
-              >
+              <button onClick={() => setIsMaximized(true)} className="text-gray-400 hover:text-white p-1" title="Maximize">
                 <Maximize2 className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Fixed-height scroll area */}
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-xs table-fixed">
             <thead className="sticky top-0 bg-gray-800">
@@ -1098,7 +1643,6 @@ const TokenTable: React.FC<{
             </tbody>
           </table>
         </div>
-        {/* no pagination footer */}
       </div>
 
       {isMaximized && (
@@ -1108,56 +1652,53 @@ const TokenTable: React.FC<{
   )
 }
 
-
 // -------------------------------------------------------------
-// Main page
+// Main Dashboard
 // -------------------------------------------------------------
-const swrFetcher = (url: string) =>
-  fetch(url, {
-    method: 'GET',
-    cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
-    },
-  }).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return r.json()
-  })
-
 const PnLDashboard: React.FC = () => {
-  const [timeFrame, setTimeFrame] = useState<TimeFrame>('daily')
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('all-time')
   const [cumulativePnL, setCumulativePnL] = useState<number>(0)
   const [chartData, setChartData] = useState<PnLData[]>([])
   const [tokenData, setTokenData] = useState<TokenData[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [cumulativeTotals, setCumulativeTotals] = useState<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }>()
 
-  // ---- Call /api/today-prediction on page load (SWR) ----
-  const {
-    data: prediction,
-    error: predictionError,
-    isLoading: predictionLoading,
-  } = useSWR<PredictionAPIResponse>('/api/today-prediction', swrFetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-    shouldRetryOnError: true,
-  })
+  // Fetch prediction data for daily view
+  const { data: prediction, error: predictionError, isLoading: predictionLoading } = useSWR<PredictionAPIResponse>(
+    timeFrame === 'daily' ? '/api/today-prediction' : null,
+    swrFetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: true, shouldRetryOnError: true }
+  )
 
-  const loadData = async (newTimeFrame: TimeFrame, page = 1) => {
+  // Load cumulative totals for display
+  useEffect(() => {
+    fetchLatestCumulativeTotals().then(setCumulativeTotals).catch(console.error)
+  }, [])
+
+  const loadData = async (frame: TimeFrame) => {
     setLoading(true)
+    setError(null)
     try {
-      const [cum, chart, tokens] = await Promise.all([
-        fetchCumulativePnL(newTimeFrame),
-        fetchChartData(newTimeFrame, page),
-        fetchTokenData(newTimeFrame, page),
-      ])
-      setCumulativePnL(cum)
-      setChartData(chart)
-      setTokenData(tokens.data) // will be overridden by prediction for "daily" below
-      setTotalPages(Math.ceil(tokens.total / 10))
+      if (frame === 'monthly') {
+        const { tokens, chart } = await fetchMonthlyFromDB()
+        setTokenData(tokens)
+        setChartData(chart)
+        setCumulativePnL(tokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+      } else if (frame === 'all-time') {
+        const { tokens, chart } = await fetchAllTimeFromDB()
+        setTokenData(tokens)
+        setChartData(chart)
+        setCumulativePnL(tokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+      } else {
+        // Daily view handled by useEffect below
+        setTokenData([])
+        setChartData([])
+        setCumulativePnL(0)
+      }
+    } catch (e) {
+      console.error('Error loading data:', e)
+      setError(e instanceof Error ? e.message : 'Failed to load data')
     } finally {
       setLoading(false)
     }
@@ -1165,68 +1706,45 @@ const PnLDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData(timeFrame)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFrame])
 
-  // ---- Use the prediction ONLY for 'daily' timeframe ----
+  // Handle daily prediction data
   useEffect(() => {
     if (timeFrame !== 'daily') return
-    const fth = prediction?.forecast_today_hourly
-    if (!fth) return
+    if (!prediction?.forecast_today_hourly) return
 
-    const symbols = ['BTC', 'ETH', 'SOL']
-
-    const toTradesFromForecast = (sym: string): { trades: TokenTradeData[]; lastPrice: number } => {
-      const rows = fth[sym] ?? []
-      let balance = 100
-      const trades: TokenTradeData[] = rows.map((row, idx) => {
-        // Approx hourly return based on forecast vs entry
-        const ret = (row.forecast_price - row.entry_price) / (row.entry_price || 1)
-        const start = balance
-        const end = start * (1 + ret)
-        const gain = end - start
-        const cumulativeReturn = ((end - 100) / 100) * 100
-        const t = new Date(row.time)
-        const label = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        balance = end
-        return {
-          day: idx + 1,
-          date: label,
-          trades: 1,
-          dailyPnLPercent: ret * 100,
-          startBalance: start,
-          endBalance: end,
-          dailyGain: gain,
-          cumulativeReturn,
-        }
-      })
-
-      const lastPrice = rows.length ? rows[rows.length - 1].current_price : 0
-      return { trades, lastPrice }
-    }
-
-    const newTokens: TokenData[] = symbols.map((sym) => {
-      const { trades, lastPrice } = toTradesFromForecast(sym)
-      const last = trades[trades.length - 1]
-      const cumulativePercent = last ? last.cumulativeReturn : 0
-      const cumulativePnL = last ? last.endBalance - 100 : 0
-      return {
-        symbol: sym,
-        price: lastPrice,
-        cumulativePnL,
-        cumulativePercent,
-        volume: 0,
-        trades,
+    let cancelled = false
+    
+    ;(async () => {
+      try {
+        // Get yesterday's final balances
+        const prevBalances = await fetchPrevDayStartBalances()
+        console.log('Previous day balances:', prevBalances)
+        
+        // Convert forecast to hourly trades
+        const newTokens = convertForecastToHourlyTrades(
+          prediction.forecast_today_hourly,
+          prevBalances
+        )
+        
+        // Create chart data from forecasts
+        const syntheticChart: PnLData[] = (prediction.forecast_today_hourly['BTC'] ?? []).map((r) => ({
+          timestamp: r.time,
+          value: (r.forecast_price - r.entry_price) * 100, // Scaled for visualization
+        }))
+        
+        if (cancelled) return
+        
+        setTokenData(newTokens)
+        setChartData(syntheticChart)
+        setCumulativePnL(newTokens.reduce((s, t) => s + (t?.cumulativePnL || 0), 0))
+      } catch (e) {
+        console.error('Error processing daily prediction data:', e)
+        setError('Failed to process daily prediction data')
       }
-    })
+    })()
 
-    setTokenData(newTokens)
-    // Optional: set chart from aggregated hourly PnL signal
-    const syntheticChart: PnLData[] = (fth['BTC'] ?? []).map((r) => ({
-      timestamp: r.time,
-      value: (r.forecast_price - r.entry_price) * 10, // simple scaled delta for visual
-    }))
-    setChartData(syntheticChart)
+    return () => { cancelled = true }
   }, [prediction, timeFrame])
 
   return (
@@ -1238,35 +1756,44 @@ const PnLDashboard: React.FC = () => {
           <TimeFrameToggle timeFrame={timeFrame} onChange={setTimeFrame} />
         </div>
 
-        {/* Loading (either local loads or SWR) */}
-        {(loading || predictionLoading) && (
+        {(loading || (timeFrame === 'daily' && predictionLoading)) && (
           <div className="text-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-400 mt-2">
+              {timeFrame === 'daily' ? 'Loading hourly predictions...' : 'Loading real data...'}
+            </p>
           </div>
         )}
-        {predictionError && (
-          <div className="text-sm text-red-400 mb-4">Failed to load /api/today-prediction</div>
+
+        {(error || (timeFrame === 'daily' && predictionError)) && (
+          <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-6">
+            <div className="text-red-400 text-sm">
+              Error: {error || (predictionError instanceof Error ? predictionError.message : 'Failed to load predictions')}
+            </div>
+          </div>
         )}
 
-        {/* Top Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <CumulativePnLCard timeFrame={timeFrame} tokenData={tokenData} value={cumulativePnL} />
-          <PnLChart data={chartData} timeFrame={timeFrame} />
-        </div>
+        {!loading && !error && !(timeFrame === 'daily' && predictionLoading) && (
+          <>
+            {/* Top Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <CumulativePnLCard 
+                timeFrame={timeFrame} 
+                tokenData={tokenData} 
+                value={cumulativePnL} 
+                cumulativeTotals={cumulativeTotals}
+              />
+              <PnLChart data={chartData} timeFrame={timeFrame} />
+            </div>
 
-        {/* Bottom Row */}
-
-<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-  {tokenData.map((t) => (
-    <TokenTable
-      key={t.symbol}
-      tokenData={t}
-      timeFrame={timeFrame}
-    />
-  ))}
-</div>
-
-
+            {/* Bottom Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {tokenData.map((t) => (
+                <TokenTable key={t.symbol} tokenData={t} timeFrame={timeFrame} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
