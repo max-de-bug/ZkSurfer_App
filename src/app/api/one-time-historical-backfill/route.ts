@@ -74,6 +74,16 @@ interface DatabasePayload {
   win_rate: number;
 }
 
+interface PastPredictionsAPIResponse {
+  past_news_last_30_days?: Array<{ fetched_date: string }>;
+  forecast_hourly_last_30_days?: {
+    BTC?: HourlyForecast[];
+    ETH?: HourlyForecast[];
+    SOL?: HourlyForecast[];
+  };
+}
+
+
 export async function POST(request: NextRequest) {
   try {
     // Security check
@@ -200,21 +210,70 @@ export async function POST(request: NextRequest) {
 }
 
 // Fetch past predictions from your API
+// async function fetchPastPredictions(): Promise<DayData[]> {
+//   const response = await fetch(`${process.env.INTERNAL_API_URL}/api/past-prediction`, {
+//     headers: {
+//       'api-key': process.env.NEXT_PUBLIC_API_KEY!,
+//       'Content-Type': 'application/json'
+//     }
+//   });
+
+//   if (!response.ok) {
+//     throw new Error(`Failed to fetch past predictions: ${response.status}`);
+//   }
+
+//   const data: PastPredictionsResponse = await response.json();
+//   return data.past_news_last_30_days || [];
+// }
+// Types extended to reflect the real payload shape
+
+// Groups top-level {BTC,ETH,SOL} hourly arrays into day-wise buckets
 async function fetchPastPredictions(): Promise<DayData[]> {
-  const response = await fetch(`${process.env.INTERNAL_API_URL}/api/past-prediction`, {
+  const res = await fetch(`${process.env.INTERNAL_API_URL}/api/past-prediction`, {
     headers: {
-      'api-key': process.env.NEXT_PUBLIC_API_KEY!,
-      'Content-Type': 'application/json'
-    }
+      'api-key': process.env.NEXT_PUBLIC_API_KEY!, // you already proxy with this
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch past predictions: ${response.status}`);
-  }
+  if (!res.ok) throw new Error(`Failed to fetch past predictions: ${res.status}`);
 
-  const data: PastPredictionsResponse = await response.json();
-  return data.past_news_last_30_days || [];
+  const data = (await res.json()) as PastPredictionsAPIResponse;
+
+  const grouped: Record<string, { BTC: HourlyForecast[]; ETH: HourlyForecast[]; SOL: HourlyForecast[] }> = {};
+
+  const ensure = (date: string) => {
+    if (!grouped[date]) grouped[date] = { BTC: [], ETH: [], SOL: [] };
+    return grouped[date];
+  };
+
+  const pushAll = (sym: 'BTC' | 'ETH' | 'SOL', arr?: HourlyForecast[]) => {
+    (arr ?? []).forEach((f) => {
+      // Use UTC date from ISO string (YYYY-MM-DD)
+      // If you want IST grouping instead, convert to IST before slicing (see note below).
+      const d = (f.time || '').slice(0, 10);
+      if (!d) return;
+      ensure(d)[sym].push(f);
+    });
+  };
+
+  pushAll('BTC', data.forecast_hourly_last_30_days?.BTC);
+  pushAll('ETH', data.forecast_hourly_last_30_days?.ETH);
+  pushAll('SOL', data.forecast_hourly_last_30_days?.SOL);
+
+  // Build DayData[] the rest of your pipeline expects
+  const dayArray: DayData[] = Object.entries(grouped).map(([fetched_date, buckets]) => ({
+    fetched_date,
+    forecast_hourly_last_30_days: buckets,
+  }));
+
+  // Sort oldest → newest for correct balance continuation
+  dayArray.sort((a, b) => new Date(a.fetched_date).getTime() - new Date(b.fetched_date).getTime());
+
+  return dayArray;
 }
+
 
 // Calculate cumulative for a specific date
 async function calculateDailyCumulativeForDate(
