@@ -1,8 +1,6 @@
 {
   "crons": [
-    {
-      "path": "/api/hl/cron-order",
-      "schedule": "0 */2 * * *"
-    }
+    { "path": "/api/hl/cron-order",           "schedule": "0 */2 * * *" },
+    { "path": "/api/store-daily-cumulative",  "schedule": "30 12 * * *" }
   ]
 }
