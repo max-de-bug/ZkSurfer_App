@@ -67,7 +67,7 @@ const TradingPage: React.FC = () => {
             <div>
               <PredictionPanel />
             </div>
-            <div className="md:col-span-2 overflow-hidden">
+            <div className="md:col-span-2 h-full">
               <TradingChart />
             </div>
             <div>
@@ -76,7 +76,7 @@ const TradingPage: React.FC = () => {
           </div>
 
           {/* Row 2: stacks on mobile */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-5">
+          {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-5">
             <div>
               <Leaderboard />
             </div>
@@ -86,7 +86,7 @@ const TradingPage: React.FC = () => {
             <div>
               <YourPredictions />
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
