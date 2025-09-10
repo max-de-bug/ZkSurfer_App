@@ -1327,68 +1327,45 @@ async function fetchPrevDayStartBalances(): Promise<Record<'BTC'|'ETH'|'SOL', nu
 //   }
 // }
 
-// Get latest data for cumulative totals (robust)
-async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
-  const parseNum = (v: any) => (typeof v === 'number' ? v : (typeof v === 'string' ? +v : NaN));
-  const isValidRow = (row: any) => {
-    if (!row) return false;
-    const anyNum = [row.btc_cumulative, row.eth_cumulative, row.sol_cumulative, row.portfolio_cumulative_pnl]
-      .map(parseNum)
-      .some((n) => !Number.isNaN(n) && n !== null && n !== undefined);
-    return anyNum;
-  };
-  const getByDate = async (dateStr: string) => {
-    try {
-      const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(dateStr)}`, {
-        method: 'GET',
-        cache: 'no-store',
-        headers: { 'api-key': DB_API_KEY },
-      });
-      if (!r.ok) return null;
-      const row = await r.json();
-      return isValidRow(row) ? row : null;
-    } catch {
-      return null;
-    }
-  };
-
-  try {
-    // 1) Try yesterday
-    const y = istNow(); y.setDate(y.getDate() - 1);
-    const rowYesterday = await getByDate(istYYYYMMDD(y));
-    let row = rowYesterday;
-
-    // 2) Fallback to /all → pick the latest row
-    if (!row) {
-      const rAll = await fetch(DB_ALL_URL, {
-        method: 'GET',
-        cache: 'no-store',
-        headers: { 'api-key': DB_API_KEY },
-      });
-      if (rAll.ok) {
-        const json = await rAll.json();
-        const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || []);
-        if (Array.isArray(rows) && rows.length) {
-          const getTime = (r: RawRow) => new Date(r.date ?? r.timestamp ?? r.updated_at ?? 0).getTime();
-          rows.sort((a, b) => getTime(a) - getTime(b));
-          const last = rows[rows.length - 1];
-          if (isValidRow(last)) row = last;
-        }
-      }
-    }
-
-    if (!row) throw new Error('No cumulative data available');
-
-    return {
-      BTC: numberish(row.btc_cumulative) ?? 0,
-      ETH: numberish(row.eth_cumulative) ?? 0,
-      SOL: numberish(row.sol_cumulative) ?? 0,
-      portfolio: numberish(row.portfolio_cumulative_pnl) ?? 0,
-    };
-  } catch (e) {
-    console.error('fetchLatestCumulativeTotals error:', e);
-    return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 };
+// Find the latest non-empty ending balance for a given key across all rows
+function latestEndingBalance(rows: RawRow[], key: 'btc'|'eth'|'sol'): number {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const v = numberish(rows[i]?.[`${key}_ending_balance`]);
+    if (typeof v === 'number' && !Number.isNaN(v)) return v;
   }
+  return 100; // fallback if missing
+}
+
+// All-time = latest ending balance - 100, portfolio = sum
+async function fetchAllTimeTotalsFromAll(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+  const r = await fetch(DB_ALL_URL, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: { 'api-key': DB_API_KEY },
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const json = await r.json();
+  const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || []);
+
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.date ?? a.timestamp ?? 0).getTime() - new Date(b.date ?? b.timestamp ?? 0).getTime(),
+  );
+
+  const lastBTC = latestEndingBalance(sorted, 'btc');
+  const lastETH = latestEndingBalance(sorted, 'eth');
+  const lastSOL = latestEndingBalance(sorted, 'sol');
+
+  const BTC = lastBTC - 100;
+  const ETH = lastETH - 100;
+  const SOL = lastSOL - 100;
+
+  return { BTC, ETH, SOL, portfolio: BTC + ETH + SOL };
+}
+
+
+// Get latest data for cumulative totals — computed from /all ending balances
+async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+  return fetchAllTimeTotalsFromAll();
 }
 
 
