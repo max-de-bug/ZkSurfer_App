@@ -1363,6 +1363,133 @@ const TimeFrameToggle: React.FC<{ timeFrame: TimeFrame; onChange: (t: TimeFrame)
   </div>
 )
 
+// const CumulativePnLCard: React.FC<{ 
+//   timeFrame: TimeFrame; 
+//   tokenData?: TokenData[]; 
+//   value?: number;
+//   cumulativeTotals?: Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number };
+// }> = ({
+//   timeFrame,
+//   tokenData = [],
+//   value = 0,
+//   cumulativeTotals,
+// }) => {
+//   // FIXED: Always show all-time cumulative totals and current period's performance
+//   const periodTotal = tokenData.length ? tokenData.reduce((s, t) => s + (t?.cumulativePnL || 0), 0) : value
+//   const allTimeTotalPnL = cumulativeTotals?.portfolio ?? 0
+  
+//   // For display, use all-time total + current period changes for daily/monthly
+//   const displayTotal = timeFrame === 'all-time' ? allTimeTotalPnL : allTimeTotalPnL + periodTotal
+
+//   // Calculate percentage for current period
+//   const { aggPct } = useMemo(() => {
+//     if (timeFrame === 'daily') {
+//       // Daily: calculate percentage based on yesterday's vs current balances
+//       const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
+//       const endSum = tokenData.reduce((s, t) => {
+//         const last = t.trades?.[t.trades.length - 1]
+//         return s + (last ? last.endBalance : 100)
+//       }, 0)
+//       return { aggPct: tokenData.length && baseSum > 0 ? ((endSum - baseSum) / baseSum) * 100 : 0 }
+//     } else if (timeFrame === 'monthly') {
+//       // Monthly: percentage of the current month's gains
+//       const totalInvested = 300 // 3 tokens × $100 initial each
+//       return { aggPct: totalInvested > 0 ? (periodTotal / totalInvested) * 100 : 0 }
+//     } else {
+//       // All-time: percentage of total cumulative
+//       const totalInvested = 300 // 3 tokens × $100 initial each
+//       return { aggPct: totalInvested > 0 ? (allTimeTotalPnL / totalInvested) * 100 : 0 }
+//     }
+//   }, [tokenData, timeFrame, periodTotal, allTimeTotalPnL])
+
+//   const isPositive = displayTotal >= 0
+//   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n))
+//   const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+
+//   const spark = (t?: TokenData) =>
+//     t?.trades?.map((tr, i) => ({ x: i, y: timeFrame === 'daily' ? tr.cumulativeReturn : tr.cumulativeReturn })) ?? []
+
+//   return (
+//     <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700 h-full">
+//       <h3 className="text-sm font-medium text-gray-400">
+//         All-Time Cumulative PnL
+//         <span className="ml-2 text-xs text-blue-400">
+//           ({timeFrame} view)
+//         </span>
+//       </h3>
+      
+//       {/* FIXED: Show all-time total prominently */}
+//       <div className="flex items-end mt-3 space-x-3">
+//         {isPositive ? <TrendingUp className="w-6 h-6 text-green-500" /> : <TrendingDown className="w-6 h-6 text-red-500" />}
+//         <span className={`text-4xl font-extrabold tracking-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+//           {isPositive ? '+' : '-'}
+//           {fmtMoney(displayTotal)}
+//         </span>
+//         <span className={`text-lg font-semibold ${aggPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(aggPct)}</span>
+//       </div>
+
+//       {/* Show period-specific info if not all-time */}
+//       {timeFrame !== 'all-time' && (
+//         <div className="mt-2 text-sm text-gray-400">
+//           Period {timeFrame}: {periodTotal >= 0 ? '+' : ''}${Math.abs(periodTotal).toFixed(2)}
+//         </div>
+//       )}
+
+//       <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+//         {(['BTC', 'ETH', 'SOL'] as const).map((sym) => {
+//           const t = tokenData.find((x) => x.symbol.toUpperCase() === sym)
+//           const periodVal = t?.cumulativePnL ?? 0
+//           const allTimeVal = cumulativeTotals?.[sym] ?? 0
+          
+//           // FIXED: Always show all-time cumulative + current period
+//           const displayVal = timeFrame === 'all-time' ? allTimeVal : allTimeVal + periodVal
+//           const pct = timeFrame === 'daily' ? (t?.cumulativePercent ?? 0) : 
+//                      timeFrame === 'monthly' ? periodVal : 
+//                      (allTimeVal / 100) * 100 // All-time percentage relative to $100 start
+          
+//           const pos = displayVal >= 0
+//           const gid = `grad-${sym}-${timeFrame}`
+
+//           return (
+//             <div key={sym} className="rounded-xl border border-gray-700 bg-gray-900/40 p-4 flex flex-col justify-between min-h-[120px]">
+//               <div className="flex items-center justify-between">
+//                 <span className="text-xs uppercase tracking-widest text-gray-400">{sym}</span>
+//                 <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+//                   {timeFrame === 'daily' ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : 
+//                    timeFrame === 'monthly' ? `${periodVal >= 0 ? '+' : ''}${periodVal.toFixed(2)}` :
+//                    `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}
+//                 </span>
+//               </div>
+//               <div className={`mt-2 text-xl font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>
+//                 {pos ? '+' : ''}${Math.abs(displayVal).toFixed(2)}
+//               </div>
+//               <div className="text-xs text-gray-500">
+//                 {timeFrame !== 'all-time' && (
+//                   <>Period: ${Math.abs(periodVal).toFixed(2)}<br/></>
+//                 )}
+//                 All-time: ${allTimeVal.toFixed(2)}
+//               </div>
+//               <div className="mt-3 h-10">
+//                 <ResponsiveContainer width="100%" height="100%">
+//                   <AreaChart data={spark(t)} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+//                     <defs>
+//                       <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+//                         <stop offset="0%" stopColor={tokenColors[sym]} stopOpacity={0.6} />
+//                         <stop offset="100%" stopColor={tokenColors[sym]} stopOpacity={0.05} />
+//                       </linearGradient>
+//                     </defs>
+//                     <Area type="monotone" dataKey="y" stroke={tokenColors[sym]} strokeWidth={1.5} fill={`url(#${gid})`} />
+//                   </AreaChart>
+//                 </ResponsiveContainer>
+//               </div>
+//             </div>
+//           )
+//         })}
+//       </div>
+//     </div>
+//   )
+// }
+
 const CumulativePnLCard: React.FC<{ 
   timeFrame: TimeFrame; 
   tokenData?: TokenData[]; 
@@ -1374,101 +1501,61 @@ const CumulativePnLCard: React.FC<{
   value = 0,
   cumulativeTotals,
 }) => {
-  // FIXED: Always show all-time cumulative totals and current period's performance
-  const periodTotal = tokenData.length ? tokenData.reduce((s, t) => s + (t?.cumulativePnL || 0), 0) : value
-  const allTimeTotalPnL = cumulativeTotals?.portfolio ?? 0
-  
-  // For display, use all-time total + current period changes for daily/monthly
-  const displayTotal = timeFrame === 'all-time' ? allTimeTotalPnL : allTimeTotalPnL + periodTotal
+  // Always show all-time totals on the card
+  const allTimeTotalPnL = cumulativeTotals?.portfolio ?? 0;
+  const totalInvested = 300; // $100 each for BTC/ETH/SOL
 
-  // Calculate percentage for current period
-  const { aggPct } = useMemo(() => {
-    if (timeFrame === 'daily') {
-      // Daily: calculate percentage based on yesterday's vs current balances
-      const baseSum = tokenData.reduce((s, t) => s + (t.trades?.[0]?.startBalance ?? 100), 0)
-      const endSum = tokenData.reduce((s, t) => {
-        const last = t.trades?.[t.trades.length - 1]
-        return s + (last ? last.endBalance : 100)
-      }, 0)
-      return { aggPct: tokenData.length && baseSum > 0 ? ((endSum - baseSum) / baseSum) * 100 : 0 }
-    } else if (timeFrame === 'monthly') {
-      // Monthly: percentage of the current month's gains
-      const totalInvested = 300 // 3 tokens × $100 initial each
-      return { aggPct: totalInvested > 0 ? (periodTotal / totalInvested) * 100 : 0 }
-    } else {
-      // All-time: percentage of total cumulative
-      const totalInvested = 300 // 3 tokens × $100 initial each
-      return { aggPct: totalInvested > 0 ? (allTimeTotalPnL / totalInvested) * 100 : 0 }
-    }
-  }, [tokenData, timeFrame, periodTotal, allTimeTotalPnL])
-
-  const isPositive = displayTotal >= 0
-  const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n))
-  const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+  const aggPct = totalInvested > 0 ? (allTimeTotalPnL / totalInvested) * 100 : 0;
+  const isPositive = allTimeTotalPnL >= 0;
+  const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n));
+  const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 
   const spark = (t?: TokenData) =>
-    t?.trades?.map((tr, i) => ({ x: i, y: timeFrame === 'daily' ? tr.cumulativeReturn : tr.cumulativeReturn })) ?? []
+    t?.trades?.map((tr, i) => ({ x: i, y: tr.cumulativeReturn })) ?? [];
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700 h-full">
       <h3 className="text-sm font-medium text-gray-400">
         All-Time Cumulative PnL
-        <span className="ml-2 text-xs text-blue-400">
-          ({timeFrame} view)
-        </span>
+        {/* <span className="ml-2 text-xs text-blue-400">({timeFrame} view)</span> */}
       </h3>
-      
-      {/* FIXED: Show all-time total prominently */}
+
       <div className="flex items-end mt-3 space-x-3">
         {isPositive ? <TrendingUp className="w-6 h-6 text-green-500" /> : <TrendingDown className="w-6 h-6 text-red-500" />}
         <span className={`text-4xl font-extrabold tracking-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-          {isPositive ? '+' : '-'}
-          {fmtMoney(displayTotal)}
+          {isPositive ? '+' : '-'}{fmtMoney(allTimeTotalPnL)}
         </span>
-        <span className={`text-lg font-semibold ${aggPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(aggPct)}</span>
+        <span className={`text-lg font-semibold ${aggPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {fmtPct(aggPct)}
+        </span>
       </div>
 
-      {/* Show period-specific info if not all-time */}
-      {timeFrame !== 'all-time' && (
-        <div className="mt-2 text-sm text-gray-400">
-          Period {timeFrame}: {periodTotal >= 0 ? '+' : ''}${Math.abs(periodTotal).toFixed(2)}
-        </div>
-      )}
-
+      {/* Per-token all-time blocks */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
         {(['BTC', 'ETH', 'SOL'] as const).map((sym) => {
-          const t = tokenData.find((x) => x.symbol.toUpperCase() === sym)
-          const periodVal = t?.cumulativePnL ?? 0
-          const allTimeVal = cumulativeTotals?.[sym] ?? 0
-          
-          // FIXED: Always show all-time cumulative + current period
-          const displayVal = timeFrame === 'all-time' ? allTimeVal : allTimeVal + periodVal
-          const pct = timeFrame === 'daily' ? (t?.cumulativePercent ?? 0) : 
-                     timeFrame === 'monthly' ? periodVal : 
-                     (allTimeVal / 100) * 100 // All-time percentage relative to $100 start
-          
-          const pos = displayVal >= 0
-          const gid = `grad-${sym}-${timeFrame}`
+          const t = tokenData.find((x) => x.symbol.toUpperCase() === sym);
+          const allTimeVal = cumulativeTotals?.[sym] ?? 0;        // $ PnL all-time
+          const pct = (allTimeVal / 100) * 100;                   // % vs $100 start
+          const pos = allTimeVal >= 0;
+          const gid = `grad-${sym}-${timeFrame}`;
 
           return (
             <div key={sym} className="rounded-xl border border-gray-700 bg-gray-900/40 p-4 flex flex-col justify-between min-h-[120px]">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-gray-400">{sym}</span>
                 <span className={`text-sm font-semibold ${pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {timeFrame === 'daily' ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : 
-                   timeFrame === 'monthly' ? `${periodVal >= 0 ? '+' : ''}${periodVal.toFixed(2)}` :
-                   `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}
+                  {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
                 </span>
               </div>
+
               <div className={`mt-2 text-xl font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>
-                {pos ? '+' : ''}${Math.abs(displayVal).toFixed(2)}
+                {pos ? '+' : ''}${Math.abs(allTimeVal).toFixed(2)}
               </div>
+
               <div className="text-xs text-gray-500">
-                {timeFrame !== 'all-time' && (
-                  <>Period: ${Math.abs(periodVal).toFixed(2)}<br/></>
-                )}
                 All-time: ${allTimeVal.toFixed(2)}
               </div>
+
               <div className="mt-3 h-10">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={spark(t)} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
@@ -1483,12 +1570,13 @@ const CumulativePnLCard: React.FC<{
                 </ResponsiveContainer>
               </div>
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
-}
+  );
+};
+
 
 const PnLChart: React.FC<{ data: PnLData[]; timeFrame: TimeFrame }> = ({ data, timeFrame }) => {
   const fmtX = (ts: string) => {
