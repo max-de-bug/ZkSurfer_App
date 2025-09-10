@@ -1302,30 +1302,95 @@ async function fetchPrevDayStartBalances(): Promise<Record<'BTC'|'ETH'|'SOL', nu
 }
 
 // Get latest data for cumulative totals
-async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
-  const yesterday = istNow()
-  yesterday.setDate(yesterday.getDate() - 1)
-  const date = istYYYYMMDD(yesterday)
+// async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+//   const yesterday = istNow()
+//   yesterday.setDate(yesterday.getDate() - 1)
+//   const date = istYYYYMMDD(yesterday)
   
+//   try {
+//     const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const row = await r.json() as RawRow
+//     return {
+//       BTC: numberish(row.btc_cumulative) ?? 0,
+//       ETH: numberish(row.eth_cumulative) ?? 0,
+//       SOL: numberish(row.sol_cumulative) ?? 0,
+//       portfolio: numberish(row.portfolio_cumulative_pnl) ?? 0,
+//     }
+//   } catch (e) {
+//     console.error('fetchLatestCumulativeTotals error:', e)
+//     return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 }
+//   }
+// }
+
+// Get latest data for cumulative totals (robust)
+async function fetchLatestCumulativeTotals(): Promise<Record<'BTC'|'ETH'|'SOL', number> & { portfolio: number }> {
+  const parseNum = (v: any) => (typeof v === 'number' ? v : (typeof v === 'string' ? +v : NaN));
+  const isValidRow = (row: any) => {
+    if (!row) return false;
+    const anyNum = [row.btc_cumulative, row.eth_cumulative, row.sol_cumulative, row.portfolio_cumulative_pnl]
+      .map(parseNum)
+      .some((n) => !Number.isNaN(n) && n !== null && n !== undefined);
+    return anyNum;
+  };
+  const getByDate = async (dateStr: string) => {
+    try {
+      const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(dateStr)}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'api-key': DB_API_KEY },
+      });
+      if (!r.ok) return null;
+      const row = await r.json();
+      return isValidRow(row) ? row : null;
+    } catch {
+      return null;
+    }
+  };
+
   try {
-    const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: { 'api-key': DB_API_KEY },
-    })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const row = await r.json() as RawRow
+    // 1) Try yesterday
+    const y = istNow(); y.setDate(y.getDate() - 1);
+    const rowYesterday = await getByDate(istYYYYMMDD(y));
+    let row = rowYesterday;
+
+    // 2) Fallback to /all → pick the latest row
+    if (!row) {
+      const rAll = await fetch(DB_ALL_URL, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'api-key': DB_API_KEY },
+      });
+      if (rAll.ok) {
+        const json = await rAll.json();
+        const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || []);
+        if (Array.isArray(rows) && rows.length) {
+          const getTime = (r: RawRow) => new Date(r.date ?? r.timestamp ?? r.updated_at ?? 0).getTime();
+          rows.sort((a, b) => getTime(a) - getTime(b));
+          const last = rows[rows.length - 1];
+          if (isValidRow(last)) row = last;
+        }
+      }
+    }
+
+    if (!row) throw new Error('No cumulative data available');
+
     return {
       BTC: numberish(row.btc_cumulative) ?? 0,
       ETH: numberish(row.eth_cumulative) ?? 0,
       SOL: numberish(row.sol_cumulative) ?? 0,
       portfolio: numberish(row.portfolio_cumulative_pnl) ?? 0,
-    }
+    };
   } catch (e) {
-    console.error('fetchLatestCumulativeTotals error:', e)
-    return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 }
+    console.error('fetchLatestCumulativeTotals error:', e);
+    return { BTC: 0, ETH: 0, SOL: 0, portfolio: 0 };
   }
 }
+
 
 // SWR fetcher for prediction API
 const swrFetcher = (url: string) =>
