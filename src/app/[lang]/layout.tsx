@@ -9,6 +9,7 @@ import { getDictionary } from "../i18n/dictionaries";
 import { locales, Locale } from "../i18n/settings";
 import MultiWalletProvider from '../../component/MulttiWalletProvider';
 import AarcProvider from '../../component/ui/AarcProvider';
+import { PrivyProvider } from '@privy-io/react-auth';
 
 const inter = Inter({ subsets: ["latin"] });
 
