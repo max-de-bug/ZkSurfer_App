@@ -10883,6 +10883,13 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
 
 
+                                <footer className="w-full py-6 flex justify-center px-2 sticky bg-[#08121F]  z-40
+             md:bottom-0 bottom-[calc(env(safe-area-inset-bottom)+3.5rem)]">
+                                    <div className="bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full">
+                                        <form onSubmit={handleSubmit} className="w-full flex flex-col bg-[#08121f] rounded-lg">
+
+
+
                 <footer className="w-full py-6 flex justify-center px-2 sticky top-0 bg-[#08121F]">
                   <div className="bg-gradient-to-tr from-[#000D33] via-[#9A9A9A] to-[#000D33] p-0.5 rounded-lg w-full">
                     <form
@@ -11496,6 +11503,7 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                         )}
 
+
                         {isMobile && (
 
                             <div className="flex bg-[#08121f] border-b border-gray-600">
@@ -11532,7 +11540,37 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
                         )}
 
-          </div>
+          </div>                              
+                       {isMobile && (
+  <div className="fixed bottom-0 left-0 right-0 h-14  /* 3.5rem = 56px */
+                      flex bg-[#08121f] border-t border-gray-600 z-40
+                      pb-[env(safe-area-inset-bottom)]">
+    <button
+      className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+        activeMobileTab === 'zkterminal'
+          ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+          : 'text-gray-400 hover:text-white'
+      }`}
+      onClick={() => setActiveMobileTab('zkterminal')}
+    >
+      ZkTerminal
+    </button>
+    <button
+      className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+        activeMobileTab === 'prediction'
+          ? 'bg-[#171D3D] text-white border-b-2 border-blue-400'
+          : 'text-gray-400 hover:text-white'
+      }`}
+      onClick={() => setActiveMobileTab('prediction')}
+    >
+      Prediction
+    </button>
+  </div>
+)}
+
+
+                    </div >
+
                     {/* ┌──────────────  “NEWS” SIDEBAR ───────────────┐ */}
 
                     {/* <div className="hidden lg:block w-64 max-h-[730px] overflow-y-auto p-2 border border-white rounded-lg">

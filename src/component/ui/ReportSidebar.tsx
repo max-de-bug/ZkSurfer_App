@@ -648,53 +648,65 @@ const payload: PlaceOrderBody = {
                 `}
             >
                 {/* Header */}
-                <header className="flex items-center justify-between p-6 border-b border-gray-700">
-                    <div className="flex items-center space-x-2">
-                        <div className="">
-                            <Image
-                                src="images/tiger.svg"
-                                alt="logo"
-                                width={40}
-                                height={40}
-                                className='p-2'
-                            />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold">ZkAGI Newsroom</h1>
-                            {isPastData(data) && (
-                                <p className="text-xs text-blue-400">Historical Data</p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                         <select
+              <header className="relative p-6 border-b border-gray-700 pt-[calc(1rem+env(safe-area-inset-top))]">
+  <div className="flex flex-wrap items-center gap-3">
+    {/* Brand (left) */}
+    <div className="flex items-center space-x-2 shrink-0">
+      <Image src="images/tiger.svg" alt="logo" width={40} height={40} className="p-2" />
+      <div>
+        <h1 className="text-lg font-bold">ZkAGI Newsroom</h1>
+        {isPastData(data) && <p className="text-xs text-blue-400">Historical Data</p>}
+      </div>
+    </div>
+
+    {/* Controls — to the LEFT of the title on desktop */}
+    <div className="w-full md:w-auto md:ml-6 flex items-center gap-2 shrink-0">
+      <select
         value={selectedAsset}
         onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'ETH' | 'SOL')}
-        className="bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
-    >
+        className="flex-1 md:flex-none bg-[#1a2332] text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+      >
         <option value="BTC">BTC</option>
         <option value="ETH">ETH</option>
         <option value="SOL">SOL</option>
-    </select>
- <Link
-      href="/predictions"
-      target="_blank"
-      className="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700
-                 text-white font-semibold shadow-sm focus:outline-none focus:ring-2
-                 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-[#0a1628]"
+      </select>
+
+      <Link
+        href="/predictions"
+        target="_blank"
+        className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+      >
+        Place Trade
+      </Link>
+    </div>
+
+    {/* Title + date — sits to the LEFT of the close on desktop & right-aligned */}
+    <div className="w-full md:w-auto md:ml-auto md:text-right">
+      <h2 className="text-lg font-bold">{getReportTitle()}</h2>
+      <p className="text-sm text-gray-400">{getCurrentDate()}</p>
+    </div>
+
+    {/* Close — rightmost on desktop */}
+    <button
+      onClick={onClose}
+      className="hidden md:inline-flex ml-2 text-gray-400 hover:text-white shrink-0"
+      aria-label="Close"
     >
-      Place Trade
-    </Link>
-                        
-                        <div className="text-right">
-                            <h2 className="text-lg font-bold">{getReportTitle()}</h2>
-                            <p className="text-sm text-gray-400">{getCurrentDate()}</p>
-                        </div>
-                        <button onClick={onClose} className="text-gray-400 hover:text-white">
-                            <IoMdClose size={24} />
-                        </button>
-                    </div>
-                </header>
+      <IoMdClose size={22} />
+    </button>
+
+    {/* Close — pinned top-right on mobile */}
+    <button
+      onClick={onClose}
+      className="md:hidden absolute top-3 right-3 pr-[env(safe-area-inset-right)] text-gray-400 hover:text-white"
+      aria-label="Close"
+    >
+      <IoMdClose size={24} />
+    </button>
+  </div>
+</header>
+
+
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6" data-pdf-content>
                     {/* Top Section: Prediction Accuracy and 4 Cards Side by Side */}
