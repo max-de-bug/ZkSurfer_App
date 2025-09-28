@@ -5607,15 +5607,15 @@ const HomeContent: FC<HomeContentProps> = ({ dictionary }) => {
 
             const formData = new FormData();
 
-      formData.append("ref_audio", audioFile.file); // Pass the audio file as binary.
-      formData.append("ref_text", ""); // Send empty value.
-      formData.append("gen_text", genText); // The text for the voice clone.
-      formData.append("model", "F5-TTS"); // Set model (or leave empty if desired).
-      formData.append("remove_silence", "false"); // Boolean value as string.
-      formData.append("cross_fade_duration", "0.15"); // Number as string.
-      formData.append("nfe_step", "32"); // Integer as string.
-      formData.append("speed", "1"); // Number as string.
-
+            formData.append('ref_audio', audioFile.file); // Pass the audio file as binary.
+            formData.append('ref_text', '');             // Send empty value.
+            formData.append('gen_text', genText);         // The text for the voice clone.
+            formData.append('model', 'F5-TTS_v1');           // Set model (or leave empty if desired).
+            formData.append('remove_silence', 'false');   // Boolean value as string.
+            formData.append('cross_fade_duration', '0.15'); // Number as string.
+            formData.append('nfe_step', '32');            // Integer as string.
+            formData.append('speed', '1');                // Number as string.
+            formData.append('seed', '1'); 
 
             try {
 
