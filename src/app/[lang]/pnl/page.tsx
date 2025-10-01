@@ -319,75 +319,198 @@ async function fetchPrevMonthEndBalances(): Promise<Record<'BTC'|'ETH'|'SOL', nu
   }
 }
 
-async function fetchMonthlyFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
-  const mm = istMonthMM()
-  const monthUrl = `${DB_MONTH_URL}?month=${encodeURIComponent(mm)}`
-  const nowI = istNow()
-  const start = new Date(nowI.getFullYear(), nowI.getMonth(), 1)
-  const end = new Date(nowI.getFullYear(), nowI.getMonth(), nowI.getDate())
+// --- add this helper near your other helpers ---
+function firstDayOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function lastDayOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+/**
+ * Fetch the starting balances for a given month, i.e., the
+ * ending balances of the month **before** `targetMonthDate`.
+ * Example: target = 2025-09-XX  => fetch 2025-08-31 row
+ */
+async function fetchMonthStartBalances(
+  targetMonthDate: Date
+): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
+  // prev month’s last calendar day
+  const prevMonthLastDay = new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), 0);
+  const date = istYYYYMMDD(prevMonthLastDay);
 
   try {
-    // Get previous month's ending balances first
-    const prevMonthBalances = await fetchPrevMonthEndBalances()
-    console.log('Previous month ending balances:', prevMonthBalances)
-
-    const r = await fetch(monthUrl, {
+    const r = await fetch(`${DB_GET_URL}?date=${encodeURIComponent(date)}`, {
       method: 'GET',
       cache: 'no-store',
       headers: { 'api-key': DB_API_KEY },
-    })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const json = await r.json()
-    const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
-    
-    if (!Array.isArray(rows) || rows.length === 0) {
-      // Fallback: filter /all to the current IST month
-      const allData = await fetchAllTimeFromDB()
-      const currentMonth = istMonthMM()
-      const filteredRows = allData.tokens.length > 0 ? 
-        (allData.tokens[0]?.trades || [])
-          .map((_, i) => {
-            const anyToken = allData.tokens[0]
-            const tradeData = anyToken?.trades[i]
-            if (!tradeData) return null
-            
-            // Parse the date from the trade to check if it's current month
-            const label = tradeData.date
-            const parsed = new Date(`${label} ${istNow().getFullYear()}`)
-            const m = String(parsed.getMonth() + 1).padStart(2, '0')
-            
-            if (m !== currentMonth) return null
-            
-            // Create synthetic row from trade data
-            const row: RawRow = {
-              date: parsed.toISOString(),
-              btc_ending_balance: allData.tokens.find(t => t.symbol === 'BTC')?.trades[i]?.endBalance,
-              eth_ending_balance: allData.tokens.find(t => t.symbol === 'ETH')?.trades[i]?.endBalance,
-              sol_ending_balance: allData.tokens.find(t => t.symbol === 'SOL')?.trades[i]?.endBalance,
-              total_trades: tradeData.trades,
-            }
-            return row
-          })
-          .filter(Boolean) as RawRow[]
-        : []
-        
-      if (filteredRows.length === 0) {
-        throw new Error('No monthly data available')
-      }
-      
-      const tokens = pivotPortfolioRecordsToTokens(filteredRows, prevMonthBalances)
-      const chart = aggregateChartFromTokens(tokens, start, end)
-      return { tokens, chart }
-    }
-    
-    const tokens = pivotPortfolioRecordsToTokens(rows, prevMonthBalances)
-    const chart = aggregateChartFromTokens(tokens, start, end)
-    return { tokens, chart }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const row = await r.json() as RawRow;
+    return {
+      BTC: numberish(row.btc_ending_balance) ?? 100,
+      ETH: numberish(row.eth_ending_balance) ?? 100,
+      SOL: numberish(row.sol_ending_balance) ?? 100,
+    };
   } catch (e) {
-    console.error('fetchMonthlyFromDB error:', e)
-    throw e
+    console.error('fetchMonthStartBalances error:', e);
+    return { BTC: 100, ETH: 100, SOL: 100 };
   }
 }
+
+
+// async function fetchMonthlyFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
+//   const mm = istMonthMM()
+//   const monthUrl = `${DB_MONTH_URL}?month=${encodeURIComponent(mm)}`
+//   const nowI = istNow()
+//   const start = new Date(nowI.getFullYear(), nowI.getMonth(), 1)
+//   const end = new Date(nowI.getFullYear(), nowI.getMonth(), nowI.getDate())
+
+//   try {
+//     // Get previous month's ending balances first
+//     const prevMonthBalances = await fetchPrevMonthEndBalances()
+//     console.log('Previous month ending balances:', prevMonthBalances)
+
+//     const r = await fetch(monthUrl, {
+//       method: 'GET',
+//       cache: 'no-store',
+//       headers: { 'api-key': DB_API_KEY },
+//     })
+//     if (!r.ok) throw new Error(`HTTP ${r.status}`)
+//     const json = await r.json()
+//     const rows: RawRow[] = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || [])
+    
+//     if (!Array.isArray(rows) || rows.length === 0) {
+//       // Fallback: filter /all to the current IST month
+//       const allData = await fetchAllTimeFromDB()
+//       const currentMonth = istMonthMM()
+//       const filteredRows = allData.tokens.length > 0 ? 
+//         (allData.tokens[0]?.trades || [])
+//           .map((_, i) => {
+//             const anyToken = allData.tokens[0]
+//             const tradeData = anyToken?.trades[i]
+//             if (!tradeData) return null
+            
+//             // Parse the date from the trade to check if it's current month
+//             const label = tradeData.date
+//             const parsed = new Date(`${label} ${istNow().getFullYear()}`)
+//             const m = String(parsed.getMonth() + 1).padStart(2, '0')
+            
+//             if (m !== currentMonth) return null
+            
+//             // Create synthetic row from trade data
+//             const row: RawRow = {
+//               date: parsed.toISOString(),
+//               btc_ending_balance: allData.tokens.find(t => t.symbol === 'BTC')?.trades[i]?.endBalance,
+//               eth_ending_balance: allData.tokens.find(t => t.symbol === 'ETH')?.trades[i]?.endBalance,
+//               sol_ending_balance: allData.tokens.find(t => t.symbol === 'SOL')?.trades[i]?.endBalance,
+//               total_trades: tradeData.trades,
+//             }
+//             return row
+//           })
+//           .filter(Boolean) as RawRow[]
+//         : []
+        
+//       if (filteredRows.length === 0) {
+//         throw new Error('No monthly data available')
+//       }
+      
+//       const tokens = pivotPortfolioRecordsToTokens(filteredRows, prevMonthBalances)
+//       const chart = aggregateChartFromTokens(tokens, start, end)
+//       return { tokens, chart }
+//     }
+    
+//     const tokens = pivotPortfolioRecordsToTokens(rows, prevMonthBalances)
+//     const chart = aggregateChartFromTokens(tokens, start, end)
+//     return { tokens, chart }
+//   } catch (e) {
+//     console.error('fetchMonthlyFromDB error:', e)
+//     throw e
+//   }
+// }
+
+// --- replace your fetchMonthlyFromDB with this version ---
+async function fetchMonthlyFromDB(): Promise<{ tokens: TokenData[]; chart: PnLData[] }> {
+  const nowI = istNow();
+
+  // Decide which month to show:
+  // - If today is the 1st, prefer previous month.
+  // - Otherwise start with current month, but we will fall back to previous if 404/empty.
+  const isFirstOfMonth = nowI.getDate() === 1;
+  const currentMonthDate = new Date(nowI.getFullYear(), nowI.getMonth(), 1);
+  const previousMonthDate = new Date(nowI.getFullYear(), nowI.getMonth() - 1, 1);
+
+  // Start by targeting the intended month (prev on 1st, else current)
+  let targetMonthDate = isFirstOfMonth ? previousMonthDate : currentMonthDate;
+
+  // Helper to build range + month param for a given target month
+  const buildMonthQuery = (d: Date) => {
+    const mm = String(d.getMonth() + 1).padStart(2, '0'); // "01".."12"
+    const monthUrl = `${DB_MONTH_URL}?month=${encodeURIComponent(mm)}`;
+
+    // Chart range:
+    // - For current month → from 1st to "today"
+    // - For any past month → 1st to last day of that month
+    const sameMonthAsNow = d.getFullYear() === nowI.getFullYear() && d.getMonth() === nowI.getMonth();
+    const start = firstDayOfMonth(d);
+    const end = sameMonthAsNow ? nowI : lastDayOfMonth(d);
+
+    return { monthUrl, start, end };
+  };
+
+  // Try fetching a specific month; on 404/empty and if we were targeting current month, retry with previous month once.
+  const loadForTargetMonth = async (d: Date) => {
+    const { monthUrl, start, end } = buildMonthQuery(d);
+
+    // Use the **month-start balances** (i.e., end of the month before `d`)
+    const monthStartBalances = await fetchMonthStartBalances(d);
+    console.log('Month start balances (prev month end):', d, monthStartBalances);
+
+    try {
+      const r = await fetch(monthUrl, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'api-key': DB_API_KEY },
+      });
+
+      let rows: RawRow[] = [];
+      if (r.ok) {
+        const json = await r.json();
+        rows = Array.isArray(json) ? json : (json?.records || json?.data || json?.items || []);
+      }
+
+      // If 404 or empty rows, return a special marker so caller can decide to fall back
+      if (!r.ok || !Array.isArray(rows) || rows.length === 0) {
+        return { ok: false as const, rows: [] as RawRow[], start, end, balances: monthStartBalances };
+      }
+
+      // Happy path
+      const tokens = pivotPortfolioRecordsToTokens(rows, monthStartBalances);
+      const chart = aggregateChartFromTokens(tokens, start, end);
+      return { ok: true as const, tokens, chart };
+    } catch (e) {
+      console.error('fetchMonthlyFromDB error:', e);
+      return { ok: false as const, rows: [] as RawRow[], start, end, balances: monthStartBalances };
+    }
+  };
+
+  // 1) Try intended month
+  let attempt = await loadForTargetMonth(targetMonthDate);
+
+  // 2) If failed/empty AND we started with current month, fall back to previous month once
+  const startedWithCurrent =
+    targetMonthDate.getFullYear() === currentMonthDate.getFullYear() &&
+    targetMonthDate.getMonth() === currentMonthDate.getMonth();
+
+  if (!attempt.ok && startedWithCurrent) {
+    targetMonthDate = previousMonthDate;
+    attempt = await loadForTargetMonth(targetMonthDate);
+  }
+
+  // 4) Success path
+  return attempt as { tokens: TokenData[]; chart: PnLData[] };
+}
+
 
 // Daily: fetch yesterday's ending balances (IST) for BTC/ETH/SOL
 async function fetchPrevDayStartBalances(): Promise<Record<'BTC'|'ETH'|'SOL', number>> {
