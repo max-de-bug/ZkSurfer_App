@@ -82,7 +82,7 @@
     "houseform": "^1.13.0",
     "html2canvas": "^1.4.1",
     "hyperliquid": "^1.7.6",
-    "jspdf": "^3.0.1",
+    "jspdf": "^4.0.0",
     "konva": "^9.3.20",
     "lightweight-charts": "^5.0.7",
     "lucide-react": "^0.453.0",
